@@ -6,7 +6,6 @@ const Bay = preload("res://scripts/county_bay.gd")
 const TERRAIN_X := Vector2i(-795, 1100)
 const TERRAIN_Z := Vector2i(-610, 1000)
 const YARD := Rect2(-65,-90,68,61)
-const STORAGE := Vector3(-44,0,-77)
 const ROADS := [
 	["Highway 64", -635, 0, 930, 0], ["County K", 0, -420, 0, 800],
 	["Kolpack Rd", 400, 0, 400, 800], ["County FF", 800, 0, 800, 800],
@@ -35,8 +34,7 @@ var spindrift_shader: ShaderMaterial
 var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
 var bay: Node3D
-var storage_guide: Node3D
-var storage_guide_on := false
+var drop_guide := Node3D.new()
 var bay_locked := false
 var hold_shown := false
 var tripod_taken := false
@@ -53,6 +51,12 @@ func _ready() -> void:
 	_weather()
 	_fixture_audio()
 	_build()
+	drop_guide.name = "ActiveDropLights"
+	add_child(drop_guide)
+	var guide = Sites.new(self,Batch.new(drop_guide,materials))
+	guide.drop_guide()
+	guide.draw.finish()
+	drop_guide.hide()
 
 func map_roads() -> Array:
 	var result := []
@@ -100,11 +104,6 @@ func set_bay_locked(value: bool) -> void:
 	bay_locked = value
 	if is_instance_valid(bay):
 		bay.set_locked(value)
-
-func set_storage_guide(value: bool) -> void:
-	storage_guide_on = value
-	if is_instance_valid(storage_guide):
-		storage_guide.visible = value
 
 func hold_tripod_point() -> Vector3:
 	return Vector3(318.5, ground_height(318.5,-413), -413)
@@ -396,14 +395,6 @@ func _build() -> void:
 	var places = Sites.new(self,draw)
 	places.build()
 	draw.finish()
-	storage_guide = Node3D.new()
-	storage_guide.name = "StorageDropLights"
-	storage_guide.position = STORAGE
-	county_model.add_child(storage_guide)
-	var guide = Sites.new(self,Batch.new(storage_guide,materials))
-	guide.storage_guide()
-	guide.draw.finish()
-	set_storage_guide(storage_guide_on)
 	bay = Bay.new()
 	county_model.add_child(bay)
 	bay.setup(materials,bay_locked)

@@ -8,6 +8,7 @@ const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
 const VehicleDrifts = preload("res://scripts/vehicle_drifts.gd")
 const Kit = preload("res://scripts/rig_mesh.gd")
+const YardDrop = preload("res://scripts/yard_drop.gd")
 const GAME_MILE := 400.0
 const CABLE_REACH := 37.0
 const WALK_EYES := 1.68
@@ -80,7 +81,8 @@ var departure_time:=0.0
 var departure_lane_start:=Vector3.ZERO
 var departure_lane_end:=Vector3.ZERO
 var walked:=0.0
-var storage_point:=Vector3.ZERO
+var dropoff: Dictionary:
+	get: return YardDrop.for_vehicle(kind)
 var ground_period:=0.0
 var ground_targets:=Vector3.ZERO
 var assist:=true
@@ -552,7 +554,19 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 	return not require_facing or offset.length()<1.5 or (-eyes.global_basis.z).dot(offset.normalized())>-.13
 
 func at_dropoff() -> bool:
-	return loaded and (_flat_distance(car.position,storage_point)<12.0 or _flat_distance(truck.position,storage_point)<12.0)
+	return loaded and is_instance_valid(car) and (YardDrop.contains(dropoff.center, car.position)
+		or YardDrop.contains(dropoff.center, truck.position))
+
+func wrecker_overlaps(area: Rect2) -> bool:
+	# Include the forks behind the rear bumper, even after stowing the lift.
+	var rear: float = Truck.HITCH.z + body.stinger.position.z + .32
+	var outline := PackedVector2Array()
+	for corner: Vector3 in [Vector3(-1.4,0,-4.2), Vector3(1.4,0,-4.2), Vector3(1.4,0,rear), Vector3(-1.4,0,rear)]:
+		var p := truck.to_global(corner)
+		outline.append(Vector2(p.x, p.z))
+	var floor_outline := PackedVector2Array([area.position, Vector2(area.end.x, area.position.y),
+		area.end, Vector2(area.position.x, area.end.y)])
+	return not Geometry2D.intersect_polygons(outline, floor_outline).is_empty()
 
 func is_stopped() -> bool:
 	return speed == 0.0
@@ -592,10 +606,12 @@ func _at_door() -> bool:
 func context_text() -> String:
 	if info_timer>0: return info
 	var action:=action_id()
+	if action == "haul":
+		return "Take the vehicle to %s" % dropoff.sign
 	if action=="winch":
 		if slip_cooldown>0: return "Cable slipped · let the drum settle"
 		return "Hold WINCH · release to ease tension" if OS.has_feature("mobile") else "Hold Space to winch · release to ease tension"
-	var prompts:={"enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle","haul":"Take vehicle to the marked yard bay","read_tape":"Read sheriff’s tape"}
+	var prompts:={"enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle","read_tape":"Read sheriff’s tape"}
 	return prompts.get(action,"")
 
 func _hint() -> String:
@@ -606,7 +622,7 @@ func _hint() -> String:
 		"rigged": return "Hold the winch at the wrecker’s left rear panel. The needle shows load. Ease off if it climbs into red."
 		"at_lift": return "Fit wheel dollies at the county pickup before lifting." if kind=="hold" else "Use the side panel to lift and strap the axle."
 		"dollies": return "At the side panel, raise the lift and secure the straps."
-		"loaded": return "Return to the yard and use the side panel by the hold bay." if kind=="hold" else "Return to the yard and use the side panel by the storage pad."
+		"loaded": return "Unload at %s using the wrecker’s left rear panel." % dropoff.sign
 		"departing","done": return "The recovery is complete. Return to the office with the tow slip."
 	return ""
 
@@ -614,10 +630,18 @@ func interact() -> void:
 	var a:=action_id()
 	match a:
 		"exit":
-			# Keep the heading the operator was looking at when crossing the threshold.
+			# A bay wall or a closed chain can be flush against the driver's door.
+			var aisle := truck.to_global(Vector3(0,.80,Truck.DOOR.z))
+			var step_out := -truck.global_basis.x * (absf(Truck.DOOR.x) + .27)
+			var clearance := step_out + step_out.normalized()*.20
+			if _obstructed(aisle,clearance):
+				if _obstructed(aisle,-clearance):
+					_note("Both doors are blocked. Move the wrecker into the open.",3)
+					return
+				step_out = -step_out
 			motion=Vector3.ZERO
 			speed=0
-			foot=body.to_global(Truck.DOOR+Vector3(-.27,0,0))
+			foot=aisle+step_out
 			foot.y=_ground(foot)
 			walked=0.0
 			if driving_view == "chase":

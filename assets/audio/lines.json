@@ -47,6 +47,14 @@
     "DISPATCH",
     "Brandt yard, west side of K, just north of Main. Bring the truck through the east gate."
   ],
+  "storage_dir": [
+    "DISPATCH",
+    "Brandt yard, west side of K. Bear right inside the gate to the amber lights at STORAGE."
+  ],
+  "evidence_dir": [
+    "DISPATCH",
+    "Brandt yard, west side of K. Bear left by the office. Back the pickup into the amber-lit EVIDENCE HOLD bay."
+  ],
   "clerk": [
     "DISPATCH",
     "Clerk says to take four tenths off that bridge ticket."

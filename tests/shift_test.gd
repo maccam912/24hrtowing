@@ -50,7 +50,7 @@ func run() -> void:
 		else:
 			press_key(KEY_R)
 		check(game.mode == "fieldwork","accepted radio call")
-		check(not game.county.storage_guide.visible, "the storage guide stays off until a vehicle is on the lift")
+		check(not game.county.drop_guide.visible, "the yard lights stay off until a vehicle is on the lift")
 		var job: Dictionary = game.job
 		var site: Vector3 = rig.car.position
 		if i == 0:
@@ -139,7 +139,7 @@ func run() -> void:
 			stand(panel+outside,panel)
 			game._action("interact")
 			check(rig.loaded and game.mode=="haul","lift and sign for tow")
-			check(game.county.storage_guide.visible == (i == 1), "only the first storage delivery lights the pad")
+			verify_guide(job.kind)
 		check(scene_flare.is_queued_for_deletion() and rig.flame == null and not rig.save_state().has("flare"), "finishing roadside work clears the flare before leaving")
 		if i < 2:
 			var legacy: Dictionary = rig.save_state()
@@ -156,20 +156,26 @@ func run() -> void:
 			for t in 240:
 				rig.set_controls(Vector2(.35,-1),Vector2.ZERO,false,false,DT)
 			verify_tow()
-			if i==1:
+			if i == 1 or job.kind == "hold":
 				resume_shift()
-				check(game.mode == "haul" and game.county.storage_guide.visible, "resuming a loaded first tow restores its landing guide")
+				verify_guide(job.kind)
 				verify_tow()
 			stop()
-			rig.set_spawn(rig.storage_point + Vector3(4,0,0),PI/2)
-			rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,DT)
-			if i == 1:
-				game._refresh()
-				check("panel" in hint_text(), "parking in the marked bay reveals where to operate the lift")
+			if job.kind == "hold":
+				approach_evidence_bay()
+			else:
+				park_tow(game.YardDrop.STORAGE.center + Vector3(4,0,0),PI/2)
+			game._refresh()
+			check("panel" in hint_text(), "parking in the marked bay reveals where to operate the lift")
 			game._action("interact")
 			panel = rig._panel()
-			stand(panel-rig.truck.global_basis.x,panel)
+			if job.kind == "hold":
+				walk_to(panel-rig.truck.global_basis.x)
+				face(panel)
+			else:
+				stand(panel-rig.truck.global_basis.x,panel)
 			game._action("interact")
+			check(not rig.loaded and not game.county.drop_guide.visible, "unhooking at the panel clears the landing guide")
 		else:
 			if i==0:
 				verify_departure()
@@ -181,13 +187,13 @@ func run() -> void:
 		if i < 2:
 			resume_shift()
 			check("fax" in hint_text(), "turn-in instructions remain available until the office receives the slip")
-			check(not game.county.storage_guide.visible, "the storage guide is off once the lift is lowered")
+			check(not game.county.drop_guide.visible, "an unloaded return has no yard marker")
 		if job.kind=="hold":
-			var latch: Vector3 = game.county.bay_latch_point()
-			stand(latch+Vector3(0,0,.7),latch)
-			game._action("interact")
-			check(game.bay_locked,"locked evidence chain")
-		stand(game.FAX+Vector3(0,0,-1.2),game.FAX)
+			await secure_evidence_bay()
+			walk_to(game.FAX+Vector3(1.5,0,-1.2))
+			face(game.FAX)
+		else:
+			stand(game.FAX+Vector3(0,0,-1.2),game.FAX)
 		game._refresh()
 		check(game.state.can_fax, "arriving at the actual fax on foot allows filing")
 		if i == 1:
@@ -230,6 +236,19 @@ func run() -> void:
 		stand(game.BAY+Vector3(0,0,-1.3),game.BAY)
 		game._action("interact")
 		check(game.book_read and game.desk.page == "field","optional field book inspection")
+		game.desk.dismiss()
+		game._save()
+		var against_wall: Dictionary = game.saved_data.duplicate(true)
+		against_wall.bay_locked = true
+		against_wall.rig.truck = [-58.1,0,-45]
+		against_wall.rig.heading = 0.0
+		against_wall.rig.cab = true
+		game._restore(against_wall)
+		await physics_frame
+		await physics_frame
+		game._action("interact")
+		check(not game.bay_locked and not rig.in_cab and rig.truck.to_local(rig.foot).x > 1.4, "a rig saved against the bay wall opens the chains and lets the operator exit on the yard side")
+		walk_to(Vector3(-55,0,-54))
 	check(game.faxes.size()==5 and "0.4" in str(game.faxes[3]) if game.faxes.size()>3 else false,"dispute archived")
 	if failures == 0:
 		print("CHECKS PASSED — drove County K, five complete recoveries, resume, custody and optional field book")
@@ -237,6 +256,99 @@ func run() -> void:
 
 func hint_text() -> String:
 	return ("%s %s" % [game.state.get("hint_title",""), game.state.get("hint_action","")]).to_lower()
+
+func verify_guide(kind: String) -> void:
+	var evidence := kind == "hold"
+	var sign_text := "EVIDENCE HOLD" if evidence else "STORAGE"
+	var destination: Vector3 = game.BAY if evidence else game.YardDrop.STORAGE.center
+	check(game.county.drop_guide.is_visible_in_tree() and game.county.drop_guide.global_position.is_equal_approx(destination), "lights mark the assigned bay on every tow")
+	check(sign_text.to_lower() in hint_text() and sign_text in str(game.state.progress), "HUD and slip name the assigned sign")
+	if rig.in_cab:
+		press_key(KEY_T)
+		check(sign_text in game.subtitle, "repeat radio directions name the same yard sign")
+
+func park_tow(at: Vector3, yaw: float) -> void:
+	rig.set_spawn(at,yaw)
+	rig.car.position = rig.truck.to_global(Vector3(0,0,8))
+	rig._track_underlift()
+
+func approach_evidence_bay() -> void:
+	park_tow(game.YardDrop.STORAGE.center, PI/2)
+	game._action("interact")
+	var panel: Vector3 = rig._panel()
+	stand(panel-rig.truck.global_basis.x,panel)
+	game._action("interact")
+	check(game.mode == "haul" and rig.loaded and "EVIDENCE HOLD" in game._prompt(), "the storage panel redirects the still-loaded survey pickup")
+	stand_at_cab_door(-1)
+	game._action("interact")
+	park_tow(Vector3(-25,0,-46), -PI/2)
+	for tick in 600:
+		if rig.truck.position.x <= -39.5:
+			break
+		rig.set_controls(Vector2(0,1),Vector2.ZERO,false,false,DT)
+	stop()
+	check(rig.at_dropoff() and game.YardDrop.contains(game.BAY,rig.car.position), "reversing through the open entrance puts the pickup between the evidence lights")
+
+func secure_evidence_bay() -> void:
+	var latch: Vector3 = game.county.bay_latch_point()
+	var yard_side := latch + Vector3(1.1,0,-1.1)
+	walk_to(yard_side)
+	face(latch)
+	game._action("interact")
+	check(not game.bay_locked and "wrecker" in hint_text(), "a wrecker tail across the chain prevents locking")
+	# An earlier build could save the lock closed around this truck.
+	game._save()
+	var trapped: Dictionary = game.saved_data.duplicate(true)
+	trapped.bay_locked = true
+	game._restore(trapped)
+	check(game.held and not game.bay_locked and not game.county.bay.locked, "continue opens the chain around a stranded rig and retains custody")
+	var door: Vector3 = rig.truck.to_global(rig.Truck.DOOR)
+	walk_to(door-rig.truck.global_basis.x*.65)
+	face(door+Vector3.UP)
+	game._action("interact")
+	check(rig.in_cab, "operator can return to the truck after unhooking")
+	for tick in 250:
+		if rig.truck.position.x > -28:
+			break
+		rig.set_controls(Vector2(0,-1),Vector2.ZERO,false,false,DT)
+	stop()
+	game._action("interact")
+	walk_to(latch+Vector3(2.2,0,1.3))
+	walk_to(latch+Vector3(-1.1,0,1.3))
+	face(latch)
+	game._action("interact")
+	check(not game.bay_locked and "outside" in game.subtitle, "the operator cannot close the chains from inside")
+	game._save()
+	trapped = game.saved_data.duplicate(true)
+	trapped.bay_locked = true
+	game._restore(trapped)
+	check(not game.bay_locked, "continue also frees an operator trapped on foot")
+	walk_to(latch+Vector3(-1.1,0,-1.1))
+	walk_to(yard_side)
+	face(latch)
+	game._action("interact")
+	check(game.bay_locked and game.county.bay.locked, "the yard-side latch secures the pickup after the wrecker is clear")
+	resume_shift()
+	await physics_frame
+	await physics_frame
+	check(game.bay_locked and not game.county.bay.stops[0].disabled and not game.county.bay.stops[1].disabled, "a safely locked bay stays closed after continuing")
+	walk_to(latch+Vector3(3,0,-1.1))
+	walk_to(latch+Vector3(3,0,4.5))
+
+func walk_to(point: Vector3) -> void:
+	for tick in 500:
+		var offset := Vector3(point.x-rig.foot.x,0,point.z-rig.foot.z)
+		if offset.length() < .16:
+			return
+		var local := offset.rotated(Vector3.UP,-rig.camera_yaw).normalized()
+		rig.set_controls(Vector2(local.x,local.z),Vector2.ZERO,false,false,DT)
+	check(false,"blocked walking from %s toward %s" % [rig.foot,point])
+
+func face(point: Vector3) -> void:
+	var direction: Vector3 = point-rig.foot
+	rig.camera_yaw = atan2(-direction.x,-direction.z)
+	rig.camera_pitch = -.20
+	rig._update_eyes()
 
 func resume_shift() -> void:
 	game._save()

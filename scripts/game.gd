@@ -6,12 +6,12 @@ const Desk := preload("res://scripts/desk.gd")
 const Audio := preload("res://scripts/radio_audio.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const Ledger := preload("res://scripts/ledger.gd")
+const YardDrop := preload("res://scripts/yard_drop.gd")
 
 const WORLD_RASTER_HEIGHT := 288
 const SPAWN := Vector3(-27,0,-64)
 const TITLE_CAMERA_OFFSET := Vector3(-10.5,2.65,-7.0)
-const STORAGE := County.STORAGE
-const BAY := Vector3(-48,0,-47)
+const BAY: Vector3 = YardDrop.EVIDENCE.center
 const FAX := Vector3(-40,0,-39)
 const PUMP := Vector3(-71,0,18)
 const PARKING := [Vector3(-56,0,-80),Vector3(-49,0,-80),Vector3(-35,0,-80),Vector3(-27,0,-80),Vector3(-19,0,-80)]
@@ -83,7 +83,6 @@ func _ready() -> void:
 	rig.setup(county)
 	rig.set_spawn(SPAWN,-PI/2)
 	_stage_title()
-	rig.storage_point = STORAGE
 	rig.recovered.connect(_recovered)
 	rig.dropped.connect(_dropped)
 	picture.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -316,7 +315,6 @@ func _accept() -> void:
 	if job.kind == "hold":
 		signed_card = false
 		packed_tripod = false
-	rig.storage_point = BAY if job.kind == "hold" else STORAGE
 	rig.start_job(job.kind,county.resolve_point(job.point),job.angle)
 	county.set_hold_scene(job.kind == "hold")
 	if job.kind == "hold":
@@ -328,7 +326,9 @@ func _accept() -> void:
 func _directions() -> void:
 	if mode == "available":
 		_message("DISPATCH","Standing by when you're ready to take the contract.")
-	elif mode in ["haul","return","invoice"]:
+	elif mode == "haul":
+		_say(rig.dropoff.radio)
+	elif mode in ["return","invoice"]:
 		_say("yard_dir")
 	else:
 		_say(job.route + "_dir")
@@ -385,6 +385,9 @@ func _site_action() -> String:
 			return "sign" if not signed_card else "deputy"
 	elif mode == "fieldwork" and job.get("kind") == "ditch" and not talked and _facing(rig.get_witness_position(),3.9):
 		return "driver"
+	# The panel and doors can sit within reach of the fax, chain or field book.
+	if rig.action_id() == "drop" or (held and _near(BAY,16.0) and rig.action_id() == "enter"):
+		return ""
 	if _facing(FAX,4.4):
 		return "fax"
 	if held and _facing(county.bay_latch_point(),2.7):
@@ -394,6 +397,18 @@ func _site_action() -> String:
 	if _facing(PUMP,6):
 		return "fuel"
 	return ""
+
+func _chain_obstruction() -> String:
+	var floor_area := County.Bay.FLOOR
+	if rig.wrecker_overlaps(floor_area):
+		return "Drive the wrecker clear of the chains before locking up."
+	if not rig.in_cab and floor_area.has_point(Vector2(rig.foot.x, rig.foot.z)):
+		return "Step outside the bay and lock the corner chain from the yard."
+	return ""
+
+func _chain_instruction() -> String:
+	var obstruction := _chain_obstruction()
+	return obstruction if not obstruction.is_empty() else "Lock the chain at the bay’s outside corner, then go to the office fax."
 
 func _interact() -> void:
 	match _site_action():
@@ -421,6 +436,11 @@ func _interact() -> void:
 			else:
 				desk.show_document("fax",state)
 		"lock","unlock":
+			if not bay_locked:
+				var obstruction := _chain_obstruction()
+				if not obstruction.is_empty():
+					_message("BRANDT",obstruction)
+					return
 			bay_locked = not bay_locked
 			county.set_bay_locked(bay_locked)
 			audio.effect("ratchet")
@@ -448,7 +468,7 @@ func _recovered(kind: String) -> void:
 		drop_time = pickup_time
 		_say(job.reply)
 	else:
-		_say("clear")
+		_say(rig.dropoff.radio)
 	_refresh()
 	_save()
 
@@ -547,15 +567,15 @@ func _procedure() -> String:
 			if job.kind == "hold" and (not signed_card or not packed_tripod):
 				return "Meet Deputy Kowalski, sign the custody card and collect the tripod."
 			return rig.get_status().get("hint","Drive to the scene. Ask dispatch for a landmark if needed.")
-		"haul": return "Deliver to the locked hold bay." if job.kind == "hold" else "Haul to the open storage pad in the Brandt yard."
+		"haul": return audio.lines[rig.dropoff.radio][1]
 		"return": return "The driver is clear. Return to the yard to file your slip."
 		"invoice":
 			if job.get("kind") == "hold" and not bay_locked:
-				return "Lock the chain at the hold bay entrance before filing the custody card."
+				return _chain_instruction()
 			return "Walk to the office fax at the yard door. File the tow slip."
 	return ""
 
-func _contract_hint(site: String, first_haul: bool) -> Dictionary:
+func _contract_hint(site: String) -> Dictionary:
 	var title := ""
 	var instruction := ""
 	match mode:
@@ -571,20 +591,19 @@ func _contract_hint(site: String, first_haul: bool) -> Dictionary:
 			else:
 				instruction = "Press R to take a contract on the cab radio."
 		"haul":
-			if first_haul:
-				title = "Deliver to storage"
-				instruction = "At Brandt’s yard, pull into the amber-lit TOW DROP lane."
-				if rig.at_dropoff():
-					title = "In the drop zone"
-					if rig.in_cab:
-						instruction = "Stop and get out. Walk to the wrecker’s left rear panel."
-					else:
-						var control := "Tap USE" if desk.is_touch_mode() else "Press E"
-						instruction = "%s at the left rear panel to lower the car." % control
+			title = "Deliver to %s" % rig.dropoff.sign
+			instruction = rig.dropoff.approach
+			if rig.at_dropoff():
+				title = "At %s" % rig.dropoff.sign
+				if rig.in_cab:
+					instruction = "Stop and get out. Walk to the wrecker’s left rear panel."
+				else:
+					var control := "Tap USE" if desk.is_touch_mode() else "Press E"
+					instruction = "%s at the left rear panel to unhook the vehicle." % control
 		"return","invoice":
 			title = "Slip %d awaiting fax" % int(job.number)
 			if job.kind == "hold" and not bay_locked:
-				instruction = "Lock the chain at the hold bay, then go to the office fax."
+				instruction = _chain_instruction()
 			elif site == "fax":
 				instruction = "Tap USE to file the slip." if desk.is_touch_mode() else "Press E to file the slip."
 			elif mode == "return":
@@ -596,6 +615,10 @@ func _contract_hint(site: String, first_haul: bool) -> Dictionary:
 	return {"hint_title":title, "hint_action":instruction}
 
 func _prompt(site: String = _site_action()) -> String:
+	if site == "lock":
+		var obstruction := _chain_obstruction()
+		if not obstruction.is_empty():
+			return obstruction
 	var words := {"lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the light","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Fill the diesel tank","fax":"File tow slip at fax" if _can_file_here() else "Read the county fax"}
 	if words.has(site):
 		return words[site]
@@ -614,9 +637,9 @@ func _refresh() -> void:
 			ticket.loaded = 0.0 if job.kind == "ditch" else snappedf(maxf(0,drop_odo-pickup_odo),0.1)
 	var bearing := posmod(roundi(float(s.heading)/45.0),8)
 	var card := filed_card if held else (_custody_record() if signed_card else "")
-	var first_haul: bool = mode == "haul" and job.get("kind") == "hazard" and not slips.any(
-		func(slip: Dictionary) -> bool: return slip.get("kind") == "hazard")
-	county.set_storage_guide(first_haul)
+	county.drop_guide.visible = mode == "haul" and rig.loaded
+	if county.drop_guide.visible:
+		county.drop_guide.position = rig.dropoff.center
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
@@ -630,7 +653,7 @@ func _refresh() -> void:
 		"can_order":not s.in_cab and _near(FAX,4.4),"chains":rig.tire_chains,"wear":s.wear,
 		"progress":_procedure(),"paid":paid,"pending":pending,"phase":s.phase,"work_available":rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
-	state.merge(_contract_hint(site,first_haul))
+	state.merge(_contract_hint(site))
 	desk.update_view(state)
 
 func _save() -> void:
@@ -662,7 +685,6 @@ func _restore(s: Dictionary) -> void:
 	stored = s.stored
 	held = s.held
 	bay_locked = s.get("bay_locked",held)
-	county.set_bay_locked(bay_locked)
 	book_read = s.book_read
 	signed_card = s.signed
 	packed_tripod = s.tripod
@@ -684,11 +706,14 @@ func _restore(s: Dictionary) -> void:
 	county.set_lengthened(s.longer)
 	if mode != "available":
 		job = Dispatch.ticket(completed,audio.lines)
-		rig.storage_point = BAY if job.kind == "hold" else STORAGE
 		county.set_hold_scene(job.kind=="hold" and mode=="fieldwork")
 		county.set_tripod_collected(packed_tripod)
 	else:
 		job = {}
 		county.set_hold_scene(false)
 	rig.restore_state(s.rig)
+	# Older saves could close the chain around the operator or a parked rig.
+	if bay_locked and not _chain_obstruction().is_empty():
+		bay_locked = false
+	county.set_bay_locked(bay_locked)
 	_display_storage()

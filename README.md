@@ -10,7 +10,9 @@ Start the engine. Arlene has a contract waiting on the cab radio. Tap **RADIO**,
 
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
 
-Ditch customers walk back to their cars and drive away after the pull. For a hazard tow, bring the axle up to the underlift, strap it, and haul to the storage pad. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room. On your first haul, amber lights mark the **TOW DROP** lane in the yard. Stop there and use the wrecker’s left rear panel to lower the car.
+Ditch customers walk back to their cars and drive away after the pull. For a hazard tow, bring the axle up to the underlift and strap it. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room.
+
+Amber lights mark your drop on every haul. Inside the yard gate, ordinary tows go right to **STORAGE**. For the surveyor’s pickup, bear left toward the office and back the pickup into **EVIDENCE HOLD**. Stop and unhook at the wrecker’s left rear panel. Pull the wrecker clear, then lock the corner chain from the yard side.
 
 To turn in either job, walk to the fax under the **OFFICE / FAX** sign and tap **USE** or press **E**. The receipt shows the slip number and filing status. Stow it and get back in the cab to take the next contract on the radio.
 

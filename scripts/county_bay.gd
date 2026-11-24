@@ -4,6 +4,9 @@ extends Node3D
 const Batch = preload("res://scripts/county_mesh.gd")
 const LATCH := Vector3(-42.35,1.2,-50.85)
 const MOUNTS := [Vector3(-59.4,1.28,-50.85),Vector3(-42.35,1.28,-38.8)]
+# Include a little room around the chains for the operator and the crossbar.
+const FLOOR := Rect2(MOUNTS[0].x - .3, LATCH.z - .3,
+	LATCH.x - MOUNTS[0].x + .6, MOUNTS[1].z - LATCH.z + .6)
 var chains: Array[Node3D] = []
 var stops: Array[CollisionShape3D] = []
 var lock: Node3D

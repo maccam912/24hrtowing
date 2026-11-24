@@ -1,6 +1,7 @@
 extends RefCounted
 ## County architecture is built in site-local coordinates, then baked in culling cells.
 const SignMount = preload("res://scripts/sign_mount.gd")
+const YardDrop = preload("res://scripts/yard_drop.gd")
 var world
 var draw
 var origin := Vector3.ZERO
@@ -204,7 +205,8 @@ func yard() -> void:
 			b(xx,2.47,zz,.23,4.94,.23,"oxide",true)
 	b(-50.8,4.7,-50.9,17.55,.52,.24,"oxide")
 	b(-50.6,4.44,-46.8,7.0,.13,.32,"fluoro")
-	placard(Vector3(-50.7,4.60,-51.05),"EVIDENCE  •  HOLD",7.4,.67,PI,"black")
+	placard(Vector3(-50.7,4.64,-51.5),YardDrop.EVIDENCE.sign,13.5,1.65,PI,"black")
+	placard(Vector3(-41.75,4.64,-44.8),YardDrop.EVIDENCE.sign,12.4,1.65,PI*.5,"black")
 	placard(Vector3(-57.2,1.45,-84.9),"STORAGE",4.2,.67,0,"dark")
 	# Office window and weatherproof fax desk face the yard. The fax interaction
 	# stands in open ground at (-40,-39), with no wall between player and machine.
@@ -254,11 +256,7 @@ func yard() -> void:
 		cyl(-30,.22+j*.31,-36.6,.89,.29,"black")
 
 func storage_pad() -> void:
-	site(world.STORAGE.x, world.STORAGE.z)
-	# Leave both ends open so a loaded wrecker can pull straight through.
-	for z: float in [-3.3, 3.3]:
-		for x: float in [-7.2, -3.6, 0.0, 3.6, 7.2]:
-			b(x, .035, z, 2.85, .04, .30, "safety_yellow")
+	site(YardDrop.STORAGE.center.x, YardDrop.STORAGE.center.z)
 	var sign_at := Vector3(0, 3.55, -5.4)
 	var yaw := 1.08 # Face the open gate on County K.
 	var basis := Basis(Vector3.UP, yaw)
@@ -267,17 +265,18 @@ func storage_pad() -> void:
 		var leg := sign_at + basis.x * side * 2.7
 		b(leg.x, 1.65, leg.z, .14, 3.3, .14, "post")
 	draw.box(origin + sign_at, Vector3(8.6, 2.0, .17), "black", false, rotation)
-	draw.box(origin + sign_at + basis.z * .097, Vector3(8.38, 1.78, .04), "safety_yellow", false, rotation)
-	var lettering := label(sign_at + basis.z * .126, "TOW DROP", 1.80, yaw, Color("#1e2428"))
+	var lettering := label(sign_at + basis.z * .096, YardDrop.STORAGE.sign, 1.80, yaw, Color("#ece9d5"))
 	var bold := FontVariation.new()
 	bold.base_font = world.county_font
 	bold.variation_opentype = {"weight": 740}
 	lettering.font = bold
 
-func storage_guide() -> void:
-	# This batch is local to the pad. The guide lights stay clear of the tire paths.
-	for z: float in [-3.65, 3.65]:
-		for x: float in [-9.0, 9.0]:
+func drop_guide() -> void:
+	# Light the assigned bay and leave both ends open for the wrecker.
+	for z: float in [-YardDrop.HALF_SIZE.y, YardDrop.HALF_SIZE.y]:
+		for x: float in [-7.2, -3.6, 0.0, 3.6, 7.2]:
+			b(x, .035, z, 2.85, .04, .30, "safety_yellow")
+		for x: float in [-YardDrop.HALF_SIZE.x, YardDrop.HALF_SIZE.x]:
 			b(x, .075, z, .74, .15, .74, "black")
 			cyl(x, .81, z, .29, 1.52, "safety_yellow")
 			for h: float in [.54, 1.06]:
