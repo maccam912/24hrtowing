@@ -241,19 +241,7 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 		c.button("next_fax",Rect2(Vector2(x+key_size.x+8,footer_top),key_size),"›")
 		caption_x += 2*key_size.x+22
 		caption = "FILED FAX  %d / %d" % [number+1,archive.size()]
-	if receipt:
-		var footer := Rect2(caption_x,footer_top,p.end.x-33-caption_x,key_size.y)
-		c.draw_rect(footer,Color("#d5d8c5"))
-		c.draw_rect(Rect2(footer.position,Vector2(3,footer.size.y)),GREEN)
-		var stow := "TAP STOW" if touch else "ESC TO STOW"
-		c.text(footer.position+Vector2(13,15),stow+"   /   "+caption,c.MONO,12,GREEN)
-		var instruction := str(s.get("hint_action",""))
-		if touch:
-			c.multiline(footer.position+Vector2(13,42),instruction,c.subtle,20,PAPER_INK,footer.size.x-22,2)
-		else:
-			c.fitted(footer.grow_individual(-13,-15,-8,0),instruction,c.subtle,18,PAPER_INK,HORIZONTAL_ALIGNMENT_LEFT)
-	else:
-		c.text(Vector2(caption_x,p.end.y-28),caption,c.MONO,14,FADED)
+	c.text(Vector2(caption_x,p.end.y-28),caption,c.MONO,14,FADED)
 
 func _custody(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d8ccab"))

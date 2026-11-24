@@ -217,7 +217,7 @@ func _physics_process(dt: float) -> void:
 			_survey()
 	mouse_motion = Vector2.ZERO
 	county.follow_camera(world_view.get_camera_3d().global_position)
-	if active and not desk.is_title() and desk.page != "pause":
+	if active and not desk.is_title() and desk.page not in ["pause", "guidance"]:
 		sub_time = maxf(0.0,sub_time-dt)
 	ui_timer += dt
 	# A pedal touch between HUD updates must see the latest physics step.
@@ -259,6 +259,9 @@ func _input(event: InputEvent) -> void:
 
 func _action(id: String) -> void:
 	match id:
+		"guidance":
+			desk.road_note = _road_note()
+			desk.show_document("guidance",state)
 		"play":
 			rig.get_camera().make_current()
 			title_light.visible = false
@@ -714,7 +717,7 @@ func _recovered(kind: String) -> void:
 		else:
 			_say(job.reply)
 	else:
-		_say(rig.dropoff.radio)
+		_speak("DISPATCH","Copy, Brandt. Bring this one to %s." % rig.dropoff.sign)
 	_refresh()
 	_save()
 
@@ -1006,6 +1009,7 @@ func _refresh() -> void:
 		county.drop_guide.position = rig.dropoff.center
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
+		"feedback":rig.info if rig.info_timer > 0 else "",
 		"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and site.is_empty(),
@@ -1028,7 +1032,6 @@ func _refresh() -> void:
 		"progress":_procedure(),"phase":s.phase,"work_available":rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
-	state["road_note"] = _road_note()
 	state["heading_degrees"] = s.heading
 	desk.update_view(state)
 

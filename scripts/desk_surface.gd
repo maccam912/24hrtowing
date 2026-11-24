@@ -145,7 +145,7 @@ func _draw() -> void:
 	match desk.page:
 		"title":
 			_title()
-		"pause", "help", "options":
+		"pause", "guidance", "help", "options":
 			_menu()
 		"":
 			_hud()
@@ -227,7 +227,7 @@ func _menu() -> void:
 	var x := p.position.x+28
 	var y := p.position.y+28
 	text(Vector2(x,y), "BRANDT TOWING & RECOVERY   /   ESKER, WIS.", MONO, 12, BLUE)
-	var heading: String = {"pause":"Truck log","options":"Cab settings","help":"Operator guide"}[desk.page]
+	var heading: String = {"pause":"Truck log","guidance":"Directions & next action","options":"Cab settings","help":"Operator guide"}[desk.page]
 	text(Vector2(x,y+47),heading,scaled,40,INK)
 	rule(x,y+62,width-56,OXBLOOD,2.5)
 	rule(x,y+67,width-56,OXBLOOD)
@@ -236,9 +236,14 @@ func _menu() -> void:
 			var row := 88 if touch else 68
 			var button_height := 78 if touch else 52
 			button("close", Rect2(x,y+91,width-56,button_height),"Return to work",true)
-			button("help", Rect2(x,y+91+row,width-56,button_height),"Operator guide")
-			button("options", Rect2(x,y+91+row*2,width-56,button_height),"Cab settings")
-			button("title", Rect2(x,y+109+row*3,width-56,button_height),"Title screen")
+			button("guidance", Rect2(x,y+91+row,width-56,button_height),"Directions & next action")
+			button("help", Rect2(x,y+91+row*2,width-56,button_height),"Operator guide")
+			var half := (width-56-12)*0.5
+			button("options", Rect2(x,y+109+row*3,half,button_height),"Cab settings")
+			button("title", Rect2(x+half+12,y+109+row*3,half,button_height),"Title screen")
+		"guidance":
+			_guidance(Vector2(x,y+98),width-56)
+			button("close",Rect2(x,p.end.y-(100 if touch else 68),148,78 if touch else 44),"Back")
 		"options":
 			text(Vector2(x,y+112), "FRAME RATE", MONO, 14, BLUE)
 			var current: int = int(drawn.get("frame_rate",desk.fps))
@@ -306,34 +311,34 @@ func _glance() -> void:
 	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE*unit)
 	hit("close",p)
 
-func _contract_hint() -> float:
+func _guidance(at: Vector2, width: float) -> void:
+	var route: Dictionary = desk.road_note
+	if not route.is_empty():
+		at.y += _guidance_entry(at,width,route.title,route.instruction,route.get("maneuver",""))
 	var title := str(drawn.get("hint_title",""))
 	var instruction := str(drawn.get("hint_action",""))
-	var road_note: Dictionary = drawn.get("road_note", {})
-	if not road_note.is_empty():
-		title = road_note.title
-		instruction = road_note.instruction
-	if desk.glance or title.is_empty() or instruction.is_empty():
-		return 0.0
-	var touch: bool = desk.is_touch_mode()
-	# The top row belongs to the touch controls and the desktop camera switch.
-	var max_width := minf(640,dim.x - (2*HUD_MARGIN if touch else 325))
-	var type_size := 21
-	var maneuver: String = road_note.get("maneuver","")
-	var inset := 57 if not maneuver.is_empty() else 15
-	var width := minf(max_width, maxf(MONO.get_string_size(title.to_upper(),HORIZONTAL_ALIGNMENT_LEFT,-1,15).x,
-		subtle.get_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,-1,type_size).x)+inset+17)
-	var lines := subtle.get_multiline_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,width-inset-13,type_size)
-	var box := Rect2(HUD_MARGIN,TOP_ROW_Y+TOP_ROW_HEIGHT+10 if touch else 16,width,lines.y+36)
-	draw_rect(Rect2(box.position+Vector2(2,3),box.size),Color(0,0,0,0.36))
-	draw_rect(box,PAPER)
-	draw_rect(Rect2(box.position,Vector2(4,box.size.y)),OXBLOOD)
+	if instruction.is_empty():
+		title = str(drawn.get("job",{}).get("title","Recovery procedure"))
+		instruction = str(drawn.get("progress",""))
+	if not instruction.is_empty():
+		at.y += _guidance_entry(at,width,title,instruction)
+	var prompt := str(drawn.get("prompt",""))
+	if not prompt.is_empty() and prompt != instruction:
+		var label := "Nearby action   /   USE" if desk.is_touch_mode() else "Nearby action   /   E"
+		if drawn.get("work_available",false):
+			label = "Winch control"
+		_guidance_entry(at,width,label,prompt)
+
+func _guidance_entry(at: Vector2, width: float, title: String, instruction: String, maneuver := "") -> float:
+	text(at,title.to_upper(),MONO,15,OXBLOOD)
+	var inset := 49.0 if not maneuver.is_empty() else 0.0
+	var body := at + Vector2(inset,7)
 	if not maneuver.is_empty():
-		_pencil_arrow(Vector2(box.position.x+28,box.get_center().y),maneuver)
-		draw_line(box.position+Vector2(inset-8,7),Vector2(box.position.x+inset-8,box.end.y-7),Color("#babba8"))
-	text(box.position+Vector2(inset,20),title.to_upper(),MONO,15,OXBLOOD)
-	multiline(box.position+Vector2(inset,25+subtle.get_ascent(type_size)),instruction,subtle,type_size,BLUE if not road_note.is_empty() else INK,width-inset-13)
-	return box.end.y
+		_pencil_arrow(body+Vector2(-28,16),maneuver)
+	multiline(body+Vector2(0,subtle.get_ascent(21)),instruction,subtle,21,INK,width-inset)
+	var bottom := 7 + maxf(32,subtle.get_multiline_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,width-inset,21).y)
+	rule(at.x,at.y+bottom+8,width,Color("#b4b7a9"))
+	return bottom+34
 
 func _pencil_arrow(center: Vector2, maneuver: String) -> void:
 	var stem := PackedVector2Array()
@@ -355,28 +360,24 @@ func _pencil_arrow(center: Vector2, maneuver: String) -> void:
 		draw_polyline(stroke,BLUE,3.6,true)
 
 func _hud() -> void:
-	var hint_bottom := _contract_hint()
 	if not drawn.get("in_cab",true):
 		draw_circle(dim*0.5,1.7,Color(0.08,0.11,0.13,0.70))
 		draw_circle(dim*0.5,1.0,Color(0.92,0.95,0.90,0.82))
-	var prompt: String = str(drawn.get("prompt","")).strip_edges()
-	if not prompt.is_empty() and not desk.glance:
+	var feedback := str(drawn.get("feedback",""))
+	if not feedback.is_empty() and not desk.glance:
 		var line_width := minf(dim.x-180,580)
 		var size_prompt := 19
-		var label := prompt
-		if not desk.is_touch_mode() and not drawn.get("work_available",false) and not prompt.begins_with("[") and not prompt.begins_with("Hold "):
-			label = "E   "+prompt
-		var length := minf(line_width,subtle.get_string_size(label,HORIZONTAL_ALIGNMENT_LEFT,-1,size_prompt).x)
+		var length := minf(line_width,subtle.get_string_size(feedback,HORIZONTAL_ALIGNMENT_LEFT,-1,size_prompt).x)
 		var box := Rect2((dim.x-length)*.5-10,dim.y*.555,length+20,33)
 		draw_rect(box, Color(0.045,0.065,0.07,0.77))
 		draw_rect(Rect2(box.position,Vector2(2,box.size.y)),AMBER)
-		fitted(box.grow(-4),label,subtle,size_prompt,WHITE)
+		fitted(box.grow(-4),feedback,subtle,size_prompt,WHITE)
 	var words: String = str(drawn.get("subtitle","")).strip_edges()
-	if not words.is_empty() and not desk.glance and (not desk.is_touch_mode() or words != prompt):
+	if not words.is_empty() and not desk.glance:
 		var available := minf(665,dim.x-90)
 		var line_height := subtle.get_multiline_string_size(words,HORIZONTAL_ALIGNMENT_LEFT,available-30,18).y
 		var height := maxf(73,32+line_height)
-		var top := maxf(TOP_ROW_Y+TOP_ROW_HEIGHT+10,hint_bottom+8) if desk.is_touch_mode() else dim.y-24-height
+		var top := TOP_ROW_Y+TOP_ROW_HEIGHT+10 if desk.is_touch_mode() else dim.y-24-height
 		var box := Rect2((dim.x-available)*0.5,top,available,height)
 		draw_rect(box,Color(0.035,0.048,0.055,0.86))
 		draw_rect(Rect2(box.position,Vector2(3,box.size.y)),AMBER)
@@ -468,7 +469,7 @@ func _mobile() -> void:
 			rule(thumb.x-11,thumb.y+i*5,22,Color("#47453a"),1.6)
 		hit("stick",Rect2(stick_center-Vector2.ONE*STICK_RADIUS,2*Vector2.ONE*STICK_RADIUS).grow(8))
 		_control("interact",Rect2(right-144,bottom-112,144,112),"ENTER CAB" if drawn.get("can_enter_cab",false) else "USE")
-		if str(drawn.get("prompt","")).to_lower().contains("winch") or drawn.get("work_available",false):
+		if drawn.get("work_available",false):
 			_control("work",Rect2(right-144,bottom-112-THUMB_GAP-106,144,106),"WINCH")
 
 func stick_input(point: Vector2) -> Vector2:

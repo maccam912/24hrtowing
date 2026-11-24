@@ -5,6 +5,7 @@ signal action(id: String)
 const Surface = preload("res://scripts/desk_surface.gd")
 
 var state: Dictionary = {}
+var road_note: Dictionary = {}
 var page := "title"
 var surface: Control
 var started := false
@@ -59,14 +60,14 @@ func show_document(id: String, next_state: Dictionary) -> void:
 	if page == id and id not in ["title", "pause"]:
 		dismiss()
 		return
-	if id in ["options", "help"]:
+	if id in ["options", "help", "guidance"]:
 		_return_page = "pause" if started else "title"
 	_change_page(id)
 	if id in ["map", "slip"] and state.get("in_cab", true) and not state.get("truck_stopped", true):
 		glance = true
 
 func dismiss() -> void:
-	if page in ["options", "help"]:
+	if page in ["options", "help", "guidance"]:
 		_change_page(_return_page)
 	elif started:
 		_change_page("")
@@ -229,6 +230,8 @@ func _activate(id: String) -> void:
 			dismiss()
 		"pause":
 			toggle_pause()
+		"guidance":
+			action.emit("guidance")
 		"title":
 			started = false
 			_change_page("title")

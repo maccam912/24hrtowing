@@ -646,7 +646,6 @@ func _at_door() -> bool:
 	return _in_range(body.to_global(handle),2.12)
 
 func context_text() -> String:
-	if info_timer>0: return info
 	var action:=action_id()
 	if action == "haul":
 		return "Take the vehicle to %s" % dropoff.sign
@@ -655,7 +654,6 @@ func context_text() -> String:
 		if action == "cable": return "Chock wheels & take snatch block"
 		if action == "attach": return "Shackle snatch block to tow eye"
 	if action=="winch":
-		if slip_cooldown>0: return "Cable slipped · let the drum settle"
 		return "Hold WINCH · release to ease tension" if OS.has_feature("mobile") else "Hold Space to winch · release to ease tension"
 	var prompts:={"enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle","read_tape":"Read sheriff’s tape"}
 	return prompts.get(action,"")
@@ -807,6 +805,7 @@ func _winch(operate:bool,dt:float) -> void:
 	fuel=maxf(0,fuel-dt*.00013)
 	if tension>=.99:
 		slip_cooldown=1.14
+		_note("Cable slipped · let the drum settle",slip_cooldown)
 		free_line=gap+.38
 		tension=.60
 		wear=minf(1,wear+.012)

@@ -370,7 +370,7 @@ Almost all of the UI is paper or truck hardware. A drive opens behind the wrecke
 
 - No minimap, waypoint or objective marker. The current job is the top slip on the clipboard.
 - One key glances at the clipboard or plat book while you drive: a tilted, low-detail view in your lap. Stop the truck to study either one full-screen.
-- Interaction prompts are short Overpass text under the center of the screen, white with a dark outline.
+- Pause and open **Directions & next action** in the truck log to read a route cue, review the current procedure, or check what you can operate within reach. Brief equipment feedback appears when you act.
 - Subtitles are Overpass Semibold with a speaker tag such as DISPATCH or KOWALSKI.
 - UI is drawn at output resolution over the 288-line world, so text stays crisp while the world stays rough. A purist option draws it at native resolution.
 - Every color tell has a second channel. Mercury lights hum, and the tape is printed with SHERIFF in black.
