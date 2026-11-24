@@ -31,7 +31,7 @@ func update_view(next_state: Dictionary) -> void:
 	if state.get("in_cab",true) != next_state.get("in_cab",true):
 		_clear_controls()
 	state = next_state
-	if glance and absf(float(state.get("speed_mph", 0))) < 0.8:
+	if glance and state.get("truck_stopped", true):
 		glance = false
 		_clear_controls()
 	if surface:
@@ -60,7 +60,7 @@ func show_document(id: String, next_state: Dictionary) -> void:
 	if id in ["options", "help"]:
 		_return_page = "pause" if started else "title"
 	_change_page(id)
-	if id in ["map", "slip"] and bool(state.get("in_cab", true)) and absf(float(state.get("speed_mph", 0))) > 1.2:
+	if id in ["map", "slip"] and state.get("in_cab", true) and not state.get("truck_stopped", true):
 		glance = true
 
 func dismiss() -> void:
@@ -100,10 +100,10 @@ func get_move() -> Vector2:
 		direction.x -= 1
 	if _is_down("steer_r"):
 		direction.x += 1
-	if _is_down("gas"):
-		direction.y -= 1
 	if _is_down("reverse"):
 		direction.y += 1
+	elif _is_down("gas"):
+		direction.y -= 1
 	return direction.limit_length(1.0) if not bool(state.get("in_cab", true)) else direction.clamp(Vector2(-1,-1), Vector2.ONE)
 
 func take_look() -> Vector2:
@@ -129,10 +129,10 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		_touch_mode = true
 		var point: Vector2 = surface.to_page(event.position)
-		if event.pressed:
+		if event.pressed and not event.canceled:
 			_press(event.index, point)
 		else:
-			_release(event.index, point)
+			_release(event.index, point, event.canceled)
 		get_viewport().set_input_as_handled()
 	elif event is InputEventScreenDrag:
 		if _touches.has(event.index):
@@ -173,7 +173,15 @@ func _input(event: InputEvent) -> void:
 
 func _press(index: int, point: Vector2) -> void:
 	var id: String = surface.hit_at(point)
-	if id.is_empty():
+	if id == "brake":
+		# Choose once per press, so holding the pedal through a stop keeps braking.
+		if brake_held() or _is_down("reverse"):
+			return
+		if state.get("truck_stopped", true):
+			id = "reverse"
+	elif id == "interact" and state.get("in_cab", true) and not state.get("truck_stopped", true):
+		return
+	elif id.is_empty():
 		if is_blocking():
 			return
 		id = "look"
@@ -195,14 +203,14 @@ func _drag(index: int, point: Vector2, relative: Vector2) -> void:
 		_stick = surface.stick_input(point)
 		surface.queue_redraw()
 
-func _release(index: int, point: Vector2) -> void:
+func _release(index: int, point: Vector2, canceled := false) -> void:
 	if not _touches.has(index):
 		return
 	var id: String = _touches[index].id
 	_touches.erase(index)
 	if id == "stick":
 		_stick = Vector2.ZERO
-	elif id == surface.hit_at(point) and id not in ["steer_l", "steer_r", "gas", "reverse", "brake", "work", "look"]:
+	elif not canceled and id == surface.hit_at(point) and id not in ["steer_l", "steer_r", "gas", "reverse", "brake", "work", "look"]:
 		_activate(id)
 	surface.queue_redraw()
 

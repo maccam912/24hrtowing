@@ -554,9 +554,12 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 func at_dropoff() -> bool:
 	return loaded and (_flat_distance(car.position,storage_point)<12.0 or _flat_distance(truck.position,storage_point)<12.0)
 
+func is_stopped() -> bool:
+	return speed == 0.0
+
 func action_id() -> String:
 	if in_cab:
-		return "exit" if absf(speed)<.65 else ""
+		return "exit" if is_stopped() else ""
 	var panel_range:=_in_range(_panel(),2.65)
 	if phase=="scene" and near_casualty(8.5) and (_in_range(car.position+Vector3.UP,8.5) or not _at_door()):
 		return "flare"

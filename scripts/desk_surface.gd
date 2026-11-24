@@ -19,10 +19,12 @@ const RUBBER := Color(0.075, 0.09, 0.09, 0.83)
 const OXBLOOD := Color("#662c31")
 const CREAM := Color("#ede0bb")
 const AMBER := Color("#eabe76")
-const STICK_RADIUS := 78.0
-const THUMB_WIDTH := 110.0
+const STICK_RADIUS := 90.0
+const THUMB_WIDTH := 130.0
 const THUMB_GAP := 12.0
 const HUD_MARGIN := 20.0
+const TOP_ROW_Y := 16.0
+const TOP_ROW_HEIGHT := 94.0
 
 var desk
 var docs := Documents.new()
@@ -247,7 +249,7 @@ func _menu() -> void:
 			var line_y := y+94
 			var entries: Array
 			if desk.is_touch_mode():
-				entries = [["DRIVE","Hold either side of the wheel to steer. Use the pedals and REV."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","In the cab, tap RADIO, then Take contract."],["PAPER","PLAT and SLIP open a lap view while moving."]]
+				entries = [["DRIVE","Hold either side of the wheel to steer. Hold GAS to accelerate."],["BRAKE / REV","Hold the brake to stop. Press it again from rest to back up."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","In the cab, tap RADIO, then Take contract."],["PAPER","PLAT and SLIP open a lap view while moving."]]
 			else:
 				entries = [["W A S D","Drive or walk. Use the mouse to look around."],["E","Step out, climb aboard, or use the point you face."],["SPACE","Brake in the cab. Hold at the side panel to winch."],["R   /   T","Answer the radio or ask Arlene for directions."],["M   /   J","Open the plat book or tow slip. Press again to stow."],["C","Switch between chase and cab view while driving."],["ESC","Put down a document or open the truck log."]]
 			for entry in entries:
@@ -316,7 +318,7 @@ func _contract_hint() -> float:
 	var width := minf(max_width, maxf(MONO.get_string_size(title.to_upper(),HORIZONTAL_ALIGNMENT_LEFT,-1,15).x,
 		subtle.get_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,-1,type_size).x)+32)
 	var lines := subtle.get_multiline_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,width-28,type_size)
-	var box := Rect2(HUD_MARGIN,106 if touch else 16,width,lines.y+36)
+	var box := Rect2(HUD_MARGIN,TOP_ROW_Y+TOP_ROW_HEIGHT+10 if touch else 16,width,lines.y+36)
 	draw_rect(Rect2(box.position+Vector2(2,3),box.size),Color(0,0,0,0.36))
 	draw_rect(box,PAPER)
 	draw_rect(Rect2(box.position,Vector2(4,box.size.y)),OXBLOOD)
@@ -344,7 +346,7 @@ func _hud() -> void:
 	var words: String = str(drawn.get("subtitle","")).strip_edges()
 	if not words.is_empty() and not desk.glance and (not desk.is_touch_mode() or words != prompt):
 		var available := minf(665,dim.x-90)
-		var top := maxf(110,hint_bottom+8) if desk.is_touch_mode() else dim.y-97
+		var top := maxf(TOP_ROW_Y+TOP_ROW_HEIGHT+10,hint_bottom+8) if desk.is_touch_mode() else dim.y-97
 		var box := Rect2((dim.x-available)*0.5,top,available,73)
 		draw_rect(box,Color(0.035,0.048,0.055,0.86))
 		draw_rect(Rect2(box.position,Vector2(3,box.size.y)),AMBER)
@@ -364,7 +366,7 @@ func _driving_view() -> void:
 	var destination := "CAB VIEW" if chase else "CHASE VIEW"
 	var camera_box: Rect2
 	if desk.is_touch_mode():
-		camera_box = Rect2(right-80-THUMB_GAP-122,16,122,80)
+		camera_box = Rect2(right-TOP_ROW_HEIGHT-THUMB_GAP-140,TOP_ROW_Y,140,TOP_ROW_HEIGHT)
 		_control("camera",camera_box,destination)
 	else:
 		camera_box = Rect2(right-165,16,165,37)
@@ -383,44 +385,48 @@ func _driving_view() -> void:
 func _mobile() -> void:
 	var left := HUD_MARGIN
 	for tab in [["radio","RADIO"],["map","PLAT"],["slip","SLIP"]]:
-		_control(tab[0],Rect2(left,16,104,80),tab[1])
-		left+=114
+		_control(tab[0],Rect2(left,TOP_ROW_Y,118,TOP_ROW_HEIGHT),tab[1])
+		left+=118+THUMB_GAP
 	var right := dim.x-HUD_MARGIN
 	var bottom := dim.y-HUD_MARGIN
-	_control("pause",Rect2(right-80,16,80,80),"")
+	_control("pause",Rect2(right-TOP_ROW_HEIGHT,TOP_ROW_Y,TOP_ROW_HEIGHT,TOP_ROW_HEIGHT),"")
 	if drawn.get("in_cab",true):
 		# The wheel is one piece of hardware with independent left/right touch zones.
-		var left_rim := Rect2(HUD_MARGIN,bottom-145,THUMB_WIDTH+THUMB_GAP/2,145)
+		var left_rim := Rect2(HUD_MARGIN,bottom-178,THUMB_WIDTH+THUMB_GAP/2,178)
 		var right_rim := Rect2(left_rim.end.x,left_rim.position.y,left_rim.size.x,left_rim.size.y)
 		CabControls.wheel(self,left_rim.merge(right_rim),desk._is_down("steer_l"),desk._is_down("steer_r"))
 		hit("steer_l",left_rim)
 		hit("steer_r",right_rim)
 		var pedal_x := right-THUMB_WIDTH
 		var brake_x := pedal_x-THUMB_GAP-THUMB_WIDTH
-		_control("gas",Rect2(pedal_x,bottom-140,THUMB_WIDTH,140),"GAS")
-		_control("brake",Rect2(brake_x,bottom-108,THUMB_WIDTH,108),"BRAKE")
-		_control("reverse",Rect2(brake_x,bottom-108-THUMB_GAP-82,THUMB_WIDTH,82),"REV")
-		_control("interact",Rect2(pedal_x,bottom-140-THUMB_GAP-82,THUMB_WIDTH,82),"EXIT CAB")
+		var stopped: bool = drawn.get("truck_stopped",true)
+		var reversing: bool = desk._is_down("reverse")
+		var reverse_label: bool = reversing or (stopped and not desk.brake_held())
+		_control("gas",Rect2(pedal_x,bottom-164,THUMB_WIDTH,164),"GAS")
+		_control("brake",Rect2(brake_x,bottom-130,THUMB_WIDTH,130),"REVERSE" if reverse_label else "BRAKE")
+		if stopped:
+			_control("interact",Rect2(pedal_x,bottom-164-THUMB_GAP-96,THUMB_WIDTH,96),"EXIT CAB")
 	else:
 		stick_center = Vector2(HUD_MARGIN+STICK_RADIUS,bottom-STICK_RADIUS)
 		draw_circle(stick_center,STICK_RADIUS,RUBBER)
 		draw_arc(stick_center,STICK_RADIUS-1,0,TAU,48,Color("#a29b85"),2,true)
 		draw_arc(stick_center,STICK_RADIUS-13,0,TAU,48,Color(0.75,0.71,0.59,0.24),1.3,true)
-		var thumb: Vector2 = stick_center + desk._stick*(STICK_RADIUS-29)
-		draw_circle(thumb,27,Color("#706b59"),true,-1,true)
-		draw_arc(thumb,25,PI,TAU,24,CREAM,1.7,true)
+		var thumb: Vector2 = stick_center + desk._stick*(STICK_RADIUS-33)
+		draw_circle(thumb,31,Color("#706b59"),true,-1,true)
+		draw_arc(thumb,29,PI,TAU,24,CREAM,1.7,true)
 		for i in [-1,0,1]:
 			rule(thumb.x-11,thumb.y+i*5,22,Color("#47453a"),1.6)
 		hit("stick",Rect2(stick_center-Vector2.ONE*STICK_RADIUS,2*Vector2.ONE*STICK_RADIUS).grow(8))
-		_control("interact",Rect2(right-124,bottom-96,124,96),"ENTER CAB" if drawn.get("can_enter_cab",false) else "USE")
+		_control("interact",Rect2(right-144,bottom-112,144,112),"ENTER CAB" if drawn.get("can_enter_cab",false) else "USE")
 		if str(drawn.get("prompt","")).to_lower().contains("winch") or drawn.get("work_available",false):
-			_control("work",Rect2(right-124,bottom-96-THUMB_GAP-90,124,90),"WINCH")
+			_control("work",Rect2(right-144,bottom-112-THUMB_GAP-106,144,106),"WINCH")
 
 func stick_input(point: Vector2) -> Vector2:
 	return ((point-stick_center)/(STICK_RADIUS*0.85)).limit_length()
 
 func _control(id: String, r: Rect2, caption: String) -> void:
-	CabControls.paint(self,id,r,caption,desk._is_down(id))
+	var pressed: bool = desk._is_down(id) or (id == "brake" and desk._is_down("reverse"))
+	CabControls.paint(self,id,r,caption,pressed)
 	hit(id,r)
 
 func _arrow(center: Vector2,scale_px: float,colour: Color,right: bool) -> void:

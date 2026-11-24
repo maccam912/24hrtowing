@@ -3,7 +3,6 @@ extends RefCounted
 const WHEEL := preload("res://assets/ui/controls/wheel.webp")
 const ACCELERATOR := preload("res://assets/ui/controls/accelerator.webp")
 const BRAKE := preload("res://assets/ui/controls/brake.webp")
-const REVERSE := preload("res://assets/ui/controls/reverse.webp")
 const LATCH := preload("res://assets/ui/controls/latch.webp")
 const GLOVE := preload("res://assets/ui/controls/glove.webp")
 const PENDANT := preload("res://assets/ui/controls/work.webp")
@@ -16,6 +15,8 @@ const METAL := Color("#c0b79d")
 const LETTERING := Color("#f4edd4")
 const AMBER := Color("#f4bb65")
 const SHADOW := Color(0.015, 0.022, 0.023, 0.78)
+const LABEL_HEIGHT := 23.0
+const LABEL_SIZE := 18
 
 static func wheel(surface, bounds: Rect2, left_down: bool, right_down: bool) -> void:
 	var direction := int(right_down) - int(left_down)
@@ -37,22 +38,20 @@ static func wheel(surface, bounds: Rect2, left_down: bool, right_down: bool) -> 
 
 static func paint(surface, id: String, bounds: Rect2, caption: String, down: bool) -> void:
 	if id == "pause":
-		_switch(surface, bounds.get_center(), 22.0, false, down)
+		_switch(surface, bounds.get_center(), 27.0, false, down)
 		return
 
-	var label_height := 20.0
-	var art := bounds.grow_individual(-4, -3, -4, -label_height - 4)
+	var art := bounds.grow_individual(-4, -3, -4, -LABEL_HEIGHT - 4)
 	var texture: Texture2D
 	match id:
 		"gas": texture = ACCELERATOR
 		"brake": texture = BRAKE
-		"reverse": texture = REVERSE
 		"radio": texture = RADIO
 		"map": texture = PLAT
 		"slip": texture = SLIP
 		"interact": texture = LATCH if caption.ends_with("CAB") else GLOVE
 		"work": texture = PENDANT
-		"camera": _switch(surface, art.get_center(), 22.0, true, down)
+		"camera": _switch(surface, art.get_center(), 27.0, true, down)
 	if texture:
 		var source_size := texture.get_size()
 		var scale_ratio := minf(art.size.x / source_size.x, art.size.y / source_size.y)
@@ -76,8 +75,8 @@ static func _draw_hardware(surface, texture: Texture2D, rect: Rect2, down: bool)
 	surface.draw_texture_rect(texture, rect, false, Color("#ffe1a9") if down else Color.WHITE)
 
 static func _caption(surface, bounds: Rect2, caption: String, down: bool) -> void:
-	var width: float = surface.scaled.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, 16).x + 18
-	var tag := Rect2(bounds.get_center().x - width / 2, bounds.end.y - 20, width, 20)
+	var width: float = surface.scaled.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, LABEL_SIZE).x + 18
+	var tag := Rect2(bounds.get_center().x - width / 2, bounds.end.y - LABEL_HEIGHT, width, LABEL_HEIGHT)
 	var top_left := tag.position
 	var bottom_right := tag.end
 	var cut := 3.5
@@ -87,7 +86,7 @@ static func _caption(surface, bounds: Rect2, caption: String, down: bool) -> voi
 		Vector2(top_left.x, bottom_right.y), top_left + Vector2(0, cut)])
 	surface.draw_colored_polygon(corners, AMBER if down else INK)
 	surface.draw_line(corners[0], corners[1], METAL.darkened(0.4), 1.0, true)
-	surface.fitted(tag, caption, surface.scaled, 16, INK if down else LETTERING)
+	surface.fitted(tag, caption, surface.scaled, LABEL_SIZE, INK if down else LETTERING)
 
 static func _switch(surface, center: Vector2, radius: float, camera: bool, down: bool) -> void:
 	# A spun metal bezel holds the rubber-capped dash switch.

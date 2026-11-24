@@ -203,7 +203,8 @@ func _physics_process(dt: float) -> void:
 	if active and not desk.is_title() and desk.page != "pause":
 		sub_time = maxf(0.0,sub_time-dt)
 	ui_timer += dt
-	if ui_timer >= 0.10:
+	# A pedal touch between HUD updates must see the latest physics step.
+	if ui_timer >= 0.10 or rig.is_stopped() != state.truck_stopped:
 		ui_timer = 0.0
 		_refresh()
 	audio.mix_truck(rig.get_status(),active and not desk.is_title(),playing,dt,county.storm_gust)
@@ -619,7 +620,7 @@ func _refresh() -> void:
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
-		"driving_view":rig.driving_view,
+		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],

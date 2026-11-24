@@ -316,7 +316,10 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 	var job: Dictionary = s.get("job",{})
 	c._sheet(p,ORIGINAL if page=="map" else TISSUE)
-	c.text(p.position+Vector2(12,18),"TAMARACK COUNTY   /   PLAT 03" if page=="map" else "BRANDT   /   TOW SERVICE RECORD",c.MONO,11,GREEN)
+	var heading := "TAMARACK COUNTY   /   PLAT 03" if page=="map" else "BRANDT   /   TOW SERVICE RECORD"
+	if c.MONO.get_string_size(heading,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x > p.size.x-24:
+		heading = "TAMARACK / PLAT 03" if page=="map" else "BRANDT / TOW SLIP"
+	c.text(p.position+Vector2(12,18),heading,c.MONO,11,GREEN)
 	if page == "map":
 		_map(c,Rect2(p.position+Vector2(12,25),p.size-Vector2(24,35)),s,false)
 	else:

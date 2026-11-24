@@ -18,11 +18,11 @@ To turn in either job, walk to the fax under the **OFFICE / FAX** sign and tap *
 
 | | Android, landscape | Desktop |
 | --- | --- | --- |
-| Drive | Hold the left or right side of the wheel to steer. Hold the narrow gas pedal, wide brake pedal, or REV lever | WASD or arrows, Space or Shift to brake |
+| Drive | Hold either side of the wheel to steer. Hold the gas to accelerate or the brake to stop. To reverse, start a fresh press on the brake while stopped and hold it to back up. | WASD or arrows, Space or Shift to brake |
 | Switch driving view | Tap **CAB VIEW** or **CHASE VIEW** beside pause | Press **C** |
 | Look | Drag the open part of the screen | Mouse |
 | Walk | Left thumb pad | WASD or arrows |
-| Step out, enter, or handle equipment | EXIT CAB, ENTER CAB, or USE | E |
+| Step out, enter, or handle equipment | EXIT CAB appears at a full stop. On foot, tap ENTER CAB or USE. | E |
 | Operate the winch at its panel | Hold WINCH | Hold Space or F |
 | Accept a call or ask directions | RADIO, then Take contract or Ask for directions | R to accept, T for directions |
 | Plat book and current slip | PLAT or SLIP | M or J |
