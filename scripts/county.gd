@@ -124,7 +124,7 @@ func advance_storm(dt: float) -> void:
 	# keep moving downwind as a front recedes, even on a long night shift.
 	var front := sin(storm_time * .42 + 1.2 * sin(storm_time * .13) - .7)
 	storm_gust = smoothstep(-.30, .90, front)
-	storm_travel += dt * lerpf(5.8, 13.5, storm_gust)
+	storm_travel += dt * lerpf(13.5, 27.0, storm_gust)
 	RenderingServer.global_shader_parameter_set("storm_time", storm_time)
 	RenderingServer.global_shader_parameter_set("storm_gust", storm_gust)
 	RenderingServer.global_shader_parameter_set("storm_travel", storm_travel)

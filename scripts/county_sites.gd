@@ -418,8 +418,7 @@ func spruce_at(x: float, z: float, solid: bool) -> void:
 	site(x,z,world.ground_height(x,real_z))
 	var height := rng.randf_range(5.3,15.3)
 	var yaw := rng.randf_range(-PI,PI)
-	for side: float in [0.0,PI*.5]:
-		draw.add("spruce",p(0,height*.5,0),Vector3(height*.48,height,1.0),"spruce",Vector3(0,yaw+side,0))
+	draw.spruce(origin, height, yaw)
 	if solid:
 		draw.solid_box(p(0,1.5,0),Vector3(.34,3,.34))
 

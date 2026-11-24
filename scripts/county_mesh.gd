@@ -1,10 +1,12 @@
 extends RefCounted
 ## Groups static props by 96 m cells. Godot can cull a farm or a grove as a unit.
 const CELL := 96.0
+const Spruce = preload("res://scripts/spruce_mesh.gd")
 var parent: Node3D
 var materials: Dictionary
 var batches := {}
 var primitives := {}
+var tree_cells := {}
 var collision_bins := {}
 
 func _init(owner: Node3D, palette: Dictionary) -> void:
@@ -43,10 +45,6 @@ func _primitive(kind: String) -> PrimitiveMesh:
 			mesh = drift
 		"quad":
 			mesh = QuadMesh.new()
-		"spruce":
-			var crown := QuadMesh.new()
-			crown.subdivide_depth = 4
-			mesh = crown
 		_:
 			var cyl := CylinderMesh.new()
 			cyl.radial_segments = 8 if kind == "cylinder" else 6
@@ -102,7 +100,34 @@ func quad(a: Vector3, b: Vector3, c: Vector3, d: Vector3, material: String, uv: 
 		surface.set_uv(tex[i])
 		surface.add_vertex(vertices[i])
 
+func spruce(root: Vector3, height: float, yaw: float) -> void:
+	var cell := _cell(root)
+	if not tree_cells.has(cell):
+		tree_cells[cell] = []
+	tree_cells[cell].append(Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * height), root))
+
+func _finish_trees() -> void:
+	if tree_cells.is_empty():
+		return
+	var spruce_mesh := Spruce.build(materials.spruce)
+	for cell: Vector2i in tree_cells:
+		var placements: Array = tree_cells[cell]
+		var trees := MultiMesh.new()
+		trees.transform_format = MultiMesh.TRANSFORM_3D
+		trees.mesh = spruce_mesh
+		trees.instance_count = placements.size()
+		for i in placements.size():
+			trees.set_instance_transform(i, placements[i])
+		var grove := MultiMeshInstance3D.new()
+		grove.name = "Spruces_%d_%d" % [cell.x, cell.y]
+		grove.multimesh = trees
+		grove.visibility_range_end = 230.0
+		grove.extra_cull_margin = 7.0 # Clearance for wind-bent crowns.
+		parent.add_child(grove)
+	tree_cells.clear()
+
 func finish() -> void:
+	_finish_trees()
 	for key: Vector2i in batches:
 		var mesh := ArrayMesh.new()
 		for id: String in batches[key]:
