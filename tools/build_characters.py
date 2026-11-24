@@ -1002,6 +1002,18 @@ def model(deputy=False, farm=False):
             )
         )
     m.clip("walk", [0, 0.19, 0.38, 0.57, 0.76], ch)
+    if farm:
+        # Tou settles his boots in the cab footwell and occasionally glances at Brandt.
+        seated = [
+            (spine, "rotation", [quat(p, 0, 0.012) for p in (-0.04, -0.052, -0.04, -0.046, -0.04)]),
+            (head, "rotation", [headrot(-0.02, y) for y in (0.12, 0.17, 0.28, 0.15, 0.12)]),
+        ]
+        for thigh, shin in legs:
+            seated.extend([
+                (thigh, "rotation", [quat(math.radians(82), 0, 0)] * 5),
+                (shin, "rotation", [quat(math.radians(-72), 0, 0)] * 5),
+            ])
+        m.clip("seated", [0, 1.5, 3, 4.5, 6], seated)
     m.write(
         DEST
         / (

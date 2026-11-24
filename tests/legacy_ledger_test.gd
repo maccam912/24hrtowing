@@ -16,7 +16,7 @@ func old_save() -> Dictionary:
 	game._save()
 	var data: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	data.version = 1
-	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor"]:
+	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign"]:
 		data.erase(key)
 	data.rig.erase("identity")
 	return data
@@ -75,6 +75,7 @@ func run() -> void:
 	check(not game.survey.unit_reported and not game.survey.can_report_unit(),"migration invented a player report or reopened a settled case")
 	check(game.filed_card == archived.filed_card and game.faxes == archived.faxes,"historical signed paperwork changed on migration")
 	check(not game.county.survey_pickup.visible and game.physical_cars[0].visible and game.case_offer.is_empty(),"generated a second copy of a secured unit")
+	game.campaign.ordinary_since = 6
 	game.desk.show_document("field",game.state)
 	game.desk._activate("mark_sketch")
 	check(game._radio_contact().get("id") == "ask_farm","an older operator cannot follow the next lead")

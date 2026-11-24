@@ -36,16 +36,23 @@ The first drive starts in chase view. Your chosen view returns when you get back
 
 ## The county rotation
 
-Arlene draws ditch pulls and checked hazards from seven sites. Every third slip settles the outstanding balance. Old slips and county faxes stay on the clipboard. The yard office sells tire chains and winch service.
+Arlene draws ditch pulls and checked hazards from seven sites at first. After eight ordinary jobs, she can also send you across the bridge to River Lanes, out to the dairy barn on County FF, or east to the Tamarack county offices. Every third slip settles the outstanding balance. Old slips and county faxes stay on the clipboard. The yard office sells tire chains and winch service.
 
-There’s a white county pickup in the Section 3 turnout on Swamp Road. It stays there between calls. If something catches your eye, park, walk over and use **E** or **USE** to examine it. Your observations go in the plat book’s pencil notes. When you have something to report, the cab radio offers a response. **Keep me on rotation** accepts a paying job and leaves the case contact available.
+Check the fax after your fifth ordinary job for the first lead in the county survey case. If something catches your eye on the road, park, walk over and press **E** or tap **USE** to examine it. Your observations stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
+
+The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip.
 
 <details>
-<summary>Following the survey case</summary>
+<summary>Walkthrough of all eight case calls (spoilers)</summary>
 
-Read Unit 38’s door and follow the boot prints to the rod case inside the gate. Report both to Arlene. You can finish your current call, work other slips, or take Kowalski’s hold the next time you’re free. Sign her card and stow the tripod before rigging. Fit the dollies, tow the pickup to the evidence bay, and lock the chain before filing.
-
-After custody is filed, unlock the bay, read Tou’s field book and copy his sketch to the plat. You can also leaf through the filed slips and choose **Clip for radio** on two carbon copies from the same Kolpack shoulder with different loaded mileage. Ask about the junction to arrange a look-see at N5104. Read the house number and the sedan’s windshield VIN, radio them in, then file the report at the yard. There’s a brass survey cap beyond the house. Ordinary work continues after the look-see.
+1. **Secure Unit 38.** Read the pickup door at the Section 3 turnout on Swamp Road. Follow the prints to the rod case inside the gate, then report both to Arlene. Take Kowalski’s hold order, sign her card and stow the tripod. Fit the dollies, tow the pickup to the evidence bay, and lock the chain before filing.
+2. **Find N5104.** Unlock the bay, read Tou’s field book and copy his sketch to the plat. You can also use **Clip for radio** on two slips from the same Kolpack shoulder with different loaded mileage. Bring either piece of evidence to Arlene on the radio. Take the look-see, read the house number and the sedan’s windshield VIN, call them in, and file at the yard.
+3. **Take Kowalski’s tape detail.** Rub the brass cap between the posts east of the N5104 porch. Walk up to the sedan’s windshield to check the car and initial the tape. Leave the car at the house, radio in from the cab, then file the report.
+4. **Walk the river bridge.** Park at the Esker end of the Highway 64 bridge. Copy the plate on the south rail, then walk to the River Lanes end and copy its plate. Read both back to Arlene and file the highway crew’s report.
+5. **Check the mail route.** Find the pair of mailboxes in the N5104 lane. Lift the lid on box 6A, read the band and tell Arlene who’s holding mail there. File the slip at the yard.
+6. **Follow Tou’s line.** Turn left just before the east barricade on Swamp Road. Follow Alder Cut north to the striped witness stakes, brush the snow from the cap, and radio in its full stamp. File your corner check.
+7. **Bring Tou home.** Return to the mercury lamp beyond the cap and pull up close enough for Tou to board. You can ask him about the drivers, the old corners and your tow slips on the ride home. At the yard, open the evidence bay, countersign his pickup’s release at the chain, and fax it to the county.
+8. **Answer Angie’s call.** The county board adopts Tou’s resurvey. At N5420 Alder Cut, speak to Angie at the porch before rigging her old sedan. Bring it to **STORAGE** and file the slip. Doreen’s fax says the county will pay loaded miles as recorded.
 
 </details>
 

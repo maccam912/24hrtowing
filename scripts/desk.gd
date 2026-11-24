@@ -11,7 +11,9 @@ var started := false
 var glance := false
 var slip_index := -1
 var fax_index := -1
+var fax_sheet := -1
 var atlas_notes := false
+var notes_page := 0
 var fps := 30
 var _touch_mode := false
 var _touches: Dictionary = {}
@@ -83,6 +85,7 @@ func _change_page(id: String) -> void:
 	glance = false
 	slip_index = -1
 	fax_index = -1
+	fax_sheet = -1
 	_focus = 0
 	_clear_controls()
 	if surface:
@@ -233,27 +236,38 @@ func _activate(id: String) -> void:
 		"respond", "directions", "send_fax":
 			_change_page("")
 			action.emit({"respond":"rotation", "directions":"talk_in", "send_fax":"fax"}[id])
-		"report_unit", "take_case", "ask_farm", "report_farm":
+		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3":
 			_change_page("")
 			action.emit(id)
 		"mark_sketch":
 			atlas_notes = true
+			notes_page = 0
 			action.emit(id)
 		"clip_slip":
 			action.emit(id)
 		"atlas_notes":
-			atlas_notes = not atlas_notes
+			if not atlas_notes:
+				notes_page = 0
+				atlas_notes = true
+			elif (notes_page+1)*Surface.Documents.NOTES_PER_PAGE < state.get("pencil_notes",[]).size():
+				notes_page += 1
+			else:
+				atlas_notes = false
 			surface.queue_redraw()
 		"prev_slip", "next_slip":
 			var count: int = state.get("slips", []).size()
 			var order := -1 if id == "prev_slip" else 1
 			slip_index = posmod(slip_index + 1 + order, count + 1) - 1
 			surface.queue_redraw()
+		"fax_sheet":
+			fax_sheet += 1
+			surface.queue_redraw()
 		"prev_fax", "next_fax":
 			var archive: Array = state.get("faxes", [])
 			if not archive.is_empty():
 				var current := archive.size()-1 if fax_index < 0 else fax_index
 				fax_index = posmod(current + (-1 if id == "prev_fax" else 1), archive.size())
+				fax_sheet = -1
 				surface.queue_redraw()
 		"settings_30", "settings_60":
 			fps = 30 if id == "settings_30" else 60

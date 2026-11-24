@@ -102,6 +102,7 @@ func test_waiting_hazard(game) -> void:
 	var pose := parked.transform
 	game.survey.record("unit",19241)
 	game.survey.record("rod",19241)
+	game.campaign.ordinary_since = 5
 	game._action("report_unit")
 	game._action("take_case")
 	check(game.job.kind == "hold" and game.waiting_hazard == parked and parked.transform == pose,

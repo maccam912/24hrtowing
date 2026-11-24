@@ -51,6 +51,8 @@ func run() -> void:
 		check(not game.survey.unit_reported and game.survey.hold_order == "" and game._radio_contact().is_empty(),"mileage and the fax alone leave the case unopened")
 		file_authorized_hold()
 		check(game._radio_contact().is_empty() and not game.book_read, "the two old carbon copies wait for the operator to choose them")
+		# Stage the interval after custody, then test the carbon copies as the only evidence.
+		game.campaign.ordinary_since = 6
 		for slip: Dictionary in measured:
 			game.desk.show_document("slip",game.state)
 			game.desk.slip_index = game.slips.find(slip)

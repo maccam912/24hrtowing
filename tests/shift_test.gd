@@ -51,6 +51,8 @@ func run() -> void:
 			await tap_control("respond")
 		elif i == 2:
 			visit_survey_turnout()
+			# Stage the remaining routine slips to keep the five-ticket rigging exercise focused.
+			game.campaign.ordinary_since = 5
 			resume_shift()
 			check(game.survey.notes.has("unit") and game.survey.notes.has("rod") and not game.survey.unit_reported,"observations survive a cold resume without opening a case")
 			press_key(KEY_R)
@@ -299,6 +301,8 @@ func visit_survey_turnout() -> void:
 func investigate_kolpack() -> void:
 	stand_at_cab_door(-1)
 	game._action("interact")
+	check(game._radio_contact().is_empty(), "copying the sketch keeps the next rotation available while records are checked")
+	game.campaign.ordinary_since = 6
 	press_key(KEY_R)
 	await tap_control("ask_farm")
 	press_key(KEY_R)

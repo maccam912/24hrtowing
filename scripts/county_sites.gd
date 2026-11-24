@@ -424,6 +424,9 @@ func spruce_at(x: float, z: float, solid: bool) -> void:
 	site(x,z,world.ground_height(x,real_z))
 	var height := rng.randf_range(5.3,15.3)
 	var yaw := rng.randf_range(-PI,PI)
+	if world.alder_open and z < -395 and z > world.CaseSites.ALDER_END-8:
+		if absf(x-world.CaseSites.ALDER_X) < 10 or world.CaseSites.HOUSE_YARD.grow(2).has_point(Vector2(x,z)):
+			return
 	draw.spruce(origin, height, yaw)
 	if solid:
 		draw.solid_box(p(0,1.5,0),Vector3(.34,3,.34))
@@ -433,7 +436,8 @@ func grove_at(x: float,z: float,number: int,radius: float) -> void:
 		var xx := x+rng.randf_range(-radius,radius)
 		var zz := z+rng.randf_range(-radius,radius)
 		var real_z: float = world.resolve_point(Vector3(0,0,zz)).z
-		var road_distance: float = world.road_distance(xx,real_z)
+		# Draw from the original forest first so opening the new spur only clears its corridor.
+		var road_distance: float = world.road_distance(xx,real_z,false)
 		if road_distance < 15 or Rect2(-142,-98,200,199).has_point(Vector2(xx,zz)):
 			continue
 		spruce_at(xx,zz,road_distance < 55 and i%2 == 0)

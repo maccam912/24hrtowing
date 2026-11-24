@@ -116,7 +116,7 @@ Generate ordinary work from the first radio call. For the first pull, pick a nea
 - Draw a recovery type and a compatible site from the open districts. Vary the shoulder or ditch, approach angle, vehicle, occupant and reason the sheriff needs it moved. Favor underused sites and types. If only one type is workable, vary its site and setup. Keep a reachable local pull in the pool even when a story offer is waiting.
 - Build the radio call, directions, scene and paperwork from the same facts. A wagon blocking the dairy lane needs a clear place to set the wrecker, checked tape, directions that get you to that lane and a storage space back at Brandt's. On another run that lane might have a driver bound for the dairy with two wheels off the pavement. They drive away after the pull. You go back to file a slip with zero loaded miles.
 - Reserve the few jobs that need a particular person, object or place. Ordinary work can take you past the survey pickup. Once Arlene relays your report, Kowalski can offer a separate hold for that truck. The offer waits until your current slip is filed. On the radio you can take it or say “Keep me on rotation” and get a regular call immediately.
-- Leave at least three ordinary jobs between unsolicited story offers. Job count controls the spacing. The next story call still needs its own evidence. A follow-up you explicitly request can come sooner. After a “later,” keep the contact available on the radio and let the clue stand in the world. A missed turn, a quiet radio or another twenty paid jobs can leave the case exactly where you put it.
+- Space the eight case leads by 5, 6, 5, 7, 6, 8, 5 and 6 filed ordinary jobs, respectively. Count the first five from a new shift and each subsequent interval from the previous case filing. Taking every lead when it arrives gives 48 ordinary jobs and eight case slips. Allowing three minutes per ordinary tow and four and a half per case gives a three-hour tuning target. The radio keeps an offered case available until Brandt chooses it. An observation made early stays in the plat, and another twenty paid jobs can leave the case exactly where you put it.
 - The storm leaves taped cars at plausible spots. An occupied shoulder stays occupied until the car is removed. Keep named vehicles and evidence out of the ordinary vehicle pool.
 
 ### Rigging on foot
@@ -189,6 +189,21 @@ Each act builds on the last. An observation made early stays in the plat or clip
 | 3. Recruited | Copy the number from a cap at that crossroad and show Kowalski where it sits on the printed plat | She brings you into the missing-driver inquiry. Arlene tells you why the ban stays on. Tou had already asked for your slips after the clerk queried his office. You get your own tape roll | Cap rubbing and plat, custody cards, checked cars |
 | 4. The ride | Follow Tou's line, read the last cap and radio its stamp to request a pickup beyond it | Arlene can place you. Tou is there, alive, cold and calm. You can offer him a ride to the yard | The cap stamps and his last field book |
 | 5. Adopted | At the yard, match Tou's unit to its custody card and witness his release of the pickup after Kowalski clears it | With the resurvey back in county hands, the board can adopt it. The resolution reaches you by fax | The signed release, the new plat book and the next slip |
+
+### The eight calls on the survey file
+
+The totals below count ordinary slips when Brandt takes each case as soon as it becomes available. A deferred call stays with dispatch. The next interval starts when Brandt files that case slip.
+
+| Ordinary slips filed | County business | What Brandt brings back |
+| --- | --- | --- |
+| 5 | Identify the equipment at the Section 3 turnout | A tag links the rod case beyond the gate to the pickup. Kowalski can put that particular truck on a custody card. |
+| 11 | Check the address from Tou’s sketch or Brandt’s paired mileage slips | N5104 has a warm house, a fire number and a car with a legible VIN. Arlene has no checked tag for it. |
+| 16 | Bring the new crossroad into Kowalski’s missing-driver inquiry | A rubbing puts the original section corner east of the house. Brandt leaves signed yellow tape on the sedan for the next operator. |
+| 23 | Identify a bearing for the bridge crew’s parts order | Brandt walks from one abutment to the other. Both plates say **EAST ABUTMENT**. Both have the same copper stain below the fourth nail. |
+| 29 | Settle a disputed stop on rural route 2 | Box 6A has four winters of delivery history. Its worn lid holds a band with Tou’s name on it. |
+| 37 | Recover the monument on Tou’s last line | A road turns north before the old Swamp Road barricade. The stake leads to an original 1936 cap. Arlene can place Tou’s next transmission using Brandt’s report. |
+| 42 | Bring the surveyor back to his truck | Tou rides in the passenger seat. Brandt can ask about the missing drivers and the measurements, then countersigns the release at the yard. |
+| 48 | Work the first tow on the adopted sheet | The county prints Alder Cut on its plat. Angie chooses to stay at N5420 and sends her car back. The clerk accepts the wrecker’s recorded miles. |
 
 ### The survey pickup, from roadside sighting to evidence hold
 

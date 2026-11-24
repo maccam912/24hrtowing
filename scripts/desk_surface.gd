@@ -374,13 +374,15 @@ func _hud() -> void:
 	var words: String = str(drawn.get("subtitle","")).strip_edges()
 	if not words.is_empty() and not desk.glance and (not desk.is_touch_mode() or words != prompt):
 		var available := minf(665,dim.x-90)
-		var top := maxf(TOP_ROW_Y+TOP_ROW_HEIGHT+10,hint_bottom+8) if desk.is_touch_mode() else dim.y-97
-		var box := Rect2((dim.x-available)*0.5,top,available,73)
+		var line_height := subtle.get_multiline_string_size(words,HORIZONTAL_ALIGNMENT_LEFT,available-30,18).y
+		var height := maxf(73,32+line_height)
+		var top := maxf(TOP_ROW_Y+TOP_ROW_HEIGHT+10,hint_bottom+8) if desk.is_touch_mode() else dim.y-24-height
+		var box := Rect2((dim.x-available)*0.5,top,available,height)
 		draw_rect(box,Color(0.035,0.048,0.055,0.86))
 		draw_rect(Rect2(box.position,Vector2(3,box.size.y)),AMBER)
 		var who := str(drawn.get("speaker","DISPATCH")).to_upper()
 		text(box.position+Vector2(15,17),who,MONO,13,AMBER)
-		multiline(box.position+Vector2(15,39),words,subtle,18,WHITE,box.size.x-30,2)
+		multiline(box.position+Vector2(15,39),words,subtle,18,WHITE,box.size.x-30)
 	if drawn.get("in_cab",true):
 		_driving_view()
 	if desk.is_touch_mode():

@@ -89,11 +89,7 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		K.label(p,vin,vin_strip+Vector3(0,.003,-.008),.03,SNOW,Vector3(-windshield_tilt,PI,0),"plex_mono")
 	g.finish()
 	if kind in ["hazard","hold"]:
-		var strip=K.new(p)
-		strip.box(Vector3(-width*1.104,base+.625,-.81),Vector3(.036,.06,.242),TAPE)
-		strip.box(Vector3(-width*1.09,base+.485,-.71),Vector3(.025,.25,.09),TAPE,Vector3(.18,0,.08))
-		strip.finish()
-		K.label(p,"SHERIFF",Vector3(-width*1.13,base+.622,-.82),.034,BLACK,Vector3(0,-PI/2,0))
+		sheriff_tape(p,width,base)
 	for s in [-1,1]:
 		var z:float=s*length*1.016
 		var t=K.joint(p,Vector3(0,base-.087,z))
@@ -101,6 +97,17 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		e.ring(Vector3.ZERO,.046,.069,Color("#ac8d63"),Vector3(PI/2,0,0))
 		e.finish()
 	return p
+
+static func sheriff_tape(vehicle: Node3D, width: float, base: float, initials := "") -> Node3D:
+	var tape: Node3D = K.joint(vehicle,Vector3.ZERO,"SheriffTape")
+	var strip = K.new(tape)
+	strip.box(Vector3(-width*1.104,base+.625,-.81),Vector3(.036,.06,.242),TAPE)
+	strip.box(Vector3(-width*1.09,base+.485,-.71),Vector3(.025,.25,.09),TAPE,Vector3(.18,0,.08))
+	strip.finish()
+	K.label(tape,"SHERIFF",Vector3(-width*1.13,base+.622,-.82),.034,BLACK,Vector3(0,-PI/2,0))
+	if not initials.is_empty():
+		K.label(tape,initials,Vector3(-width*1.12,base+.487,-.713),.034,BLACK,Vector3(0,-PI/2,.12))
+	return tape
 
 static func car_lamps(car_body:Node3D,kind:String,mode:String,line_end:int) -> Node3D:
 	var lamps:Node3D=K.joint(car_body,Vector3.ZERO,"VehicleLamps")

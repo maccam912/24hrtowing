@@ -2,6 +2,7 @@ extends Node3D
 ## A compressed Wisconsin township. All published locations are printed plat coordinates.
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
+const CaseSites = preload("res://scripts/county_case_sites.gd")
 const Bay = preload("res://scripts/county_bay.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
 const SURVEY_PICKUP := Vector3(314,0,-409)
@@ -25,6 +26,10 @@ const PLACES := [
 ]
 var lengthened := false
 var kolpack_open := false
+var alder_open := false
+var case_landmarks := {}
+var case_models := {}
+var sedan_tape: Node3D
 var rebuild_queued := false
 var county_model: Node3D
 var hold: Node3D
@@ -76,12 +81,17 @@ func map_roads() -> Array:
 	var result := []
 	for r: Array in ROADS:
 		result.append({"name":r[0],"points":PackedVector2Array([Vector2(r[1],r[2]),Vector2(r[3],r[4])])})
+	if case_landmarks.has("angie_house"):
+		result.append({"name":"Alder Cut Rd","points":PackedVector2Array([Vector2(CaseSites.ALDER_X,-400),Vector2(CaseSites.ALDER_X,CaseSites.ALDER_END)])})
 	return result
 
 func map_places() -> Array:
 	var result := []
 	for p: Array in PLACES:
 		result.append({"name":p[0],"point":Vector2(p[1],p[2])})
+	if case_landmarks.has("angie_house"):
+		var number: Vector3 = CaseSites.POINTS.angie_house
+		result.append({"name":"N5420 Alder Cut","point":Vector2(number.x,number.z)})
 	return result
 
 func _mapped_z(z: float) -> float:
@@ -169,10 +179,51 @@ func story_point(id: String) -> Vector3:
 		"house": point = Vector3(446,1.22,331.2)
 		"vin": point = KOLPACK_CAR_POINT + Vector3(-.38,1.05,-.93)
 		"cap": point = Vector3(457,0.16,330)
-		_: return Vector3.INF
+		_:
+			if not CaseSites.POINTS.has(id):
+				return Vector3.INF
+			point = CaseSites.POINTS[id]
 	point = resolve_point(point)
 	point.y += ground_height(point.x,point.z)
 	return point
+
+func set_case_landmarks(ids: Array) -> void:
+	var requested := {}
+	for id: String in ids:
+		if CaseSites.POINTS.has(id) or id == "mail_open":
+			requested[id] = true
+	if requested.has("bridge_plate"):
+		requested["bridge_plate_far"] = true
+	if requested == case_landmarks:
+		return
+	case_landmarks = requested
+	var open_spur := requested.has("last_cap") or requested.has("tou") or requested.has("angie_house")
+	if alder_open != open_spur:
+		alder_open = open_spur
+		_queue_build()
+	elif county_model and not rebuild_queued:
+		_sync_case_models()
+
+func _sync_case_models() -> void:
+	if is_instance_valid(sedan_tape):
+		sedan_tape.visible = case_landmarks.has("checked_sedan")
+	for id: String in case_models.keys():
+		if not case_landmarks.has(id):
+			var retired: Node3D = case_models[id]
+			county_model.remove_child(retired)
+			retired.queue_free()
+			case_models.erase(id)
+	var had_boxes := case_models.has("mailboxes")
+	for id: String in case_landmarks:
+		if id in ["checked_sedan","mail_open"] or case_models.has(id):
+			continue
+		var landmark := Node3D.new()
+		landmark.name = id
+		county_model.add_child(landmark)
+		CaseSites.new(self,Batch.new(landmark,materials)).build_landmark(id)
+		case_models[id] = landmark
+	if case_models.has("mailboxes"):
+		CaseSites.set_mail_open(case_models.mailboxes,case_landmarks.has("mail_open"),had_boxes)
 
 func set_tripod_collected(value: bool) -> void:
 	tripod_taken = value
@@ -245,15 +296,19 @@ func _fixture_audio() -> void:
 		add_child(audio)
 		ballasts[role] = audio
 
-func road_distance(x: float, z: float) -> float:
+func road_distance(x: float, z: float, include_alder := true) -> float:
 	var distance := INF
+	if alder_open and include_alder:
+		var dx := x-CaseSites.ALDER_X
+		var dz := z-clampf(z,CaseSites.ALDER_END,-400)
+		distance = dx*dx+dz*dz
 	if kolpack_open:
 		var cross_z := _mapped_z(KOLPACK_CROSSING.y)
 		var lane_dx := x-clampf(x,400,515)
 		var lane_dz := z-cross_z
 		var cross_dx := x-KOLPACK_CROSSING.x
 		var cross_dz := z-clampf(z,cross_z-38,cross_z+45)
-		distance = minf(lane_dx*lane_dx+lane_dz*lane_dz, cross_dx*cross_dx+cross_dz*cross_dz)
+		distance = minf(distance,minf(lane_dx*lane_dx+lane_dz*lane_dz, cross_dx*cross_dx+cross_dz*cross_dz))
 	for r: Array in ROADS:
 		var x0 := float(r[1])
 		var x1 := float(r[3])
@@ -266,6 +321,10 @@ func road_distance(x: float, z: float) -> float:
 
 func _distance_from_lot(x: float, z: float) -> float:
 	var nearest := INF
+	if alder_open:
+		var edge := CaseSites.HOUSE_YARD
+		nearest = maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y))
+		nearest = maxf(nearest,0)
 	if kolpack_open and Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
 	for lot: Rect2 in [YARD,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
@@ -464,6 +523,8 @@ func _airborne_snow(material: ShaderMaterial, count: int) -> MultiMeshInstance3D
 
 func _build() -> void:
 	rebuild_queued = false
+	case_models.clear()
+	sedan_tape = null
 	if is_instance_valid(county_model):
 		remove_child(county_model)
 		county_model.queue_free()
@@ -477,6 +538,8 @@ func _build() -> void:
 	_build_ground(draw)
 	var places = Sites.new(self,draw)
 	places.build()
+	if alder_open:
+		CaseSites.new(self,draw).alder_cut()
 	draw.finish()
 	bay = Bay.new()
 	county_model.add_child(bay)
@@ -499,12 +562,14 @@ func _build() -> void:
 	rod_case.rotation.x = PI if rod_case_read else 0.0
 	survey_pickup = _parked_car(hold,"hold",0,survey_point,survey_yaw,{})
 	if kolpack_open:
-		_parked_car(county_model,"unattended",0,KOLPACK_CAR_POINT,0,KOLPACK_SEDAN)
+		var sedan := _parked_car(county_model,"unattended",0,KOLPACK_CAR_POINT,0,KOLPACK_SEDAN)
+		sedan_tape = Scene.sheriff_tape(sedan,.89,.46,"B.T.")
 	var instrument = Sites.new(self,Batch.new(tripod,materials))
 	instrument.survey_tripod()
 	instrument.draw.finish()
 	set_survey_pickup_parked(survey_pickup_parked)
 	set_tripod_collected(tripod_taken)
+	_sync_case_models()
 
 func _parked_car(parent: Node3D, kind: String, variant: int, point: Vector3, yaw: float, identity: Dictionary) -> Node3D:
 	var vehicle := Scene.car(parent,kind,variant,identity)
@@ -535,8 +600,8 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323]+([458,463,468,515] if kolpack_open else []))
-	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[-412,-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,425,448]+([298,331,336,341,381] if kolpack_open else []))
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800]+([CaseSites.ALDER_X] if alder_open else []),[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323]+([458,463,468,515] if kolpack_open else []))
+	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[-412,-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,425,448]+([298,331,336,341,381] if kolpack_open else [])+([CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-461] if alder_open else []))
 	var ground := {}
 	var h_rows := []
 	for z: float in zs:
@@ -574,6 +639,8 @@ func _build_ground(draw) -> void:
 					highway = absf(natural_z-KOLPACK_CROSSING.y) < 5.1
 					xline = KOLPACK_CROSSING.x
 					zline = _mapped_z(KOLPACK_CROSSING.y)
+				if alder_open and center.z < -405 and absf(center.x-CaseSites.ALDER_X) <= 5:
+					xline = CaseSites.ALDER_X
 			for p: Vector3 in [a,b,c,d]:
 				if road:
 					uv.append(Vector2(p.z-zline,p.x) if highway else Vector2(p.x-xline,p.z))

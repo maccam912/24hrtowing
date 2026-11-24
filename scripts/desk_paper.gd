@@ -1,5 +1,7 @@
 extends RefCounted
 
+const Campaign := preload("res://scripts/county_case.gd")
+const NOTES_PER_PAGE := 6
 const PAPER_INK := Color("#353f3c")
 const FORM_BLUE := Color("#475e72")
 const FADED := Color("#67746e")
@@ -9,7 +11,7 @@ const ORIGINAL := Color("#e4e0cd")
 const TISSUE := Color("#e3d5ce")
 const HATCH := Color("#a6b4a3")
 const RADIO_ENAMEL := preload("res://assets/ui/sign_enamel.jpg")
-const ATLAS_A := Vector2(-635,-465)
+const ATLAS_A := Vector2(-635,-575)
 const ATLAS_B := Vector2(934,836)
 const KEY_PLACES := [
 	["A","Brandt yard","Brandt Towing",Vector2(-32,-64)],
@@ -29,6 +31,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"custody": _custody(c,p,s)
 		"field": _field(c,p,s)
 		"parts": _parts(c,p,s)
+		"passenger": _passenger(c,p,s)
 		_: _slip(c,p,s)
 
 func _header(c, p: Rect2, small: String, title: String, reference: String, font: Font) -> void:
@@ -36,10 +39,11 @@ func _header(c, p: Rect2, small: String, title: String, reference: String, font:
 	var y := p.position.y+32
 	c.text(Vector2(x,y),small,c.MONO,13,FADED)
 	c.text(Vector2(x,y+43),title,font,38,PAPER_INK)
-	var stamp_width: float = c.MONO.get_string_size(reference,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x+16
-	var stamp := Rect2(p.end.x-32-stamp_width,y-18,stamp_width,25)
-	c.draw_rect(stamp,c.OXBLOOD,false,1)
-	c.fitted(stamp,reference,c.MONO,13,c.OXBLOOD)
+	if not reference.is_empty():
+		var stamp_width: float = c.MONO.get_string_size(reference,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x+16
+		var stamp := Rect2(p.end.x-32-stamp_width,y-18,stamp_width,25)
+		c.draw_rect(stamp,c.OXBLOOD,false,1)
+		c.fitted(stamp,reference,c.MONO,13,c.OXBLOOD)
 	c.rule(x,y+59,p.size.x-64,PAPER_INK,1.8)
 	c.rule(x,y+63,p.size.x-64,LINE)
 
@@ -49,6 +53,9 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var active_job: Dictionary = history[c.desk.slip_index] if archived else s.get("job",{})
 	var num := str(active_job.get("number",1001+history.size()))
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
+	var detail: Dictionary = Campaign.DETAILS.get(active_job.get("case_id",""),{})
+	if not detail.is_empty():
+		job_kind = detail.title
 	var road := str(active_job.get("location","Awaiting county dispatch"))
 	c._sheet(p,TISSUE)
 	c.draw_rect(Rect2(p.end.x-11,p.position.y+6,6,p.size.y-6),Color("#b0b7a2"))
@@ -134,10 +141,16 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var offer: Dictionary = s.get("offer",{})
 	var available: bool = s.get("mode","") == "available"
 	c.text(Vector2(x,ry),"ON ROTATION    /    SLIP %d" % int(offer.get("number",1001)) if available else "LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
+	var lead: String = s.get("case_lead","") if available else ""
 	var lines: Array = records.duplicate()
 	if available and not offer.is_empty():
 		lines.append(offer.dispatch)
-	lines = lines.slice(maxi(0,lines.size()-3))
+	if not lead.is_empty():
+		c.multiline(Vector2(x,ry+31),lead,c.subtle,19,c.CREAM,w,4)
+		ry += 108
+		lines = lines.slice(maxi(0,lines.size()-1))
+	else:
+		lines = lines.slice(maxi(0,lines.size()-3))
 	if lines.is_empty():
 		lines = [str((s.get("job",{}) as Dictionary).get("dispatch","County channel open."))]
 	for i in lines.size():
@@ -145,8 +158,11 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		var words := str(message)
 		if message is Dictionary:
 			words = str(message.get("text",""))
-		c.multiline(Vector2(x,ry+30+i*65),words,c.subtle,19,c.WHITE,w,2)
-		c.rule(x,ry+69+i*65,w,Color("#5a685e"))
+		if lead.is_empty():
+			c.multiline(Vector2(x,ry+30+i*65),words,c.subtle,19,c.WHITE,w,2)
+			c.rule(x,ry+69+i*65,w,Color("#5a685e"))
+		else:
+			c.multiline(Vector2(x,ry+30),words,c.subtle,19,c.WHITE,w,3)
 	var button_height := 80 if c.desk.is_touch_mode() else 52
 	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
 	if not s.get("can_radio",s.get("in_cab",true)):
@@ -161,6 +177,17 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		else:
 			c.button("directions",key,"Ask for directions",true)
 
+func _passenger(c, p: Rect2, s: Dictionary) -> void:
+	c._sheet(p,TISSUE)
+	_header(c,p,"ALDER CUT  /  RETURN TO ESKER","The ride home","T. VANG",c.MONO)
+	var width := (p.size.x-84)*.5
+	var asked: Array = s.get("tou_asked",[])
+	for i in Campaign.QUESTIONS.size():
+		var at := p.position + Vector2(32 + (i%2)*(width+20),135 + floori(i/2.0)*118)
+		c.button("tou_%d" % i,Rect2(at,Vector2(width,84)),Campaign.QUESTIONS[i][0],i not in asked)
+		if i in asked:
+			c.text(at+Vector2(5,102),"IN THE FIELD NOTES",c.MONO,12,FADED)
+
 func _fax(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#e4e4d8"))
 	var x := p.position.x+33
@@ -170,7 +197,6 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 	var receipt: bool = (s.get("mode","") == "available" and not s.get("slips",[]).is_empty()
 		and number == archive.size()-1 and not str(s.get("hint_title","")).is_empty())
 	var title := str(s.hint_title) if receipt else "Fax tray"
-	_header(c,p,"INCOMING FACSIMILE  /  COUNTY CLERK",title,"ACCOUNTS PAYABLE",c.MONO)
 	var contents := str(archive[number] if number>=0 and number<archive.size() else s.get("fax_text","")).strip_edges()
 	if contents.is_empty():
 		contents = "No incoming faxes."
@@ -178,10 +204,23 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 	var key_size := Vector2(82,80) if touch else Vector2(52,40)
 	var footer_top := p.end.y-(87 if touch else 54)
 	var body_y := p.position.y+111
-	var font_size := 17
-	while font_size>12 and c.MONO.get_multiline_string_size(contents,HORIZONTAL_ALIGNMENT_LEFT,width,font_size).y > footer_top-13-body_y:
+	var sheets := contents.split("\f",false)
+	# A case memo is a second fax sheet. Leave the newest message on top of the tray.
+	var page: int = (sheets.size()-1 if receipt else 0) if c.desk.fax_sheet < 0 else posmod(c.desk.fax_sheet,sheets.size())
+	c.desk.fax_sheet = page
+	_header(c,p,"INCOMING FACSIMILE  /  TAMARACK COUNTY",title,"ACCOUNTS PAYABLE" if sheets.size()==1 else "",c.MONO)
+	if sheets.size() > 1:
+		var next := "Read invoice" if page == sheets.size()-1 else "Read case memo"
+		c.button("fax_sheet",Rect2(p.end.x-222,p.position.y+8,190,80 if touch else 62),next)
+	var body := sheets[page]
+	var font_size := 18
+	while font_size>14 and c.MONO.get_multiline_string_size(body,HORIZONTAL_ALIGNMENT_LEFT,width,font_size).y > footer_top-13-body_y:
 		font_size -= 1
-	c.multiline(Vector2(x,body_y+c.MONO.get_ascent(font_size)),contents,c.MONO,font_size,Color("#50594f"),width)
+	if c.MONO.get_multiline_string_size(body,HORIZONTAL_ALIGNMENT_LEFT,width,font_size).y > footer_top-13-body_y:
+		body = body.replace("\n\n","\n")
+	while font_size>12 and c.MONO.get_multiline_string_size(body,HORIZONTAL_ALIGNMENT_LEFT,width,font_size).y > footer_top-13-body_y:
+		font_size -= 1
+	c.multiline(Vector2(x,body_y+c.MONO.get_ascent(font_size)),body,c.MONO,font_size,Color("#50594f"),width)
 	c.rule(x,footer_top-5,width,LINE)
 	if s.get("can_fax",false):
 		c.button("send_fax",Rect2(p.end.x-188,footer_top,156,80 if touch else 39),"Fax invoice",true)
@@ -261,10 +300,15 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 	var entries: Array = s.get("pencil_notes",[])
 	if not entries.is_empty():
 		var button_box := Rect2(cx,p.end.y-89,column_w,80)
-		c.button("atlas_notes",button_box,"Parcel index" if c.desk.atlas_notes else "Pencil notes")
+		var label := "Pencil notes"
+		var end := maxi(0,entries.size()-int(c.desk.notes_page)*NOTES_PER_PAGE)
+		var start := maxi(0,end-NOTES_PER_PAGE)
 		if c.desk.atlas_notes:
-			for i in entries.size():
-				c.fitted(Rect2(cx,cy+14+i*39,column_w,35),entries[i],c.HAND,20,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+			label = "Older notes" if start > 0 else "Parcel index"
+		c.button("atlas_notes",button_box,label)
+		if c.desk.atlas_notes:
+			for i in range(start,end):
+				c.fitted(Rect2(cx,cy+14+(i-start)*37,column_w,35),entries[i],c.HAND,20,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 			return
 	var notes := ["County K, north of 64","W0784 · Highway 64","N5016 · Kolpack Rd","W1124 · Hendricks Rd","Swamp Rd · state land","Esker, south of Main","N4886 · County K"]
 	for i in KEY_PLACES.size():
@@ -340,8 +384,17 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 			if observed.has(mark[0]):
 				var note_at: Vector2 = project.call(mark[1])
 				c.draw_arc(note_at,6.3,0,TAU,15,FORM_BLUE,1.3,true)
-				var offset := Vector2(-49,12) if mark[0]=="sketch" else Vector2(8,-5 if mark[0]=="house" else 12)
+				var offset := Vector2(-60,0) if mark[0]=="rod" else (Vector2(-49,12) if mark[0]=="sketch" else Vector2(8,-5))
 				c.text(note_at+offset,mark[2],c.HAND,15,FORM_BLUE)
+		var evidence: Dictionary = s.get("case_evidence",{})
+		if evidence.has("last_cap"):
+			var stake: Vector2 = project.call(Vector2(447,-536))
+			c.draw_arc(stake,4,0,TAU,12,FORM_BLUE,1.2,true)
+			c.text(stake+Vector2(6,4),"S3 NW",c.HAND,14,FORM_BLUE)
+		if s.get("adopted",false):
+			var turn: Vector2 = project.call(Vector2(441,-466))
+			c.text(turn+Vector2(10,0),"ALDER CUT RD",c.MONO,9,GREEN)
+			c.text(turn+Vector2(10,13),"N5420 · A. Kraemer",c.print_face,11,GREEN)
 		var n := box.position+Vector2(16,23)
 		c.text(n,"N",c.scaled,15,GREEN)
 		c.draw_colored_polygon(PackedVector2Array([n+Vector2(4,4),n+Vector2(0,16),n+Vector2(4,13),n+Vector2(8,16)]),GREEN)

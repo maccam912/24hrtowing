@@ -30,6 +30,7 @@ var car:Node3D
 var car_lamps:Node3D
 var flash_time:=0.0
 var witness:Node3D
+var survey_passenger: Node3D
 var flame:Node3D
 var chocks:Node3D
 var dollies:Node3D
@@ -140,6 +141,20 @@ func setup(county:Node3D) -> void:
 	_build_tracks()
 	_ready_to_run=true
 	set_spawn(Vector3.ZERO)
+
+func set_survey_passenger(on_board: bool) -> void:
+	body.seat_gear.visible = not on_board
+	if on_board and not is_instance_valid(survey_passenger):
+		survey_passenger = Scene.person(body, false, 1)
+		survey_passenger.name = "TouVang"
+		survey_passenger.position = Vector3(.54, 1.05, -.43)
+		survey_passenger.rotation.y = .16
+		var animation := survey_passenger.get_node("AnimationPlayer") as AnimationPlayer
+		animation.get_animation("seated").loop_mode = Animation.LOOP_LINEAR
+		animation.play("seated")
+		animation.advance(0.0)
+	if is_instance_valid(survey_passenger):
+		survey_passenger.visible = on_board
 
 func set_spawn(at:Vector3, yaw:=0.0) -> void:
 	truck.position=at

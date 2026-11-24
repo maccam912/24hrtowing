@@ -45,6 +45,7 @@ var mirror_step := 0
 var elapsed := 0.0
 var glass_material := ShaderMaterial.new()
 var beacons: Array[MeshInstance3D]=[]
+var seat_gear: Node3D
 
 func build() -> void:
 	var k = Kit.new(self)
@@ -234,15 +235,17 @@ func _cabin(k) -> void:
 	Kit.label(self,"680 AM",Vector3(.141,2.02,-1.255),.023,GREEN,Vector3.ZERO,"dseg14")
 	k.box(Vector3(.67,1.973,-1.37),Vector3(.58,.21,.045),Color("#636457"))
 	k.box(Vector3(.68,2.024,-1.33),Vector3(.12,.025,.024),CHROME)
-	# Maps and carbon copies stay on the seat at arm's reach.
-	k.box(Vector3(.45,1.849,-.40),Vector3(.45,.038,.34),Color("#b9ae88"),Vector3(0,-.16,0))
-	Kit.label(self,"TAMARACK COUNTY\nPLAT BOOK",Vector3(.45,1.872,-.41),.039,DEEP,Vector3(-PI/2,-.16,0))
+	seat_gear = Kit.joint(self, Vector3.ZERO, "BenchGear")
+	var gear := Kit.new(seat_gear)
+	gear.box(Vector3(.45,1.849,-.40),Vector3(.45,.038,.34),Color("#b9ae88"),Vector3(0,-.16,0))
+	Kit.label(seat_gear,"TAMARACK COUNTY\nPLAT BOOK",Vector3(.45,1.872,-.41),.039,DEEP,Vector3(-PI/2,-.16,0))
 	for z in [-.53,-.49,-.45,-.41,-.37,-.33,-.29]:
-		k.tube(Vector3(.24,1.867,z),Vector3(.27,1.867,z),.009,STEEL)
-	k.box(Vector3(.05,1.848,-.43),Vector3(.23,.03,.32),Color("#71533b"),Vector3(0,.08,0))
-	k.box(Vector3(.05,1.869,-.43),Vector3(.21,.014,.29),CREAM,Vector3(0,.08,0))
-	k.tube(Vector3(.83,1.852,-.42),Vector3(.83,2.09,-.42),.055,Color("#46594e"),12)
-	k.tube(Vector3(.83,2.08,-.42),Vector3(.83,2.134,-.42),.057,STEEL,12)
+		gear.tube(Vector3(.24,1.867,z),Vector3(.27,1.867,z),.009,STEEL)
+	gear.box(Vector3(.05,1.848,-.43),Vector3(.23,.03,.32),Color("#71533b"),Vector3(0,.08,0))
+	gear.box(Vector3(.05,1.869,-.43),Vector3(.21,.014,.29),CREAM,Vector3(0,.08,0))
+	gear.tube(Vector3(.83,1.852,-.42),Vector3(.83,2.09,-.42),.055,Color("#46594e"),12)
+	gear.tube(Vector3(.83,2.08,-.42),Vector3(.83,2.134,-.42),.057,STEEL,12)
+	gear.finish()
 	for x in [-.53,.49]:
 		var w=Kit.joint(self,Vector3(x,2.185,-1.791))
 		var wiper=Kit.new(w)

@@ -123,6 +123,30 @@
     "DRIVER",
     "I work nights. Usually the plow's already been through by the time I head in."
   ],
+  "aide_pull": [
+    "DRIVER",
+    "Mrs. Buresh saw me go in from her kitchen. She'll still be at the window. Give her a wave when you go by."
+  ],
+  "baker_pull": [
+    "DRIVER",
+    "First batch of rye is rising on the counter. If it's halfway to the ceiling when I get there, you'll know whose fault it was."
+  ],
+  "mechanic_pull": [
+    "DRIVER",
+    "My tools are still in the trunk. That thump was my socket set. Does it every time I take a corner."
+  ],
+  "boiler_pull": [
+    "DRIVER",
+    "My relief's sitting by the gauges with his coat on. He'll tell me to take my time. He'll have his lunchbox packed, too."
+  ],
+  "relief_pull": [
+    "DRIVER",
+    "My good scraper's in my other coat. Tried to clear that blade with a feed-store calendar. You can guess how well that worked."
+  ],
+  "custodian_pull": [
+    "DRIVER",
+    "School's shut, but somebody's got to open the taps in the locker room. Coldest pipes in that building."
+  ],
   "nurse_pull": [
     "ANGIE",
     "My badge is in my lunch bag. If the hospital calls looking for me, tell them I'm on my way."
