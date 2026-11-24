@@ -1,7 +1,7 @@
 extends Node
 
 const FOLDER := "res://assets/audio/"
-const EFFECT_LEVELS_DB := {"footstep": -24.0, "reverse": -15.0}
+const EFFECT_LEVELS_DB := {"footstep": -24.0, "air_brake": -25.0, "reverse": -21.0}
 var voices := {}
 var engines := {}
 var samples := {}
@@ -30,7 +30,7 @@ func _ready() -> void:
 		var player := AudioStreamPlayer.new()
 		add_child(player)
 		effects.append(player)
-	for id: String in ["wind","diesel","heater","winch"]:
+	for id: String in ["wind","diesel","diesel_pull","heater","winch"]:
 		var loop_player := AudioStreamPlayer.new()
 		var stream = _sample(id).duplicate()
 		stream.loop = true
@@ -63,8 +63,6 @@ func _speech_finished() -> void:
 		effect("radio")
 
 func effect(id: String) -> void:
-	if not audible:
-		return
 	var aliases := {"flare":"footstep","cable_slip":"ratchet","hook":"ratchet","chock":"ratchet","winch_start":"lift"}
 	var sample_id: String = aliases.get(id, id)
 	if not ResourceLoader.exists(FOLDER + sample_id + ".mp3"):
@@ -73,17 +71,33 @@ func effect(id: String) -> void:
 	cursor = (cursor + 1) % effects.size()
 	p.stream = _sample(sample_id)
 	p.volume_db = EFFECT_LEVELS_DB.get(id, -7.5)
-	p.pitch_scale = randf_range(0.95,1.05)
-	p.play()
+	p.pitch_scale = 1.0 if id == "reverse" else randf_range(0.95,1.05)
+	if audible:
+		p.play()
 
-func mix_truck(s: Dictionary, player_active: bool, delta: float) -> void:
+func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: float) -> void:
 	var cab: bool = s.get("in_cab",true)
 	_volume("wind", (-27.0 if cab else -12.0) if player_active else -19.0, delta)
-	_volume("diesel", (-18.0 if cab else -23.0) if player_active else -58.0, delta)
 	_volume("heater", -29.0 if cab and player_active else -65.0, delta)
 	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
-	engines.diesel.pitch_scale = lerpf(0.87,1.65,minf(absf(s.get("speed_mph",0.0))/37.0,1.0))
 	engines.winch.pitch_scale = 0.80 + 0.56 * float(s.get("tension",0.0))
+
+	var driving := controls_live and cab
+	var rpm: float = s.engine_rpm if driving else 680.0
+	var load_fraction: float = s.engine_load if driving else 0.0
+	var road_speed := absf(s.speed_mps) if driving else 0.0
+	var blend := maxf(load_fraction, smoothstep(0.15, 3.2, road_speed))
+	var running := player_active and float(s.fuel) > 0.0
+	var idle_gain := db_to_linear(-18.0 if cab else -23.0) * (1.0 - blend)
+	var pull_gain := db_to_linear(lerpf(-18.0, -5.0, load_fraction)) * blend
+	# Smooth linear amplitudes so the exhaust responds even on the first gas tap.
+	var response := 1.0 - exp(-8.0 * delta)
+	var idle: AudioStreamPlayer = engines.diesel
+	var pull: AudioStreamPlayer = engines.diesel_pull
+	idle.volume_linear = lerpf(idle.volume_linear, idle_gain if running else 0.0, response)
+	pull.volume_linear = lerpf(pull.volume_linear, pull_gain if running else 0.0, response)
+	idle.pitch_scale = clampf(rpm / 740.0, 0.9, 1.35)
+	pull.pitch_scale = clampf(rpm / 1550.0, 0.5, 1.5)
 
 func _volume(id: String, target: float, delta: float) -> void:
 	var p: AudioStreamPlayer = engines[id]

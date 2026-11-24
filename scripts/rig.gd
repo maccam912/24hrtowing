@@ -13,6 +13,9 @@ const WALK_EYES := 1.68
 const FOOTSTEP_DISTANCE := 2.1
 const MAX_SPEED := 25.6
 const MAX_LOADED := 18.2
+const IDLE_RPM := 680.0
+# Road speeds in m/s at 2050 RPM, from first gear to overdrive.
+const GEAR_TOP_SPEEDS: Array[float] = [4.4, 7.7, 12.0, 17.5, 23.0, 29.5]
 const MAX_STEER_ANGLE := deg_to_rad(36.0)
 const START_ODO := 82146.2
 const CHASE_ELEVATION := 0.25
@@ -51,6 +54,9 @@ var motion:=Vector3.ZERO # Velocity at the rear tandem, in world space.
 var steering:=0.0 # Equivalent front road-wheel angle in radians, positive right.
 var heading:=0.0
 var acceleration:=0.0
+var drive_gear := 0
+var engine_rpm := IDLE_RPM
+var engine_load := 0.0
 var odo:=START_ODO
 var fuel:=.84
 var warmth:=1.0
@@ -230,6 +236,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 		_drive(move,brake,dt)
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
+		_update_engine(0.0,dt)
 		_walk(move,dt)
 		_face_operator(dt)
 		_suspension(dt)
@@ -242,7 +249,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 	if in_cab and fuel>0:
 		fuel=maxf(fuel-dt*.000017,0)
 	body.glass_material.set_shader_parameter("cold",1.0-warmth)
-	body.animate(dt,speed,steering,acceleration,loaded,tension,fuel,odo,_heading_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
+	body.animate(dt,speed,steering,engine_rpm,loaded,tension,fuel,odo,_heading_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
 	if not in_cab and warmth<=0.0 and info_timer<=0:
 		_note("Hands numb. The cab heater is running.",7.0)
 
@@ -258,8 +265,10 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	var max_forward:float=lerpf(MAX_LOADED if loaded else MAX_SPEED,7.2 if loaded else 9.1,offroad)
 	var pumping:=fuel>0 and not phase in ["cable","rigged","at_lift","dollies"]
 	var tire_grip:float=1.29 if tire_chains else 1.0
+	var demand := 0.0
 	if handbrake:
 		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip)
+		if absf(speed)<.20 and absf(prev)>=.20: sound_event.emit("air_brake")
 	elif absf(throttle)>.04 and pumping:
 		var reversing:=speed*throttle<-.20
 		var target:float=throttle*(max_forward if throttle>0 else 5.15)
@@ -267,6 +276,12 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 		if reversing: accel=(4.8 if loaded else 7.6)*tire_grip
 		if throttle<0 and not reversing: accel=2.44
 		speed=move_toward(speed,target,accel*dt)
+		if not reversing:
+			# Ease back once the truck reaches its governed road speed.
+			var pulling := smoothstep(0.0, 2.5, absf(target)-absf(speed))
+			demand = absf(throttle) * lerpf(.52, .87, pulling)
+			if loaded:
+				demand = minf(1.0, demand * 1.2)
 	else:
 		speed=move_toward(speed,0,(.56+offroad*.78+speed*speed*.0018)*dt)
 	if not pumping and fuel<=0 and info_timer<=0: _note("Fuel gone. Call Arlene for a can.",6.0)
@@ -290,7 +305,6 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	var step := motion*dt + (next_forward-forward)*Truck.REAR_AXLE_Z
 	if _truck_obstacle(step,turn):
 		wear=minf(1,wear+clampf(absf(speed)-4,0,12)*.0015)
-		if absf(speed)>3: sound_event.emit("air_brake")
 		motion=Vector3.ZERO
 		speed=0
 		step=Vector3.ZERO
@@ -309,13 +323,27 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	odo+=driven/GAME_MILE
 	fuel=maxf(0,fuel-driven*(.000065 if loaded else .000046))
 	acceleration=clampf((speed-prev)/dt,-11,6)
-	if absf(speed)<.20 and absf(prev)>=.20 and handbrake: sound_event.emit("air_brake")
-	reverse_timer-=dt
-	if speed<-.65 and reverse_timer<=0:
-		reverse_timer=1.02
+	_update_engine(demand,dt)
+	reverse_timer=maxf(0.0,reverse_timer-dt)
+	if speed<-.10 and is_zero_approx(reverse_timer):
+		reverse_timer=1.0
 		sound_event.emit("reverse")
 	_suspension(dt)
 	_lay_tracks()
+
+func _update_engine(demand:float, dt:float) -> void:
+	# Downshift below the upshift point so easing off won't hunt between gears.
+	while drive_gear < GEAR_TOP_SPEEDS.size()-1 and speed > GEAR_TOP_SPEEDS[drive_gear]:
+		drive_gear += 1
+	while drive_gear > 0 and speed < GEAR_TOP_SPEEDS[drive_gear-1] * .78:
+		drive_gear -= 1
+	var gear_speed := 6.1 if speed < 0.0 else GEAR_TOP_SPEEDS[drive_gear]
+	engine_load = demand
+	var target_rpm := maxf(IDLE_RPM + 570.0*demand, 2050.0*absf(speed)/gear_speed)
+	if fuel <= 0:
+		target_rpm = 0.0
+		engine_load = 0.0
+	engine_rpm = lerpf(engine_rpm, target_rpm, 1.0-exp(-6.0*dt))
 
 func _walk(move:Vector2, dt:float) -> void:
 	var dir:=Vector3(move.x,0,move.y).rotated(Vector3.UP,camera_yaw)
@@ -895,7 +923,7 @@ func service_fuel() -> void:
 	fuel=1.0
 
 func get_status() -> Dictionary:
-	return {"in_cab":in_cab,"speed_mph":absf(speed)*2.237,"speed_mps":speed,"heading":_heading_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
+	return {"in_cab":in_cab,"speed_mph":absf(speed)*2.237,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_heading_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
 
 func _v(p:Vector3)->Array:
 	return [p.x,p.y,p.z]
@@ -968,6 +996,10 @@ func restore_state(d:Dictionary) -> void:
 			_track_underlift()
 	speed=0
 	motion=Vector3.ZERO
+	drive_gear=0
+	engine_load=0.0
+	engine_rpm=IDLE_RPM if fuel>0 else 0.0
+	reverse_timer=0.0
 	if in_cab:
 		_frame_nearby_car()
 	_update_eyes()

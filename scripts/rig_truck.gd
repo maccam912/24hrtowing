@@ -325,7 +325,7 @@ func _mirror(s:float) -> void:
 	screen.position.z=.038
 	mirrors.append(viewport)
 
-func animate(dt:float, speed:float, steering:float, acceleration:float, load_on:bool, tension:float, fuel:float, odo:float, heading:float, cab:bool, has_job:bool) -> void:
+func animate(dt:float, speed:float, steering:float, engine_rpm:float, load_on:bool, tension:float, fuel:float, odo:float, heading:float, cab:bool, has_job:bool) -> void:
 	animate_weather(dt,has_job)
 	var steer_tangent := tan(steering)
 	var curvature := steer_tangent / WHEELBASE
@@ -339,7 +339,7 @@ func animate(dt:float, speed:float, steering:float, acceleration:float, load_on:
 		# The tire spins about the steered hub's local axle.
 		wheel.rotate_x(-speed * dt * path_scale / TIRE_RADIUS)
 	steer_wheel.rotation.z = -steering * 14.0
-	var readings := [absf(speed)*2.237/80.0,clampf(.22+absf(speed)*.013+maxf(acceleration,0.0)*.065,0,1),fuel,.76]
+	var readings := [absf(speed)*2.237/80.0,engine_rpm/3000.0,fuel,.76]
 	for i in needles.size():
 		needles[i].rotation.z=deg_to_rad(132-264*clampf(readings[i],0,1))
 	pressure_needle.rotation.z=deg_to_rad(132-264*tension)

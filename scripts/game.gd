@@ -204,7 +204,7 @@ func _physics_process(dt: float) -> void:
 	if ui_timer >= 0.10:
 		ui_timer = 0.0
 		_refresh()
-	audio.mix_truck(rig.get_status(),active and not desk.is_title(),dt)
+	audio.mix_truck(rig.get_status(),active and not desk.is_title(),playing,dt)
 	if not desk.is_touch_mode() and DisplayServer.get_name() != "headless":
 		var capture := Input.MOUSE_MODE_CAPTURED if playing else Input.MOUSE_MODE_VISIBLE
 		if Input.mouse_mode != capture:
