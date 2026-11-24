@@ -464,13 +464,19 @@ func road_furniture() -> void:
 		var side := dir.cross(Vector3.UP)
 		var length := start.distance_to(end)
 		var highway: bool = r[0] == "Highway 64" or r[0] == "US 59"
+		var has_poles: bool = highway or r[0] in ["County K","Kolpack Rd","Hendricks Rd","Swamp Rd"]
 		var previous := Vector3.ZERO
 		for i in range(0,int(length+1),48):
 			var point := start+dir*i
 			# Utility poles are sited on the field side of the roadside ditch.
 			var here := point+side*12.9
 			var skip := (here.x > -507 and here.x < -442) or (Rect2(-102,-96,208,140).has_point(Vector2(here.x,here.z))) or here.distance_to(Vector3(318,0,-412)) < 20
-			if not skip and (highway or r[0] in ["County K","Kolpack Rd","Hendricks Rd","Swamp Rd"]):
+			if skip:
+				previous = Vector3.ZERO
+				continue
+			# Keep the wire continuous across a junction while clearing both shoulders.
+			if has_poles and world.road_distance(here.x,here.z) >= 12.0:
+				here.y = world.ground_height(here.x,here.z)
 				origin=here
 				cyl(0,3.55,0,.22,7.65,"wood")
 				draw.beam(here-side*1.34+Vector3.UP*7.1,here+side*1.34+Vector3.UP*7.1,.11,.11,"wood")
@@ -484,12 +490,12 @@ func road_furniture() -> void:
 						draw.beam(start_line,mid,.038,.038,"black")
 						draw.beam(mid,end_line,.038,.038,"black")
 				previous = here
-			else:
-				previous = Vector3.ZERO
 			# Low reflective snow stakes parallel the road without covering the lane.
-			if i%96==0 and not skip:
+			if i%96==0:
 				for s:float in [-1.,1.]:
 					var foot := point+side*6.5*s
+					if world.road_distance(foot.x,foot.z) < 6.5:
+						continue
 					foot.y = world.ground_height(foot.x,foot.z)
 					draw.box(foot+Vector3.UP*.49,Vector3(.07,.98,.08),"wood")
 					draw.box(foot+Vector3.UP*.91,Vector3(.084,.14,.095),"white")

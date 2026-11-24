@@ -1,6 +1,7 @@
 extends Node
 
 const FOLDER := "res://assets/audio/"
+const EFFECT_LEVELS_DB := {"footstep": -24.0, "reverse": -15.0}
 var voices := {}
 var engines := {}
 var samples := {}
@@ -71,7 +72,7 @@ func effect(id: String) -> void:
 	var p := effects[cursor]
 	cursor = (cursor + 1) % effects.size()
 	p.stream = _sample(sample_id)
-	p.volume_db = -15.0 if id in ["footstep","reverse"] else -7.5
+	p.volume_db = EFFECT_LEVELS_DB.get(id, -7.5)
 	p.pitch_scale = randf_range(0.95,1.05)
 	p.play()
 

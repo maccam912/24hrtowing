@@ -21,6 +21,7 @@ func run() -> void:
 	floor_world.add_child(rig)
 	rig.setup(floor_world)
 	await physics_frame
+	test_footsteps()
 	var empty := drive_sample(false)
 	var heavy := drive_sample(true)
 	require(heavy.accel_seconds > empty.accel_seconds * 1.3, "underlift load changes acceleration")
@@ -31,6 +32,27 @@ func run() -> void:
 	if not failed:
 		print("CHECKS PASSED — front steering and rear axle paths in both gears, 12 m/s braking %.1f m empty / %.1f m loaded, cable and tension relief" % [empty.braking,heavy.braking])
 	quit(1 if failed else 0)
+
+func test_footsteps() -> void:
+	var parked: Dictionary = rig.save_state()
+	rig.interact()
+	var sounds: Array[String] = []
+	var listen := func(id: String): sounds.append(id)
+	rig.sound_event.connect(listen)
+	for tick in 360:
+		rig.set_controls(Vector2.LEFT,Vector2.ZERO,false,false,STEP)
+	var full_speed := sounds.count("footstep")
+	require(full_speed in [9,10,11], "full-speed walking sounds about ten steps in six seconds")
+	sounds.clear()
+	for tick in 360:
+		rig.set_controls(Vector2.LEFT*.5,Vector2.ZERO,false,false,STEP)
+	require(sounds.count("footstep") in [4,5,6], "half-speed walking spaces steps farther apart in time")
+	sounds.clear()
+	for tick in 120:
+		rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,STEP)
+	require(not sounds.has("footstep"), "standing still is quiet")
+	rig.sound_event.disconnect(listen)
+	rig.restore_state(parked)
 
 func drive_sample(hauling: bool) -> Dictionary:
 	rig.end_job()

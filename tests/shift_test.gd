@@ -68,7 +68,10 @@ func run() -> void:
 		if i==1:
 			var parked_car:Node3D=rig.car
 			var before:=parked_car.global_transform
-			try_cab_door()
+			stand_at_cab_door(1.0)
+			game._refresh()
+			check(game.state.can_enter_cab, "the passenger door offers ENTER CAB")
+			await tap_control("interact")
 			check(rig.in_cab and rig.car==parked_car and parked_car.global_transform.is_equal_approx(before),"re-entering at a roadside car preserves it")
 			check(rig.eyes.is_position_in_frustum(parked_car.position+Vector3.UP),"re-entering frames the parked casualty in chase view")
 			game._action("interact")
@@ -84,14 +87,15 @@ func run() -> void:
 			check(game.packed_tripod,"stowed survey gear")
 		stand(site+Vector3(2.5,0,0),site)
 		game._action("interact")
-		check(rig.phase=="flared","flare at scene "+str(i))
+		check(rig.phase=="flared" and is_instance_valid(rig.flame),"flare at scene "+str(i))
 		var panel: Vector3 = rig._panel()
 		var outside: Vector3 = rig.truck.global_basis.x*-1.1
 		stand(panel+outside,panel)
 		game._action("interact")
 		check(rig.phase == "cable","chock and take line")
 		if i==1:
-			try_cab_door()
+			stand_at_cab_door(-1.0)
+			game._action("interact")
 			check(not rig.in_cab and rig.car.is_visible_in_tree() and rig.phase=="cable","carrying the hook keeps the truck chocked and the casualty at the scene")
 		var hook_end:=1 if i==3 else -1
 		var eye: Vector3 = rig._eyelet(hook_end)
@@ -99,12 +103,14 @@ func run() -> void:
 		game._action("interact")
 		check(rig.phase=="rigged","attached cable")
 		if i == 1:
-			try_cab_door()
+			stand_at_cab_door(1.0)
+			game._action("interact")
 			check(not rig.in_cab and rig.car.is_visible_in_tree() and rig.phase=="rigged","the attached cable and car stay put at the cab door")
 			game._save()
 			var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 			game._restore(snapshot)
 			check(rig.phase=="rigged" and not rig.in_cab,"resume with attached cable and unchanged view")
+			check(is_instance_valid(rig.flame), "resuming active rigging restores its road flare")
 			var operator_view: Transform3D = rig.get_camera().global_transform
 			game.desk.toggle_pause()
 			check(game.world_view.get_camera_3d() == rig.get_camera(), "pause keeps the operator view")
@@ -115,6 +121,7 @@ func run() -> void:
 			game.desk._activate("play")
 			check(game.world_view.get_camera_3d() == rig.get_camera() and rig.get_camera().global_transform.is_equal_approx(operator_view),"continuing restores the on-foot camera")
 		stand(panel+outside,panel)
+		var scene_flare: Node3D = rig.flame
 		for tick in 3600:
 			if rig.phase != "rigged":
 				break
@@ -133,6 +140,12 @@ func run() -> void:
 			game._action("interact")
 			check(rig.loaded and game.mode=="haul","lift and sign for tow")
 			check(game.county.storage_guide.visible == (i == 1), "only the first storage delivery lights the pad")
+		check(scene_flare.is_queued_for_deletion() and rig.flame == null and not rig.save_state().has("flare"), "finishing roadside work clears the flare before leaving")
+		if i < 2:
+			var legacy: Dictionary = rig.save_state()
+			legacy["flare"] = rig._v(scene_flare.position)
+			rig.restore_state(legacy)
+			check(rig.flame == null, "resuming a recovered job ignores a flare from an older save")
 		var casualty:Node3D=rig.car
 		var handle: Vector3 = rig.truck.to_global(rig.Truck.DOOR)
 		stand(handle + outside,handle)
@@ -281,10 +294,11 @@ func stand(position: Vector3, face: Vector3) -> void:
 	rig.camera_pitch = -.20
 	rig._update_eyes()
 
-func try_cab_door() -> void:
-	var handle:Vector3=rig.body.to_global(rig.Truck.DOOR+Vector3.UP*1.4)
-	stand(handle-rig.truck.global_basis.x,handle)
-	game._action("interact")
+func stand_at_cab_door(side: float) -> void:
+	var door: Vector3 = rig.Truck.DOOR
+	door.x = side * absf(door.x)
+	var handle: Vector3 = rig.body.to_global(door + Vector3.UP*1.4)
+	stand(handle + rig.truck.global_basis.x*side, handle)
 
 func verify_tow() -> void:
 	var wheelbase:float=(2.5 if rig.kind=="hold" else 2.12)*.61

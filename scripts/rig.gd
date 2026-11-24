@@ -10,6 +10,7 @@ const Kit = preload("res://scripts/rig_mesh.gd")
 const GAME_MILE := 400.0
 const CABLE_REACH := 37.0
 const WALK_EYES := 1.68
+const FOOTSTEP_DISTANCE := 2.1
 const MAX_SPEED := 25.6
 const MAX_LOADED := 18.2
 const MAX_STEER_ANGLE := deg_to_rad(36.0)
@@ -140,6 +141,7 @@ func set_spawn(at:Vector3, yaw:=0.0) -> void:
 	ground_period=0
 	ground_targets=Vector3(truck.position.y,0,0)
 	foot=at
+	walked=0.0
 	_update_eyes()
 
 func _ground(p:Vector3) -> float:
@@ -341,8 +343,8 @@ func _walk(move:Vector2, dt:float) -> void:
 	dest.y=_ground(dest)
 	foot=dest
 	walked+=Vector2(foot.x-start.x,foot.z-start.z).length()
-	if walked>.86:
-		walked=0.0
+	if walked>=FOOTSTEP_DISTANCE:
+		walked-=FOOTSTEP_DISTANCE
 		sound_event.emit("footstep")
 
 func toggle_driving_view() -> void:
@@ -544,8 +546,12 @@ func action_id() -> String:
 	return ""
 
 func _at_door() -> bool:
-	var handle:Vector3=body.to_global(Truck.DOOR+Vector3.UP*1.57)
-	return _in_range(handle,2.12) and truck.to_local(foot).x<-.58
+	var side := truck.to_local(foot).x
+	if absf(side)<.58:
+		return false
+	var handle := Truck.DOOR+Vector3.UP*1.57
+	handle.x=signf(side)*absf(handle.x)
+	return _in_range(body.to_global(handle),2.12)
 
 func context_text() -> String:
 	if info_timer>0: return info
@@ -577,6 +583,7 @@ func interact() -> void:
 			speed=0
 			foot=body.to_global(Truck.DOOR+Vector3(-.27,0,0))
 			foot.y=_ground(foot)
+			walked=0.0
 			if driving_view == "chase":
 				camera_yaw = wrapf(chase_heading+chase_orbit,-PI,PI)
 				camera_pitch = -.067
@@ -631,7 +638,7 @@ func interact() -> void:
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("lift")
-			recovered.emit(kind)
+			_finish_recovery()
 		"drop":
 			phase="done"
 			loaded=false
@@ -706,10 +713,16 @@ func _winch(operate:bool,dt:float) -> void:
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("ratchet")
-			recovered.emit(kind)
+			_finish_recovery()
 		else:
 			phase="at_lift"
 			sound_event.emit("ratchet")
+
+func _finish_recovery() -> void:
+	if flame:
+		flame.queue_free()
+		flame=null
+	recovered.emit(kind)
 
 func _set_car_lamps(mode:String) -> void:
 	if car_lamps:
@@ -944,7 +957,8 @@ func restore_state(d:Dictionary) -> void:
 		elif phase=="done" and kind=="ditch":
 			car.hide()
 			witness.hide()
-		if d.has("flare"): flame=Scene.flare(self,_unpack(d.flare,car.position))
+		if d.has("flare") and phase in ["flared","cable","rigged","at_lift","dollies"]:
+			flame=Scene.flare(self,_unpack(d.flare,car.position))
 		if phase in ["cable","rigged","at_lift","dollies"]: _set_chocks()
 		if kind=="hold" and phase in ["dollies","loaded","done"]: _fit_dollies()
 		if loaded:
