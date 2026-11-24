@@ -27,6 +27,7 @@ const WHEELBASE := REAR_AXLE_Z - FRONT_AXLE_Z
 const HALF_TRACK := 1.02
 const TIRE_RADIUS := 0.59
 var wheels: Array[Node3D]=[]
+var wheel_chains: Array[MeshInstance3D]=[]
 var needles: Array[Node3D]=[]
 var wipers: Array[Node3D]=[]
 var mirrors: Array[SubViewport]=[]
@@ -147,6 +148,27 @@ func build() -> void:
 		Kit.label(self,"ESKER, WIS.  ·  24 HR",Vector3(s*1.071,1.455,-.87),.041,DEEP,rot)
 	_mirror(-1.0)
 	_mirror(1.0)
+
+func set_chains(fitted: bool) -> void:
+	if fitted and wheel_chains.is_empty():
+		for wheel in wheels:
+			var hub := wheel.get_parent_node_3d()
+			if is_equal_approx(hub.position.z, FRONT_AXLE_Z): continue
+			var side := signf(hub.position.x)
+			var kit = Kit.new(wheel)
+			for i in 12:
+				var a := TAU*i/12.0
+				var b := TAU*(i+1)/12.0
+				var radial := Vector3(0,cos(a),sin(a))
+				var next := Vector3(0,cos(b),sin(b))
+				var rim := Vector3.RIGHT * side*.217
+				var crown := radial*(TIRE_RADIUS+.009)
+				kit.beam(rim+radial*.49,rim+next*.49,.026,.026,STEEL)
+				kit.beam(rim+radial*.49,crown+Vector3.RIGHT*side*.165,.030,.030,STEEL)
+				kit.beam(crown+Vector3.RIGHT*side*.165,crown-Vector3.RIGHT*side*.18,.034,.034,STEEL)
+			wheel_chains.append(kit.finish())
+	for chain in wheel_chains:
+		chain.visible=fitted
 
 func _bed(k) -> void:
 	k.box(Vector3(0,1.12,2.18),Vector3(1.53,.40,4.18),DEEP)

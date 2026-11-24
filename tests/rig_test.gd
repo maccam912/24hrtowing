@@ -6,6 +6,10 @@ const TEST_SPEED := 12.0
 var rig
 var failed := false
 
+class TestRoad extends Node3D:
+	func road_distance(x: float, _z: float) -> float:
+		return absf(x)
+
 func _initialize() -> void:
 	run.call_deferred()
 
@@ -15,7 +19,7 @@ func require(ok: bool, message: String) -> void:
 		printerr("CHECK FAILED: ", message)
 
 func run() -> void:
-	var floor_world := Node3D.new()
+	var floor_world := TestRoad.new()
 	root.add_child(floor_world)
 	rig=Rig.new()
 	floor_world.add_child(rig)
@@ -27,10 +31,22 @@ func run() -> void:
 	require(heavy.accel_seconds > empty.accel_seconds * 1.3, "underlift load changes acceleration")
 	require(heavy.braking > empty.braking * 1.18, "same-speed loaded braking needs more road")
 	require(heavy.yaw < empty.yaw * .95, "loaded front axle steers lighter at the same entry speed")
+	var utility := drive_sample(true,true)
+	require(utility.accel_seconds > heavy.accel_seconds * 1.2, "utility pickup takes longer to accelerate than a sedan")
+	require(utility.braking > heavy.braking * 1.15, "utility pickup needs more stopping distance than a sedan")
+	rig.tire_chains=true
+	var chained := drive_sample(false)
+	require(chained.braking < empty.braking * .83 and chained.yaw > empty.yaw * 1.15, "fitted chains improve braking and corner grip")
+	require(rig.body.wheel_chains.size() == 4 and rig.body.wheel_chains[0].visible, "chains wrap the tandem drive wheels")
+	var snow_chained := snow_run()
+	rig.tire_chains=false
+	var snow_stock := snow_run()
+	require(snow_chained > snow_stock*1.24, "chains pull the truck through deep snow faster")
 	test_axle_steering()
 	test_line()
+	test_double_line()
 	if not failed:
-		print("CHECKS PASSED — front steering and rear axle paths in both gears, 12 m/s braking %.1f m empty / %.1f m loaded, cable and tension relief" % [empty.braking,heavy.braking])
+		print("CHECKS PASSED — steering, braking, cable relief, chains in deep snow and double-line utility tow. Stops from 12 m/s: empty %.1f m / chained %.1f m / sedan %.1f m / utility %.1f m." % [empty.braking,chained.braking,heavy.braking,utility.braking])
 	quit(1 if failed else 0)
 
 func test_footsteps() -> void:
@@ -54,10 +70,11 @@ func test_footsteps() -> void:
 	rig.sound_event.disconnect(listen)
 	rig.restore_state(parked)
 
-func drive_sample(hauling: bool) -> Dictionary:
+func drive_sample(hauling: bool, heavy_recovery := false) -> Dictionary:
 	rig.end_job()
 	rig.set_spawn(Vector3.ZERO)
 	rig.loaded=hauling
+	rig.vehicle_identity["heavy_recovery"]=heavy_recovery
 	rig.speed=0
 	rig.motion=Vector3.ZERO
 	rig.steering=0
@@ -78,6 +95,16 @@ func drive_sample(hauling: bool) -> Dictionary:
 	for i in 36:
 		rig.set_controls(Vector2(.7,0),Vector2.ZERO,false,false,STEP)
 	return {"accel_seconds":ticks*STEP,"braking":stopping_distance,"yaw":absf(rig.heading)}
+
+func snow_run() -> float:
+	rig.end_job()
+	rig.set_spawn(Vector3(60,0,0))
+	rig.speed=0
+	rig.motion=Vector3.ZERO
+	rig.steering=0
+	for tick in 420:
+		rig.set_controls(Vector2.UP,Vector2.ZERO,false,false,STEP)
+	return rig.speed
 
 func test_axle_steering() -> void:
 	rig.end_job()
@@ -151,3 +178,38 @@ func test_line() -> void:
 	for i in 54:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,STEP)
 	require(rig.tension<taut-.3,"releasing the drum eases line pressure")
+
+func test_double_line() -> void:
+	var ticket := {"variant":4,"heavy_recovery":true,"plate":"HWY 212","vin":"HWY212"}
+	rig.set_spawn(Vector3.ZERO)
+	rig.start_job("hazard",Vector3(-5,0,14),.15,ticket)
+	require(rig.car.name=="UtilityPickup" and rig.car.get_meta("plate")==ticket.plate,
+		"utility pickup gets its service body and its own plate")
+	rig.in_cab=false
+	walk_to(Vector3(-3,0,9))
+	operate("flare",rig.car.position+Vector3.UP)
+	walk_to(Vector3(-2.1,0,2.35))
+	operate("need_block",rig._panel())
+	require(rig.phase=="flared","heavy pull cannot start on the stock line")
+	rig.snatch_block=true
+	operate("cable",rig._panel())
+	walk_to(Vector3(-4.8,0,10.8))
+	operate("attach",rig._eyelet(-1))
+	walk_to(Vector3(-2.1,0,2.35))
+	aim_at(rig._panel())
+	var saved: Dictionary = rig.save_state()
+	rig.restore_state(saved)
+	require(rig.vehicle_identity.heavy_recovery and rig.car.get_meta("body_size")==Rig.Scene.PICKUP_SIZE,
+		"resuming the rigged utility job keeps the heavy load and its geometry")
+	var initial: Vector3 = rig.car.position
+	for i in 180:
+		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+	require(rig.cable_mesh.get_surface_count()==2 and rig.pulley.visible and rig.pulley.global_position.distance_to(rig._eyelet(-1))<.25,
+		"both parts of the line pass through the block at the tow eye")
+	require(initial.distance_to(rig.car.position)>.5,"fitted block pulls the heavier utility truck")
+	for i in 1800:
+		if rig.phase=="at_lift": break
+		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+	require(rig.phase=="at_lift","double-line pull brings the utility pickup to the underlift")
+	operate("lift",rig._panel())
+	require(rig.loaded,"heavy utility pickup can be secured for the return haul")

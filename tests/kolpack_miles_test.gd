@@ -100,6 +100,10 @@ func haul_from_farm() -> void:
 	check(not rig.loaded and game.mode == "invoice","the delivery panel ends loaded billing at storage")
 
 func file_authorized_hold() -> void:
+	rig.in_cab = false
+	stand(game.FAX+Vector3.FORWARD,game.FAX)
+	game._action("buy_snatch_block")
+	rig.in_cab = true
 	visit_survey_turnout()
 	game._action("report_unit")
 	game._action("take_case")

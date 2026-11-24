@@ -275,7 +275,7 @@ func _documents() -> void:
 	var p := Rect2((dim.x-width)*0.5,top,width,486)
 	docs.paint(self,p,desk.page,drawn)
 	# Labeled tabs project beyond the paper's bottom edge.
-	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Parts"]]
+	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Shop"]]
 	if not str(drawn.get("custody_text","")).is_empty():
 		tabs.append(["custody","Custody"])
 	if drawn.get("field_available",false):
@@ -288,7 +288,7 @@ func _documents() -> void:
 		var width_tab := touch_tab_width if touch else maxf(77,print_face.get_string_size(tab[1],HORIZONTAL_ALIGNMENT_LEFT,-1,16).x+24)
 		var tab_box := Rect2(tab_x,p.end.y,width_tab,tab_height)
 		var active: bool = desk.page == tab[0]
-		draw_rect(tab_box,CREAM if active else Color("#bcb79f"))
+		draw_rect(tab_box,AMBER if hover == tab[0] else (CREAM if active else Color("#bcb79f")))
 		rule(tab_x+3,tab_box.end.y-4,width_tab-6,OXBLOOD if active else Color("#8a876f"),4 if active else 1)
 		fitted(tab_box.grow(-3),tab[1],subtle,22 if touch else 17,INK)
 		hit(tab[0],tab_box)
@@ -408,11 +408,14 @@ func _driving_view() -> void:
 	var compass := Rect2(camera_box.position.x-101,maxf(6, camera_box.get_center().y-(36 if chase else 20)),92,41)
 	_dash_compass(compass)
 	if chase:
-		var meter := Rect2(compass.position.x,compass.end.y+1,92,33)
+		var meter := Rect2(compass.position.x,compass.end.y+1,92,49)
 		switch_face(meter,Color("#292d29"),true)
 		draw_rect(meter.grow(-4),Color("#151b18"))
 		fitted(Rect2(meter.position+Vector2(7,1),Vector2(42,29)),"%d" % roundi(absf(float(drawn.get("speed_mph",0)))),LCD,23,AMBER,HORIZONTAL_ALIGNMENT_RIGHT)
 		fitted(Rect2(meter.position+Vector2(53,2),Vector2(32,27)),"MPH",MONO,13,CREAM)
+		var tank := clampf(float(drawn.get("fuel",1.0)),0.0,1.0)
+		var fuel_ink := Color("#f79775") if tank <= 0.15 else AMBER
+		fitted(Rect2(meter.position+Vector2(6,28),Vector2(80,16)),"FUEL  %d%%" % ceili(tank*100.0),MONO,12,fuel_ink)
 
 func _dash_compass(box: Rect2) -> void:
 	switch_face(box,Color("#42443d"))

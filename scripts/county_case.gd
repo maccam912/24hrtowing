@@ -74,6 +74,18 @@ func chapter() -> String:
 func due() -> bool:
 	return stage < ORDER.size() and ordinary_since >= GAPS[stage]
 
+func required_equipment() -> String:
+	match chapter():
+		"unit": return "snatch_block"
+		"line": return "chains"
+	return ""
+
+func equipment_note() -> String:
+	match chapter():
+		"unit": return "Kowalski wants a double line on the loaded survey pickup. Fit a snatch block at the yard office."
+		"line": return "Alder Cut is iced over. Fit tire chains at the yard office before taking the corner check."
+	return ""
+
 func on_file(kind: String, case_id: String) -> String:
 	# A deferred order stays put. Extra rotation work never buys out the next gap.
 	if not chapter().is_empty() and case_id == chapter():

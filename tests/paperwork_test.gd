@@ -103,6 +103,12 @@ func test_waiting_hazard(game) -> void:
 	game.survey.record("unit",19241)
 	game.survey.record("rod",19241)
 	game.campaign.ordinary_since = 5
+	# Stage a paid batch to equip a rig for the separate county pickup.
+	game.account.file_invoice(180.0, 3)
+	game.rig.in_cab = false
+	game.rig.foot = game.FAX
+	game._action("buy_snatch_block")
+	game.rig.in_cab = true
 	game._action("report_unit")
 	game._action("take_case")
 	check(game.job.kind == "hold" and game.waiting_hazard == parked and parked.transform == pose,

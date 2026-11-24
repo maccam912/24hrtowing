@@ -20,7 +20,6 @@ var _touches: Dictionary = {}
 var _look := Vector2.ZERO
 var _stick := Vector2.ZERO
 var _return_page := ""
-var _focus := 0
 
 func _ready() -> void:
 	layer = 10
@@ -86,7 +85,6 @@ func _change_page(id: String) -> void:
 	slip_index = -1
 	fax_index = -1
 	fax_sheet = -1
-	_focus = 0
 	_clear_controls()
 	if surface:
 		surface.hit_boxes.clear()
@@ -159,19 +157,23 @@ func _input(event: InputEvent) -> void:
 		var choices: Array = surface.key_choices()
 		if choices.is_empty():
 			return
+		var focus := choices.find(surface.hover)
 		match event.keycode:
 			KEY_DOWN, KEY_RIGHT, KEY_TAB:
 				var step := -1 if event.shift_pressed and event.keycode == KEY_TAB else 1
-				_focus = posmod(_focus + step, choices.size())
+				focus = posmod(focus + step, choices.size()) if focus >= 0 else (0 if step > 0 else choices.size()-1)
 			KEY_UP, KEY_LEFT:
-				_focus = posmod(_focus - 1, choices.size())
+				focus = posmod(focus - 1, choices.size()) if focus >= 0 else choices.size()-1
 			KEY_ENTER, KEY_KP_ENTER:
-				_activate(str(choices[_focus % choices.size()]))
-				get_viewport().set_input_as_handled()
-				return
+				if focus >= 0 or page != "parts":
+					_activate(str(choices[maxi(focus,0)]))
+					get_viewport().set_input_as_handled()
+					return
+				# A newly opened catalog or a just-filled order needs a visible selection.
+				focus = 0
 			_:
 				return
-		surface.hover = str(choices[_focus])
+		surface.hover = str(choices[focus])
 		surface.queue_redraw()
 		get_viewport().set_input_as_handled()
 
@@ -236,7 +238,7 @@ func _activate(id: String) -> void:
 		"respond", "directions", "send_fax":
 			_change_page("")
 			action.emit({"respond":"rotation", "directions":"talk_in", "send_fax":"fax"}[id])
-		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3":
+		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "roadside_fuel":
 			_change_page("")
 			action.emit(id)
 		"mark_sketch":
@@ -273,5 +275,5 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"interact", "camera", "quit", "buy_chains", "service_winch":
+		"interact", "camera", "quit", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)

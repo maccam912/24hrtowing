@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Campaign := preload("res://scripts/county_case.gd")
+const ShopAccount := preload("res://scripts/shop_account.gd")
 const NOTES_PER_PAGE := 6
 const PAPER_INK := Color("#353f3c")
 const FORM_BLUE := Color("#475e72")
@@ -84,6 +85,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		var shoulder: String = str(active_job.get("run","")).get_slice("/",1)
 		if not shoulder.is_empty():
 			note += "    /    %s shoulder" % shoulder.capitalize()
+		if float(active_job.get("heavy_fee",0)) > 0:
+			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
 		var clipped: Array = s.get("clipped_slips",[])
 		if not clipped.is_empty():
 			note += "\nPaper clip    " + "  /  ".join(clipped.map(func(n): return str(int(n))))
@@ -142,6 +145,11 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var available: bool = s.get("mode","") == "available"
 	c.text(Vector2(x,ry),"ON ROTATION    /    SLIP %d" % int(offer.get("number",1001)) if available else "LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
 	var lead: String = s.get("case_lead","") if available else ""
+	var case_lock := str(s.get("case_lock",""))
+	if available and not case_lock.is_empty():
+		lead = case_lock
+	if s.get("fuel_help",false):
+		lead = "OUT OF DIESEL / County plow carries a %d%% reserve can. Dispatch charges $%.2f. Any unpaid amount comes out of your next batch." % [roundi(ShopAccount.CAN_FILL*100),ShopAccount.CAN_PRICE]
 	var lines: Array = records.duplicate()
 	if available and not offer.is_empty():
 		lines.append(offer.dispatch)
@@ -167,6 +175,8 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
 	if not s.get("can_radio",s.get("in_cab",true)):
 		c.fitted(key,"Get in the cab to use the radio.",c.subtle,23,c.CREAM)
+	elif s.get("fuel_help",false):
+		c.button("roadside_fuel",key,"Request a fuel can  ·  $%.2f" % ShopAccount.CAN_PRICE,true)
 	else:
 		var contact: Dictionary = s.get("radio_contact",{})
 		if not contact.is_empty():
@@ -418,48 +428,125 @@ func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 
 func _parts(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d9d9c5"))
-	_header(c,p,"BRANDT TOWING & RECOVERY   /   SUPPLY DESK","Winter parts & service","FAX ORDER FORM",c.print_face)
+	var at_office := bool(s.get("at_office",false))
+	var at_pump := bool(s.get("at_pump",false))
+	var station := "ESKER PUMPS" if at_pump else ("YARD COUNTER" if at_office else "FIELD COPY")
+	_header(c,p,"BRANDT TOWING & RECOVERY   /   UNIT 01","Fuel & equipment",station,c.print_face)
 	var x := p.position.x+32
-	var y := p.position.y+116
 	var width := p.size.x-64
 	var money := float(s.get("paid",0))
-	var can_order := bool(s.get("can_order",false))
-	c.text(Vector2(x,y),"OPERATOR ACCOUNT",c.MONO,13,FADED)
-	c.text(Vector2(x+185,y),"$%.2f available" % money,c.MONO,17,FORM_BLUE)
-	var rows := [
-		["buy_chains","Tire chains","Drive-axle set","More grip for steering and braking on ice.",95.0],
-		["service_winch","Winch service","Cable and drum inspection","Service restores a worn winch to full pulling speed.",24.0]]
-	var chain_fitted := bool(s.get("chains",false))
-	var worn := float(s.get("wear",0))
-	for i in rows.size():
-		var row: Array = rows[i]
-		var ry := y+26+i*131
-		c.rule(x,ry,width,LINE)
-		var drawing := Rect2(x+1,ry+21,71,68)
-		if i==0: _chain_illustration(c,drawing)
-		else: _drum_illustration(c,drawing)
-		var cols := x+94
-		c.text(Vector2(cols,ry+28),row[2].to_upper(),c.MONO,12,FADED)
-		c.text(Vector2(cols,ry+56),row[1],c.print_face,25,PAPER_INK)
-		c.text(Vector2(cols,ry+81),row[3],c.print_face,15,PAPER_INK)
-		var touch: bool = c.desk.is_touch_mode()
-		var button_rect := Rect2(p.end.x-194,ry+(44 if touch else 53),162,80 if touch else 43)
-		c.text(Vector2(button_rect.position.x,ry+35),"$%.2f" % row[4],c.MONO,20,FORM_BLUE,162,HORIZONTAL_ALIGNMENT_CENTER)
-		var status := ""
-		if i==0 and chain_fitted: status="Fitted"
-		elif i==1 and worn<=.00001: status="Serviced"
-		elif not can_order: status="Order at yard"
-		elif money<row[4]: status="Awaiting funds"
-		if status.is_empty():
-			c.button(row[0],button_rect,"Order chains" if i==0 else "Book service",true)
+	var totals := [
+		["AVAILABLE",money],["PENDING PAYMENT",float(s.get("pending",0))],
+		["LIFETIME EARNED",float(s.get("earned",0))]]
+	if float(s.get("fuel_due",0)) > 0:
+		totals.append(["ROADSIDE DUE",float(s.fuel_due)])
+	var column := width/totals.size()
+	for i in totals.size():
+		var left := x+i*column
+		c.text(Vector2(left,p.position.y+119),totals[i][0],c.MONO,13,FADED)
+		c.fitted(Rect2(left,p.position.y+123,column-10,27),"$%.2f" % totals[i][1],c.MONO,23,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+	var gap := 12.0
+	var size := Vector2((width-gap)*0.5,126)
+	var left := Rect2(Vector2(x,p.position.y+183),size)
+	var right := Rect2(left.position+Vector2(size.x+gap,0),size)
+	c.text(left.position-Vector2(0,8),"FUEL & MAINTENANCE",c.MONO,13,GREEN)
+	c.text(right.position-Vector2(0,8),"RECOVERY EQUIPMENT",c.MONO,13,GREEN)
+	var fuel := clampf(float(s.get("fuel",1.0)),0.0,1.0)
+	var quote: Dictionary = s.get("fuel_quote",{})
+	var cost := float(quote.get("cost",0))
+	var fuel_percent := roundi(fuel*100.0)
+	var fill_percent := roundi(float(quote.get("fuel_after",fuel))*100.0)
+	var fuel_text := "Yard diesel or Esker pumps. A full tank costs $%.2f." % ShopAccount.TANK_PRICE
+	var fill := "Buy diesel  ·  $%.2f" % cost
+	var buy_fuel := false
+	if fuel >= 1.0 or (cost <= 0.0 and fuel_percent == 100):
+		fill = "Tank full"
+	elif not s.get("can_refuel",false):
+		if at_pump:
+			fill = "Park wrecker by pumps"
+		elif at_office:
+			fill = "Park wrecker in yard"
 		else:
-			c.draw_rect(button_rect,LINE,false,1)
-			c.fitted(button_rect,status,c.subtle,16,FADED)
-		if i==1:
-			c.text(Vector2(cols,ry+105),"WINCH WEAR  %d%%" % ceili(worn*100),c.MONO,12,FADED)
-	c.rule(x,p.end.y-73,width,LINE)
-	var note := "Order at the yard office fax." if not can_order else "Yard account orders are fitted here on receipt."
-	c.text(Vector2(x,p.end.y-38),note,c.HAND,24,FORM_BLUE)
+			fill = "Visit yard or pumps"
+	elif cost <= 0:
+		fill = "Awaiting funds"
+	else:
+		buy_fuel = true
+		if fill_percent < 100:
+			fuel_text = "Available cash buys a partial fill to %d%%." % fill_percent
+		else:
+			fuel_text = "Fill the tank to 100%% for $%.2f." % cost
+	_shop_card(c,left,"buy_fuel","Diesel fuel","%d%%" % fuel_percent,fuel_text,fill,buy_fuel)
+	var service_location := "Park wrecker in yard" if at_office else "At Brandt yard office"
+	var can_order := bool(s.get("can_order",false))
+	_equipment_card(c,right,"buy_chains","Tire chains","More grip on ice. Required for the Alder Cut survey run.",ShopAccount.PRICES.chains,
+		"Fit chains","Fitted" if s.get("chains",false) else "",money,can_order,service_location)
+	left.position.y += size.y+8
+	right.position.y = left.position.y
+	var wear := float(s.get("wear",0.0))
+	_equipment_card(c,left,"service_winch","Winch service","Restore pulling speed. Cable and drum wear is %d%%." % ceili(wear*100.0),ShopAccount.REPAIR_PRICE,
+		"Service winch","Serviced" if wear <= 0.001 else "",money,can_order,service_location)
+	_equipment_card(c,right,"buy_snatch_block","Snatch block set","Rig heavier recoveries, including the Unit 38 pickup.",ShopAccount.PRICES.snatch_block,
+		"Fit snatch block","Fitted" if s.get("snatch_block",false) else "",money,can_order,service_location)
+	var note := str(s.get("shop_receipt",""))
+	if note.is_empty():
+		if at_pump:
+			note = "For equipment, visit the office fax at Brandt’s yard."
+		elif at_office:
+			note = "Accounts payable releases a batch every third filed slip."
+		else:
+			note = "Order at Brandt’s office fax. Diesel is also available at Esker Fuel & Food."
+	c.fitted(Rect2(x,p.end.y-38,width,32),note,c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+
+func _equipment_card(c, r: Rect2, id: String, title: String, description: String, price: float,
+		order: String, fitted_status: String, money: float, can_order: bool, location: String) -> void:
+	var status := fitted_status
+	if status.is_empty() and not can_order:
+		status = location
+	if status.is_empty() and money < price:
+		status = "Need $%.2f more" % (price-money)
+	_shop_card(c,r,id,title,"$%.2f" % price,description,order if status.is_empty() else status,status.is_empty())
+
+func _shop_card(c, r: Rect2, id: String, title: String, price: String, description: String, status: String, enabled: bool) -> void:
+	var focus: bool = enabled and (c.hover == id or c.desk._is_down(id))
+	c.draw_rect(r,Color("#e9e5ce") if focus else Color("#e1dfc9"))
+	var ink: Color = c.OXBLOOD if enabled else FADED
+	c.draw_rect(r,ink if focus else LINE,false,2 if focus else 1)
+	var inset := 12.0
+	var amount_width: float = c.MONO.get_string_size(price,HORIZONTAL_ALIGNMENT_LEFT,-1,16).x+3
+	c.fitted(Rect2(r.position+Vector2(inset,4),Vector2(r.size.x-2*inset-amount_width-9,30)),title,c.scaled,23,PAPER_INK,HORIZONTAL_ALIGNMENT_LEFT)
+	c.fitted(Rect2(r.end.x-inset-amount_width,r.position.y+4,amount_width,30),price,c.MONO,16,FORM_BLUE,HORIZONTAL_ALIGNMENT_RIGHT)
+	var sketch := Rect2(r.position+Vector2(9,39),Vector2(72,47))
+	match id:
+		"buy_chains": _chain_illustration(c,sketch)
+		"service_winch": _drum_illustration(c,sketch)
+		"buy_fuel": _diesel_illustration(c,sketch)
+		"buy_snatch_block": _block_illustration(c,sketch)
+	c.multiline(r.position+Vector2(90,56),description,c.print_face,16,PAPER_INK,r.size.x-102,2)
+	var strip := Rect2(r.position+Vector2(1,92),Vector2(r.size.x-2,33))
+	c.draw_rect(strip,ink if enabled else Color("#d4d5c0"))
+	c.fitted(strip.grow_individual(-inset,0,-30,0),status,c.scaled,17,c.CREAM if enabled else GREEN,HORIZONTAL_ALIGNMENT_LEFT)
+	if enabled:
+		c._arrow(Vector2(strip.end.x-16,strip.get_center().y),8,c.CREAM,true)
+		c.hit(id,r)
+
+func _diesel_illustration(c, r: Rect2) -> void:
+	var mid := r.get_center()
+	var pump := Rect2(mid-Vector2(18,20),Vector2(25,38))
+	c.draw_rect(pump,PAPER_INK,false,1.8)
+	c.draw_rect(Rect2(pump.position+Vector2(4,4),Vector2(17,11)),PAPER_INK,false,1.5)
+	c.rule(mid.x-22,mid.y+19,34,PAPER_INK,2)
+	c.draw_polyline(PackedVector2Array([mid+Vector2(7,-8),mid+Vector2(12,-7),mid+Vector2(13,11),mid+Vector2(17,14),mid+Vector2(22,10),mid+Vector2(22,-8),mid+Vector2(16,-16)]),PAPER_INK,2,true)
+	c.draw_line(mid+Vector2(13,-16),mid+Vector2(18,-10),PAPER_INK,3,true)
+
+func _block_illustration(c, r: Rect2) -> void:
+	var mid := r.get_center()
+	var wheel := mid+Vector2(5,4)
+	c.draw_arc(wheel,13,0,TAU,28,PAPER_INK,1.7,true)
+	c.draw_arc(wheel,9,0,TAU,24,PAPER_INK,1.0,true)
+	c.draw_circle(wheel,2.2,PAPER_INK)
+	c.draw_polyline(PackedVector2Array([mid+Vector2(-17,-12),mid+Vector2(-10,-17),mid+Vector2(10,-10),mid+Vector2(19,1),mid+Vector2(16,12),mid+Vector2(5,20),mid+Vector2(-9,13),mid+Vector2(-17,-12)]),PAPER_INK,1.8,true)
+	c.draw_arc(mid+Vector2(-20,-16),6.2,.26*PI,1.94*PI,18,PAPER_INK,2,true)
 
 func _chain_illustration(c, r: Rect2) -> void:
 	var mid := r.get_center()

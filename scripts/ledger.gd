@@ -1,7 +1,7 @@
 extends RefCounted
 
 const FILE := "user://brandt-operations.json"
-const VERSION := 2
+const VERSION := 3
 
 static func read() -> Dictionary:
 	for name in [FILE, FILE+".previous"]:
@@ -10,7 +10,7 @@ static func read() -> Dictionary:
 		var f := FileAccess.open(name, FileAccess.READ)
 		if f:
 			var value = JSON.parse_string(f.get_as_text())
-			if value is Dictionary and int(value.get("version",0)) in [1,VERSION] and value.has("rig") and value.has("completed"):
+			if value is Dictionary and int(value.get("version",0)) in [1,2,VERSION] and value.has("rig") and value.has("completed"):
 				return value
 	return {}
 

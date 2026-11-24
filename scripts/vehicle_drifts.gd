@@ -10,9 +10,10 @@ static func place(car: Node3D, ground_height: Callable) -> void:
 	var surface := SurfaceTool.new()
 	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var first_vertex := 0
+	var size: Vector3 = car.get_meta("body_size")
 	for side: float in [-1.0, 1.0]:
 		for axle: float in [-1.0, 1.0]:
-			var wheel := car.global_basis * Vector3(side * 0.89, 0.0, axle * 1.29)
+			var wheel := car.global_basis * Vector3(side * size.x, 0.0, axle * size.z*.61)
 			var exposure := clampf(0.5 + wheel.dot(WIND) * 0.32, 0.0, 1.0)
 			_append_drift(surface, first_vertex, car.global_position, wheel, exposure, ground_height)
 			first_vertex += (LENGTH_STEPS + 1) * (WIDTH_STEPS + 1)

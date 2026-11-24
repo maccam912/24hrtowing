@@ -226,10 +226,10 @@ func run() -> void:
 		check(game.completed==i+1 and game.desk.page=="fax","invoice filed")
 		game.desk.dismiss()
 		if i < 2:
-			var invoice_balance: float = game.pending
+			var invoice_balance: float = game.account.pending
 			game._action("fax")
 			resume_shift()
-			check(game.mode == "available" and game.completed == i+1 and game.slips.size() == i+1 and is_equal_approx(game.pending, invoice_balance), "a filed slip cannot be charged twice")
+			check(game.mode == "available" and game.completed == i+1 and game.slips.size() == i+1 and is_equal_approx(game.account.pending, invoice_balance), "a filed slip cannot be charged twice")
 			var receipt := str(game.state.get("hint_title","")).to_lower()
 			check(str(job.number) in receipt and "filed" in receipt, "the HUD confirms the numbered slip after stowing the fax and resuming")
 			check("cab" in str(game.state.get("hint_action","")).to_lower(), "the next-contract directions lead the operator back to the cab")
@@ -239,10 +239,10 @@ func run() -> void:
 			game._survey()
 			var printed := Vector3(409,0,246)
 			check(game.county.kolpack_open and game.county.resolve_point(printed).is_equal_approx(printed),"unprinted farm opens while the original Kolpack haul is still measurable")
-			var balance: float = game.paid
-			game._action("buy_chains")
-			game._action("buy_chains")
-			check(rig.tire_chains and absf(game.paid-(balance-95.0))<0.01,"yard parts fitted and charged once")
+			var balance: float = game.account.cash
+			game._action("buy_snatch_block")
+			game._action("buy_snatch_block")
+			check(rig.snatch_block and absf(game.account.cash-(balance-game.ShopAccount.PRICES.snatch_block))<0.01,"yard snatch block fitted and charged once")
 		if i < 4:
 			handle = rig.truck.to_global(rig.Truck.DOOR)
 			stand(handle-rig.truck.global_basis.x,handle)

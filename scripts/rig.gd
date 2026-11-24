@@ -89,7 +89,13 @@ var dropoff: Dictionary:
 var ground_period:=0.0
 var ground_targets:=Vector3.ZERO
 var assist:=true
-var tire_chains:=false
+var tire_chains:=false:
+	set(value):
+		tire_chains=value
+		if body:
+			body.set_chains(value)
+var snatch_block := false
+var pulley: Node3D
 var highlight:MeshInstance3D
 var info:=""
 var info_timer:=0.0
@@ -103,6 +109,8 @@ func setup(county:Node3D) -> void:
 	body=Truck.new()
 	truck.add_child(body)
 	body.build()
+	body.set_chains(tire_chains)
+	pulley = Scene.snatch_block(self)
 	add_child(eyes)
 	eyes.name="OperatorsEyes"
 	eyes.make_current()
@@ -229,7 +237,8 @@ func _truck_obstacle(step:Vector3, turn:float) -> bool:
 		var tip_offset:Vector3=truck.global_basis.z*(-signf(speed)*3.95)
 		var at:=car.to_local(truck.global_position+step+tip_offset.rotated(Vector3.UP,turn))
 		var old:=car.to_local(truck.global_position+tip_offset)
-		if absf(at.x)<1.93 and absf(at.z)<2.08 and Vector2(at.x,at.z).length_squared()<Vector2(old.x,old.z).length_squared():
+		var size: Vector3 = car.get_meta("body_size")
+		if absf(at.x)<size.x+1.04 and absf(at.z)<size.z-.04 and Vector2(at.x,at.z).length_squared()<Vector2(old.x,old.z).length_squared():
 			return true
 	return false
 
@@ -282,12 +291,17 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	if Rect2(-65,-90,68,61).has_point(Vector2(truck.position.x,truck.position.z)):
 		offroad=0
 	var prev:=speed
-	var max_forward:float=lerpf(MAX_LOADED if loaded else MAX_SPEED,7.2 if loaded else 9.1,offroad)
+	var packed_speed := MAX_LOADED if loaded else MAX_SPEED
+	var snow_speed := 7.2 if loaded else 9.1
+	if tire_chains:
+		snow_speed *= 1.30
+	var load_factor := 0.80 if loaded and vehicle_identity.get("heavy_recovery",false) else 1.0
+	var max_forward := lerpf(packed_speed,snow_speed,offroad) * load_factor
 	var pumping:=fuel>0 and not phase in ["cable","rigged","at_lift","dollies"]
 	var tire_grip:float=1.29 if tire_chains else 1.0
 	var demand := 0.0
 	if handbrake:
-		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip)
+		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip*load_factor)
 		if absf(speed)<.20 and absf(prev)>=.20: sound_event.emit("air_brake")
 	elif absf(throttle)>.04 and pumping:
 		var reversing:=speed*throttle<-.20
@@ -295,7 +309,9 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 		var accel:float=(2.58 if loaded else 4.34)*(1-.77*clampf(absf(speed)/max_forward,0,.96))
 		if reversing: accel=(4.8 if loaded else 7.6)*tire_grip
 		if throttle<0 and not reversing: accel=2.44
-		speed=move_toward(speed,target,accel*dt)
+		if tire_chains and not reversing:
+			accel *= lerpf(1.0,1.28,offroad)
+		speed=move_toward(speed,target,accel*dt*load_factor)
 		if not reversing:
 			# Ease back once the truck reaches its governed road speed.
 			var pulling := smoothstep(0.0, 2.5, absf(target)-absf(speed))
@@ -304,7 +320,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 				demand = minf(1.0, demand * 1.2)
 	else:
 		speed=move_toward(speed,0,(.56+offroad*.78+speed*speed*.0018)*dt)
-	if not pumping and fuel<=0 and info_timer<=0: _note("Fuel gone. Call Arlene for a can.",6.0)
+	if not pumping and fuel<=0 and info_timer<=0: _note("Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
 	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
 	var lock_angle := minf(MAX_STEER_ANGLE, atan2(Truck.WHEELBASE*cornering_grip, speed*speed))
@@ -377,10 +393,11 @@ func _walk(move:Vector2, dt:float) -> void:
 		dest=truck.to_global(local)
 	if car and car.visible:
 		var c:=car.to_local(dest)
-		if absf(c.x)<1.03 and absf(c.z)<2.30:
+		var size: Vector3 = car.get_meta("body_size")
+		if absf(c.x)<size.x+.14 and absf(c.z)<size.z+.18:
 			var old:=car.to_local(foot)
-			if absf(old.x)>1: c.x=signf(old.x)*1.04
-			else: c.z=2.31 if old.z>0 else -2.31
+			if absf(old.x)>size.x+.11: c.x=signf(old.x)*(size.x+.15)
+			else: c.z=(size.z+.19) * (1.0 if old.z>0 else -1.0)
 			dest=car.to_global(c)
 	var eye:=foot+Vector3.UP*.80
 	if _obstructed(eye,dest-foot+dir*.17):
@@ -471,7 +488,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {}) -> void:
 	var old_variant: int = (2 if target.x>0 else 3) if kind=="hazard" else (0 if target.x<100 else 1)
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
-		"plate":ticket.get("plate",""),"vin":ticket.get("vin","")}
+		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
 	car=Scene.car(self,kind,variant,vehicle_identity)
 	car.position=Vector3(target.x,_ground(target),target.z)
 	car.rotation.y=yaw
@@ -561,7 +578,8 @@ func _hitch() -> Vector3:
 	return body.stinger.to_global(Truck.HITCH)
 
 func _eyelet(end:int) -> Vector3:
-	return car.to_global(Vector3(0,.56 if kind=="hold" else .39,end*(2.51 if kind=="hold" else 2.13)))
+	var size: Vector3 = car.get_meta("body_size")
+	return car.to_global(Vector3(0,size.y-.087,end*size.z*1.016))
 
 func _nearest_eyelet() -> int:
 	return 1 if _flat_distance(foot,_eyelet(1))<_flat_distance(foot,_eyelet(-1)) else -1
@@ -601,7 +619,8 @@ func action_id() -> String:
 	if phase=="scene" and near_casualty(8.5) and (_in_range(car.position+Vector3.UP,8.5) or not _at_door()):
 		return "flare"
 	if phase=="flared" and panel_range:
-		return "cable" if _reaches() else "too_far"
+		if not _reaches(): return "too_far"
+		return "need_block" if vehicle_identity.heavy_recovery and not snatch_block else "cable"
 	if phase=="cable":
 		if _in_range(_eyelet(_nearest_eyelet()),2.45): return "attach"
 		if panel_range: return "restow"
@@ -631,6 +650,10 @@ func context_text() -> String:
 	var action:=action_id()
 	if action == "haul":
 		return "Take the vehicle to %s" % dropoff.sign
+	if vehicle_identity.get("heavy_recovery",false):
+		if action == "need_block": return "Fit the snatch block from the yard parts counter"
+		if action == "cable": return "Chock wheels & take snatch block"
+		if action == "attach": return "Shackle snatch block to tow eye"
 	if action=="winch":
 		if slip_cooldown>0: return "Cable slipped · let the drum settle"
 		return "Hold WINCH · release to ease tension" if OS.has_feature("mobile") else "Hold Space to winch · release to ease tension"
@@ -729,6 +752,7 @@ func interact() -> void:
 			car.position.y=_ground(car.position)
 			sound_event.emit("lift")
 			dropped.emit()
+		"need_block": _note("This pickup needs a double line. Order the snatch block at the yard.",4)
 		"too_far": _note("Thirty-seven metres of line. Bring the wrecker closer.",3)
 		"read_tape": _note("SHERIFF  •  11/23  •  J.K. 417  •  CHECKED",4)
 	_update_eyes()
@@ -769,6 +793,14 @@ func _winch(operate:bool,dt:float) -> void:
 	if _road(car.position)>6.8: resistance+=.12
 	if warmth<.24: resistance+=.04
 	var shortening:=dt*(1.52 if kind=="hold" else 1.84)*(1.0-wear*.22)
+	if vehicle_identity.heavy_recovery:
+		# The utility load needs more than one part of line. The block shares
+		# that load across two strands and halves travel per turn of the drum.
+		if not snatch_block:
+			working=false
+			return
+		resistance=(resistance+.68)*.5
+		shortening*=.5
 	free_line=maxf(.30,free_line-shortening)
 	var taut:=maxf(0,gap-free_line)
 	tension=move_toward(tension,resistance*clampf(taut/.34,0,1),dt*(.23+taut*.38))
@@ -811,11 +843,12 @@ func _set_car_lamps(mode:String) -> void:
 	if car_lamps:
 		car_lamps.hide()
 		car_lamps.queue_free()
-	car_lamps=Scene.car_lamps(car,kind,mode,line_end)
+	car_lamps=Scene.car_lamps(car,mode,line_end)
 
 func _track_underlift() -> void:
-	var half_wheelbase:float=(2.5 if kind=="hold" else 2.12)*.61
-	var wheel_height:=.43 if kind=="hold" else .355
+	var size: Vector3 = car.get_meta("body_size")
+	var half_wheelbase:=size.z*.61
+	var wheel_height:=.43 if size == Scene.PICKUP_SIZE else .355
 	var lifted_axle:=Vector3(0,wheel_height,line_end*half_wheelbase)
 	var rolling_axle:=Vector3(0,wheel_height,-lifted_axle.z)
 	var hitch:=_hitch()+Vector3.UP*.15
@@ -929,9 +962,21 @@ func _trail(dt:float) -> void:
 
 func _cable_curve() -> void:
 	cable_mesh.clear_surfaces()
+	pulley.visible=snatch_block
+	if snatch_block:
+		pulley.global_transform=body.global_transform*Transform3D(Basis.IDENTITY,Vector3(-.89,1.85,3.40))
 	if not phase in ["cable","rigged","at_lift","dollies"]: return
 	var a:=_drum()
 	var b:=_eyelet(line_end) if phase!="cable" else eyes.global_transform*Vector3(.25,-.32,-.46)
+	if snatch_block and vehicle_identity.heavy_recovery:
+		pulley.global_position=b+Vector3.UP*.12
+		pulley.rotation.y=atan2(b.x-a.x,b.z-a.z)
+		b=pulley.global_position
+		_cable_strand(body.to_global(Vector3(.67,1.34,4.09)),b+pulley.global_basis.x*.07)
+		b-=pulley.global_basis.x*.07
+	_cable_strand(a,b)
+
+func _cable_strand(a: Vector3, b: Vector3) -> void:
 	var sag:float=clampf(a.distance_to(b)*.05,.07,1.25)*(1.0-tension*.83)
 	var side:Vector3=(b-a).cross(eyes.global_position-a).normalized()*.014
 	if side.length_squared()<.000001: side=Vector3.RIGHT*.014
@@ -984,9 +1029,6 @@ func _lay_tracks() -> void:
 func _note(message:String,seconds:float) -> void:
 	info=message
 	info_timer=seconds
-
-func service_fuel() -> void:
-	fuel=1.0
 
 func get_status() -> Dictionary:
 	return {"in_cab":in_cab,"speed_mph":absf(speed)*2.237,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_heading_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}

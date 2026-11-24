@@ -230,6 +230,13 @@ func yard() -> void:
 	b(-35.8,1.25,-37.74,1.2,2.5,.1,"green")
 	b(-35.4,.96,-37.82,.17,.053,.07,"post")
 	placard(Vector3(-38.1,3.03,-37.79),"OFFICE   /   FAX",4.2,.52,PI,"black")
+	# The yard's bulk tank feeds a metered hose beside the service counter.
+	b(-38.6,.73,-38.1,.71,1.46,.49,"oxide")
+	b(-38.6,1.33,-38.37,.57,.35,.07,"cream")
+	beam(Vector3(-38.17,1.14,-38.25),Vector3(-37.89,.34,-38.28),.075,.075,"black")
+	beam(Vector3(-37.89,.34,-38.28),Vector3(-37.69,.50,-38.29),.075,.075,"black")
+	beam(Vector3(-37.69,.50,-38.29),Vector3(-37.93,.98,-38.26),.075,.075,"black")
+	placard(Vector3(-38.1,2.53,-37.88),"PARTS  •  DIESEL",4.2,.46,PI,"green")
 	# Shop equipment sits just inside the fence outside the drop and parking lanes.
 	for i in 5:
 		var cx := -11.3-i*.77
@@ -306,7 +313,7 @@ func fuel() -> void:
 		b(xx,1.43,-2,1.12,.89,.68,"cream")
 		b(xx,1.54,-2.36,.8,.34,.05,"glass")
 		label(Vector3(xx,1.55,-2.39),"0.00",.18,PI,Color("#dbe2ca"))
-		label(Vector3(xx,1.22,-2.36),"REGULAR",.125,PI,Color("#282b28"))
+		label(Vector3(xx,1.22,-2.36),"DIESEL",.125,PI,Color("#282b28"))
 		beam(Vector3(xx+.48,1.54,-2.1),Vector3(xx+.80,1.17,-2.1),.050,.05,"black")
 		beam(Vector3(xx+.80,1.17,-2.1),Vector3(xx+.85,.49,-2.1),.05,.05,"black")
 		beam(Vector3(xx+.85,.49,-2.1),Vector3(xx+.75,.32,-2.1),.05,.05,"black")

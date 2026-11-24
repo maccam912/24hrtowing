@@ -36,7 +36,13 @@ The first drive starts in chase view. Your chosen view returns when you get back
 
 ## The county rotation
 
-Arlene draws ditch pulls and checked hazards from seven sites at first. After eight ordinary jobs, she can also send you across the bridge to River Lanes, out to the dairy barn on County FF, or east to the Tamarack county offices. Every third slip settles the outstanding balance. Old slips and county faxes stay on the clipboard. The yard office sells tire chains and winch service.
+Arlene draws ditch pulls and checked hazards from seven sites at first. After eight ordinary jobs, she can also send you across the bridge to River Lanes, out to the dairy barn on County FF, or east to the Tamarack county offices. Old slips and county faxes stay on the clipboard.
+
+Open the **Shop** tab to check your account. A new operator starts with $35. Filing a slip adds its pay to **Lifetime earned** and **Pending payment**. Every third slip clears the batch for spending. Buying diesel or parts comes out of **Available**.
+
+Park in the yard and walk to the office fax to buy diesel or fit equipment. You can also park beside either pump at Esker Fuel & Food and use it on foot. An empty-to-full tank costs $48. The shop quotes the top-up, including a partial fill if cash is tight. If you run dry on the road, stop and call for a can on the cab radio. The plow brings a fifth of a tank in 18 game minutes for $18. The county deducts any unpaid portion from your next batch.
+
+A **$175 snatch block** lets you rig a double line for loaded pickups. Once it’s fitted, Arlene can offer county utility trucks on rotation. Heavy recoveries pay an extra $36. **$95 tire chains** improve grip and braking and help the wrecker through deep snow. The office also services a worn winch for $24.
 
 Check the fax after your fifth ordinary job for the first lead in the county survey case. If something catches your eye on the road, park, walk over and press **E** or tap **USE** to examine it. Your observations stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
 
@@ -45,12 +51,12 @@ The eight-part case is paced for roughly three hours. Taking each lead when it c
 <details>
 <summary>Walkthrough of all eight case calls (spoilers)</summary>
 
-1. **Secure Unit 38.** Read the pickup door at the Section 3 turnout on Swamp Road. Follow the prints to the rod case inside the gate, then report both to Arlene. Take Kowalski’s hold order, sign her card and stow the tripod. Fit the dollies, tow the pickup to the evidence bay, and lock the chain before filing.
+1. **Secure Unit 38.** Read the pickup door at the Section 3 turnout on Swamp Road. Follow the prints to the rod case inside the gate, then report both to Arlene. Fit the snatch block at the yard before taking Kowalski’s hold order. Sign her card, stow the tripod and rig a double line for the pickup. Fit the dollies, tow the pickup to the evidence bay, and lock the chain before filing.
 2. **Find N5104.** Unlock the bay, read Tou’s field book and copy his sketch to the plat. You can also use **Clip for radio** on two slips from the same Kolpack shoulder with different loaded mileage. Bring either piece of evidence to Arlene on the radio. Take the look-see, read the house number and the sedan’s windshield VIN, call them in, and file at the yard.
 3. **Take Kowalski’s tape detail.** Rub the brass cap between the posts east of the N5104 porch. Walk up to the sedan’s windshield to check the car and initial the tape. Leave the car at the house, radio in from the cab, then file the report.
 4. **Walk the river bridge.** Park at the Esker end of the Highway 64 bridge. Copy the plate on the south rail, then walk to the River Lanes end and copy its plate. Read both back to Arlene and file the highway crew’s report.
 5. **Check the mail route.** Find the pair of mailboxes in the N5104 lane. Lift the lid on box 6A, read the band and tell Arlene who’s holding mail there. File the slip at the yard.
-6. **Follow Tou’s line.** Turn left just before the east barricade on Swamp Road. Follow Alder Cut north to the striped witness stakes, brush the snow from the cap, and radio in its full stamp. File your corner check.
+6. **Follow Tou’s line.** Fit tire chains at the yard to take the icy Alder Cut run. Turn left just before the east barricade on Swamp Road. Follow Alder Cut north to the striped witness stakes, brush the snow from the cap, and radio in its full stamp. File your corner check.
 7. **Bring Tou home.** Return to the mercury lamp beyond the cap and pull up close enough for Tou to board. You can ask him about the drivers, the old corners and your tow slips on the ride home. At the yard, open the evidence bay, countersign his pickup’s release at the chain, and fax it to the county.
 8. **Answer Angie’s call.** The county board adopts Tou’s resurvey. At N5420 Alder Cut, speak to Angie at the porch before rigging her old sedan. Bring it to **STORAGE** and file the slip. Doreen’s fax says the county will pay loaded miles as recorded.
 

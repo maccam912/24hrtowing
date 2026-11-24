@@ -7,6 +7,7 @@ const PAPER_STATE := {
 	"in_cab": true, "field_available": true, "custody_text": "Evidence hold",
 	"slips": [{}], "faxes": ["First fax", "Second fax"], "can_fax": true,
 	"can_order": true, "paid": 1000, "wear": 0.5,
+	"fuel": 0.5, "can_refuel": true, "fuel_quote": {"cost":24.0,"fuel_after":1.0},
 }
 
 var screen := SubViewport.new()
@@ -60,6 +61,35 @@ func drag(finger: int, from: Vector2, to: Vector2) -> void:
 func ticks(count: int) -> void:
 	for i in count:
 		game._physics_process(1.0 / 60.0)
+
+func press_key(code: Key) -> void:
+	var event := InputEventKey.new()
+	event.keycode = code
+	event.physical_keycode = code
+	event.pressed = true
+	screen.push_input(event,true)
+
+func check_shop() -> void:
+	var actions := ["buy_fuel","buy_chains","service_winch","buy_snatch_block"]
+	check_layout(actions)
+	var orders := []
+	var record := func(id: String): orders.append(id)
+	desk.action.connect(record)
+	press_key(KEY_TAB)
+	check(desk.surface.hover == "buy_fuel","Tab selects the first available order")
+	press_key(KEY_RIGHT)
+	check(desk.surface.hover == "buy_chains","Arrow selects the next order")
+	press_key(KEY_ENTER)
+	check(orders == ["buy_chains"],"Enter submits the displayed equipment order")
+	# The real truck is still in the cab, so the refreshed catalog is read-only.
+	await process_frame
+	press_key(KEY_ENTER)
+	check(orders == ["buy_chains"] and desk.page == "parts","A vanished order cannot redirect Enter into a second action")
+	desk.action.disconnect(record)
+	for id in actions:
+		check(id not in desk.surface.key_choices(),"Field copy accepts order "+id)
+	desk.update_view(PAPER_STATE)
+	await process_frame
 
 func check_driving(centers: Dictionary) -> void:
 	check(not centers.has("reverse"), "The shared pedal should be the only reverse control")
@@ -151,6 +181,8 @@ func run() -> void:
 			await process_frame
 			check(desk.page == tab, "Tap did not open " + tab)
 			centers = check_layout(PAPER_TABS + ["close"])
+			if tab == "parts":
+				await check_shop()
 			if failed:
 				break
 		desk.dismiss()

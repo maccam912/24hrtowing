@@ -35,6 +35,11 @@ func run() -> void:
 			"unit": file_unit()
 			"farm": file_farm()
 			_:
+				if id == "line":
+					check(game._radio_contact().is_empty(), "Alder Cut is held until drive chains are fitted")
+					game._action("take_detail")
+					check(game.mode == "available" and game.job.is_empty(), "cannot accept the icy corner check with bare tires")
+					fit_equipment("chains")
 				use_contact("take_detail")
 				check(game.job.get("case_id") == id and game.mode == "fieldwork", "accepted " + id)
 				if failures:
@@ -107,8 +112,14 @@ func check_legacy_progress() -> void:
 
 func file_unit() -> void:
 	use_contact("report_unit")
+	game._action("take_case")
+	check(game.mode == "available" and game.job.is_empty(), "report is on file but the heavy order waits for a block")
+	resume_shift()
+	game._action("take_case")
+	check(game.mode == "available" and game.job.is_empty(), "reloading a newly issued order cannot bypass its gear requirement")
+	fit_equipment("snatch_block")
 	use_contact("take_case")
-	check(game.job.kind == "hold","deputy issued custody order")
+	check(game.job.kind == "hold" and game.job.get("heavy_recovery", false),"deputy issued a heavy custody order")
 	inspect_at("sign",rig.get_witness_position())
 	game.desk.dismiss()
 	inspect_at("tripod",game.county.hold_tripod_point())
@@ -123,6 +134,19 @@ func file_unit() -> void:
 	inspect_at("unlock",latch)
 	inspect_at("field",game.BAY)
 	game.desk._activate("mark_sketch")
+	game.desk.dismiss()
+	rig.in_cab = true
+	game._refresh()
+
+func fit_equipment(id: String) -> void:
+	rig.set_spawn(game.SPAWN,-PI/2)
+	rig.in_cab = false
+	stand(game.FAX+Vector3.FORWARD,game.FAX)
+	game._refresh()
+	game.desk.show_document("parts",game.state)
+	var cash_before: float = game.account.cash
+	game.desk._activate("buy_" + id)
+	check(game.account.owns(id) and is_equal_approx(game.account.cash, cash_before - game.account.PRICES[id]), "county calls funded the purchase of " + id)
 	game.desk.dismiss()
 	rig.in_cab = true
 	game._refresh()

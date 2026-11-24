@@ -68,26 +68,28 @@ Most of the time you just run the loop. The story moves only when you step off i
 | Meter | Drains when | Restored by | When it runs out |
 | --- | --- | --- | --- |
 | Warmth | You're outside the cab, the heater is off, a window is cracked | Cab heater, coffee, the heated bay | Frost creeps in at the screen's edges and rigging slows. You climb back in the cab; nobody dies |
-| Fuel | Driving, idling, running the PTO for the boom and winch | Pumps at Esker Fuel & Food, a yard tank (upgrade) | The truck stalls and Arlene sends a county plow driver with a can. You lose time and owe a favor |
+| Fuel | Driving, idling, running the PTO for the boom and winch | Buy diesel at the yard office or Esker Fuel & Food from the first shift | Call Arlene from the stopped cab. A county plow brings a fifth of a tank for $18 and the clock advances 18 minutes. Accounts payable collects any shortfall from the next batch |
 | Wear | Hard hits, an overloaded winch, dragging a car on its belly | Parts at the yard | One system degrades, such as the light bar or the winch speed, until you fix it |
 
 ### Pay
 
-Every slip pays by the county schedule: call-out, hookup, winch time, loaded miles and storage. Payments come back in batches whenever the clerk gets to them, as a fax that prints at the yard. Money is tight early on, like Easy Delivery Co.'s below-minimum-wage start.
+The county schedule pays for call-out, hookup, winch time, loaded miles and storage. Heavy recoveries add $36. Each filed slip counts toward lifetime earnings. The clerk clears pending invoices every third slip and faxes the batch to the yard. New operators start with $35 in the till. Diesel costs $48 for a full tank, and the counter can sell a partial fill. Servicing a worn winch costs $24.
 
 ### What grows
 
+The yard currently fits tire chains and a snatch block. The catalog also lays out equipment for later development.
+
 | Upgrade | What it changes | Opens with |
 | --- | --- | --- |
-| Tire chains | Traction on grades and glare ice | Start (can be bought) |
+| Tire chains | Better grip, braking and deep-snow travel. Required for Tou’s last corner on Alder Cut | $95 at the yard office |
 | LED light bar and spot | Wider and longer beam; the spot reads fire numbers from the road | Early |
 | Heated mirrors | Clear mirrors on long hauls | Early |
-| Snatch block set | Angle pulls and doubled winch force | First semi job |
+| Snatch block set | A double line for Unit 38 and recurring loaded utility pickups | $175 at the yard office |
 | Go-Jacks (wheel dollies) | Move cars with locked or broken wheels | First evidence hold |
 | Scanner upgrade | Hear deputy traffic on more channels | Talking to Deputy Kowalski |
 | Second winch | Two-line pulls for uprighting a semi or a plow | Heavy jobs |
 | Auxiliary fuel tank | Longer runs into unmapped land | Act 2 |
-| Yard: fence extension, second hold bay, fuel tank, coffee maker | More storage, more holds, warmth and fuel at home | Steady through the game |
+| Yard additions such as a fence extension, second hold bay, dedicated pump and coffee maker | More storage, more holds, pumpside service and warmth at home | Steady through the game |
 | Rollback (second truck) | Car jobs are faster and cleaner; it can't do heavy work | Mid-game |
 
 The plat book grows too. Roads you've driven get inked in, and roads that aren't printed get your pencil. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and the map keeps growing.

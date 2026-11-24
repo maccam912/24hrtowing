@@ -16,9 +16,12 @@ func old_save() -> Dictionary:
 	game._save()
 	var data: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	data.version = 1
-	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign"]:
+	data.paid = game.account.cash
+	data.pending = game.account.pending
+	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign","account"]:
 		data.erase(key)
 	data.rig.erase("identity")
+	data.rig.erase("snatch_block")
 	return data
 
 func load_shift(data: Dictionary) -> void:
@@ -39,12 +42,20 @@ func run() -> void:
 	var ticket := Dispatch.legacy_ticket(3,game.audio.lines)
 	game._accept(ticket)
 	var old := old_save()
+	old.paid = 21.50
+	old.pending = 66.15
+	old.slips = [
+		{"number":1001,"kind":"ditch","loaded":0,"pay":95,"location":"County K"},
+		{"number":1002,"kind":"hazard","loaded":0.5,"pay":66.15,"location":"Highway 64"}]
+	old.rig.chains = true
 	old.rig.phase = "rigged"
 	old.rig.cab = false
 	old.rig.line_end = 1
 	old.rig.car = [-432.5,0,4.1]
 	old.rig.foot = [-433.2,0,3.1]
 	load_shift(old)
+	check(is_equal_approx(game.account.earned,161.15) and is_equal_approx(game.account.cash,21.5) and is_equal_approx(game.account.pending,66.15), "a migrated account preserves archived invoices and the till after spending")
+	check(game.account.owns("chains") and game.rig.tire_chains and not game.account.owns("snatch_block"), "old fitted chains survive as owned equipment")
 	check(game.job.plate == "EWG 044" and game.job.id == "bridge" and game.job.number == 1004,"old bridge ticket changed its terms")
 	check(game.rig.phase == "rigged" and game.rig.car.position.is_equal_approx(Vector3(-432.5,0,4.1)) and not game.rig.in_cab,"legacy rigging or operator pose changed")
 	check(game.rig.vehicle_identity.plate == game.job.plate,"migrated casualty plate differs from its slip")
@@ -79,6 +90,26 @@ func run() -> void:
 	game.desk.show_document("field",game.state)
 	game.desk._activate("mark_sketch")
 	check(game._radio_contact().get("id") == "ask_farm","an older operator cannot follow the next lead")
+	# A version-two operator reported Unit 38 while out on a different run.
+	# The hold could be authorized before there was a separate saved offer.
+	var deferred := old.duplicate(true)
+	deferred.version = 2
+	deferred.survey = {"unit_reported":true,"hold_order":"deferred"}
+	deferred.campaign = {"next":"unit","ordinary_since":5}
+	deferred.ticket = Dispatch.pack(ticket)
+	load_shift(deferred)
+	check(game.job.id == "bridge" and not game.account.owns("snatch_block"), "migration continues the active ordinary tow on its own terms")
+	game._save()
+	load_shift(JSON.parse_string(JSON.stringify(game.saved_data)))
+	game._recovered("hazard")
+	game._dropped()
+	game.rig.in_cab = false
+	game.rig.foot = game.FAX
+	game._action("fax")
+	game.desk.dismiss()
+	game.rig.in_cab = true
+	game._action("take_case")
+	check(game.job.get("kind") == "hold" and not game.job.get("heavy_recovery",false) and not game.account.owns("snatch_block"), "an already authorized county hold still opens at its old rate without a purchase, even after a second resume")
 	game.free()
 	if not failed:
 		print("CHECKS PASSED — version-one active rigging, payable bridge ticket, existing custody and later lead")

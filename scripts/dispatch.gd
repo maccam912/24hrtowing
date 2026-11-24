@@ -37,7 +37,9 @@ const SITES := {
 		"after_jobs":8, "hazard_reasons":["Highway crew needs the shoulder for snow.", "The clerk is holding the keys at the counter."],
 		"approach":"Go south on K, left at Main. Stay on sixty-four past County FF to the brick county building."},
 }
-const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan"]
+const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan", "County utility pickup"]
+const HEAVY_VARIANT := 4
+const HEAVY_FEE := 36
 const DRIVERS := [
 	{"person":"Delivery driver","reply":"rural","reason":"Lost the road edge looking for a fire number."},
 	{"person":"College student","reply":"student_pull","reason":"Pulled over to let the plow by."},
@@ -51,7 +53,7 @@ const DRIVERS := [
 	{"person":"School custodian","reply":"custodian_pull","reason":"Missed the edge coming around a windrow."},
 ]
 
-static func ordinary(completed: int, dispatch_seed: int, slips: Array) -> Dictionary:
+static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_block := false) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	var used := {}
 	var driver_calls := {}
@@ -106,7 +108,10 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array) -> Dictio
 		elif route == "river_lanes":
 			yaw = -PI / 2
 	yaw += rng.randf_range(-0.18, 0.18) if rotation_count == 0 else rng.randf_range(-0.42, 0.42)
-	var variant := rng.randi_range(0, VEHICLES.size()-1)
+	var variant := rng.randi_range(0, HEAVY_VARIANT-1)
+	var heavy: bool = snatch_block and kind == "hazard" and hazards % 3 == 1
+	if heavy:
+		variant = HEAVY_VARIANT
 	var job := {"id":"rotation", "number":1001 + completed, "kind":kind, "route":route, "site":route,
 		"road":site.road, "location":site.road + " · " + site.landmark, "point":point, "angle":yaw,
 		"shoulder":shoulder, "variant":variant, "driver_variant":rng.randi_range(0, 1),
@@ -131,6 +136,10 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array) -> Dictio
 	else:
 		var reports: Array = site.hazard_reasons
 		var reason: String = reports[posmod(dispatch_seed + int(site_hazards.get(route, 0)), reports.size())]
+		if heavy:
+			job.heavy_recovery = true
+			job.plate = "TCU %03d" % ((job.number % 800) + 100)
+			reason = "Service body’s loaded with tools. Bring the snatch block. " + reason
 		job.dispatch = "%s on %s by %s, %s shoulder. Checked and taped. Bring it to storage. %s" % [
 			job.vehicle, site.road, site.landmark, shoulder, reason]
 	job.directions = "%s Look on the %s side for the %s." % [site.approach, shoulder, job.vehicle.to_lower()]
@@ -173,9 +182,11 @@ static func legacy_ticket(completed: int, lines: Dictionary) -> Dictionary:
 	job.schedule = _scheduled_miles(Vector2(job.point.x, job.point.z))
 	return job
 
-static func hold_ticket(completed: int, lines: Dictionary) -> Dictionary:
+static func hold_ticket(completed: int, lines: Dictionary, heavy_recovery := false) -> Dictionary:
 	var job := legacy_ticket(4, lines)
 	job.number = completed + 1001
+	if heavy_recovery:
+		job.heavy_recovery = true
 	return job
 
 static func looksee(completed: int) -> Dictionary:
@@ -225,12 +236,13 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 	var hookup := 0 if look_only else 16
 	var winch := 0 if look_only else maxi(1, ceili(seconds / 60.0)) * 6
 	var storage := 12 if towed else 0
-	var pay := 38.0 + hookup + winch + mile * 3.25 + storage
+	var heavy_fee := HEAVY_FEE if job.get("heavy_recovery", false) else 0
+	var pay := 38.0 + hookup + winch + mile * 3.25 + storage + heavy_fee
 	var slip := {"number":job.number, "kind":job.kind, "site":job.site, "run":job.get("run",job.site),
 		"location":job.location, "vehicle":job.vehicle, "plate":job.plate, "vin":job.vin,
 		"start_odo":start, "pickup_odo":pickup, "drop_odo":drop, "loaded":mile,
 		"schedule":job.get("schedule",0.0), "call_out":38, "hookup":hookup, "winch":winch,
-		"storage":storage, "pay":snappedf(pay,.01), "time":clock}
+		"storage":storage, "heavy_fee":heavy_fee, "pay":snappedf(pay,.01), "time":clock}
 	if job.kind == "ditch":
 		slip.reply = job.get("reply","")
 	return slip

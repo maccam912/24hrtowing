@@ -8,27 +8,50 @@ const HOLD_BODY=Color("#deded2")
 const TAPE=Color("#f4e409")
 const UNIT_PLATE := "WI CO 038"
 const UNIT_VIN := "1BTPK18S4VK044506"
+const UTILITY_VARIANT := 4
+# Half-width, belt base and half-length, shared by the body, axles and lamps.
+const SEDAN_SIZE := Vector3(.89,.46,2.12)
+const PICKUP_SIZE := Vector3(.99,.64,2.5)
+
+static func snatch_block(parent: Node3D) -> Node3D:
+	var block := K.joint(parent, Vector3.ZERO, "SnatchBlock")
+	var kit = K.new(block)
+	# Two red cheek plates straddle the sheave. A shackle sits below its pin.
+	kit.tube(Vector3(-.046,0,0),Vector3(.046,0,0),.113,STEEL,14)
+	for s: float in [-1.0,1.0]:
+		kit.tube(Vector3(s*.05,0,0),Vector3(s*.069,0,0),.124,Color("#99543d"),12)
+		kit.tube(Vector3(s*.07,0,0),Vector3(s*.081,0,0),.038,STEEL)
+	kit.ring(Vector3(0,-.14,0),.036,.055,STEEL,Vector3(PI/2,0,0))
+	kit.finish()
+	block.hide()
+	return block
 
 static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
 	var is_hold:=kind=="hold"
-	var wagon:=not is_hold and variant==2
-	var p=K.joint(parent,Vector3.ZERO,"CountyPickup" if is_hold else "RoadCar")
+	var utility := variant == UTILITY_VARIANT and not is_hold
+	var pickup := is_hold or utility
+	var wagon:=not pickup and variant==2
+	var p=K.joint(parent,Vector3.ZERO,"UtilityPickup" if utility else ("CountyPickup" if is_hold else "RoadCar"))
 	var plate: String = UNIT_PLATE if is_hold else identity.get("plate","")
 	var vin: String = UNIT_VIN if is_hold else identity.get("vin","")
 	p.set_meta("plate",plate)
 	p.set_meta("vin",vin)
 	var g=K.new(p)
 	var body:Color=HOLD_BODY if is_hold else [Color("#607e98"),Color("#7d6159"),Color("#7b838e"),Color("#79635a")][posmod(variant,4)]
-	var width:=.99 if is_hold else .89
-	var length:=2.5 if is_hold else 2.12
-	var base:=.64 if is_hold else .46
+	if utility:
+		body = Color("#bd753b")
+	var size := PICKUP_SIZE if pickup else SEDAN_SIZE
+	p.set_meta("body_size",size)
+	var width:=size.x
+	var length:=size.z
+	var base:=size.y
 	var tint:=body.darkened(.27)
 	g.box(Vector3(0,base,0),Vector3(width*1.83,.35,length*1.95),tint)
 	g.box(Vector3(0,base+.24,-.04),Vector3(width*2,.34,length*1.94),body)
 	g.box(Vector3(0,base+.44,-1.40),Vector3(width*1.89,.10,1.08),body,Vector3(-.065,0,0))
 	g.box(Vector3(-.09,base+.509,-1.34),Vector3(width*1.40,.018,.69),SNOW,Vector3(-.065,0,.017))
-	var cab_end:=.49 if is_hold else (1.86 if wagon else 1.04)
-	var top_end:=.40 if is_hold else (1.65 if wagon else .68)
+	var cab_end:=.49 if pickup else (1.86 if wagon else 1.04)
+	var top_end:=.40 if pickup else (1.65 if wagon else .68)
 	var head_y:=base+1.16
 	# Glazed greenhouse tapers from the belt line to the roof; two sloped panes.
 	g.box(Vector3(0,head_y,(top_end-.56)*.5),Vector3(width*1.63,.115,top_end+.56),body)
@@ -41,7 +64,7 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 	for s in [-1.0,1.0]:
 		var x:float=s*width
 		for z in [-length*.61,length*.61]:
-			var radius:=.43 if is_hold else .355
+			var radius:=.43 if pickup else .355
 			g.tube(Vector3(x-s*.135,radius,z),Vector3(x+s*.095,radius,z),radius,BLACK,16)
 			g.tube(Vector3(x+s*.099,radius,z),Vector3(x+s*.108,radius,z),radius*.61,STEEL,12)
 			g.tube(Vector3(x+s*.111,radius,z),Vector3(x+s*.12,radius,z),radius*.25,Color("#535955"),8)
@@ -56,12 +79,26 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		g.box(Vector3(x*1.08,base+.64,-.82),Vector3(.22,.112,.16),body)
 		g.box(Vector3(x*.77,base+.24,-length*.984),Vector3(.31,.136,.063),Color("#bfc6b8"))
 		g.box(Vector3(x*.82,base+.25,length*.976),Vector3(.23,.17,.062),Color("#a64342"))
-	if is_hold:
+	if pickup:
 		g.box(Vector3(0,base+.441,1.32),Vector3(1.61,.08,1.54),Color("#6f7676"))
 		for s in [-1.0,1.0]:
 			g.box(Vector3(s*.91,base+.57,1.45),Vector3(.14,.31,1.76),body)
 			g.box(Vector3(s*.90,base+.736,1.45),Vector3(.136,.022,1.66),SNOW)
-			K.label(p,"TAMARACK COUNTY\nSURVEY UNIT 38",Vector3(s*(width+.031),base+.24,-.46),.104,Color("#283a32"),Vector3(0,s*PI/2,0))
+			var lettering := "TAMARACK COUNTY\nHIGHWAY DEPT." if utility else "TAMARACK COUNTY\nSURVEY UNIT 38"
+			K.label(p,lettering,Vector3(s*(width+.031),base+.24,-.46),.104,Color("#283a32"),Vector3(0,s*PI/2,0))
+			if utility:
+				# Full-height service lockers and the ladder over the bed.
+				g.box(Vector3(s*.78,base+.75,1.46),Vector3(.46,.63,1.84),body)
+				g.box(Vector3(s*.78,base+1.075,1.46),Vector3(.47,.035,1.84),SNOW)
+				for z in [.86,1.45,2.04]:
+					g.box(Vector3(s*1.02,base+.74,z),Vector3(.025,.48,.54),body.darkened(.13))
+					g.box(Vector3(s*1.04,base+.87,z),Vector3(.035,.045,.11),STEEL)
+				for z in [.66,2.23]:
+					g.box(Vector3(s*.76,base+1.25,z),Vector3(.06,.42,.06),STEEL)
+				g.box(Vector3(s*.76,base+1.47,1.32),Vector3(.06,.08,2.1),STEEL)
+		if utility:
+			for z in [.49,.88,1.27,1.66,2.05]:
+				g.box(Vector3(0,base+1.47,z),Vector3(1.49,.044,.06),STEEL)
 		g.box(Vector3(0,base+.54,2.32),Vector3(1.81,.34,.11),body)
 		g.box(Vector3(0,head_y+.13,-.13),Vector3(1.01,.07,.23),BLACK)
 		g.box(Vector3(0,head_y+.21,-.13),Vector3(.95,.105,.21),Color("#bb8654"))
@@ -109,12 +146,13 @@ static func sheriff_tape(vehicle: Node3D, width: float, base: float, initials :=
 		K.label(tape,initials,Vector3(-width*1.12,base+.487,-.713),.034,BLACK,Vector3(0,-PI/2,.12))
 	return tape
 
-static func car_lamps(car_body:Node3D,kind:String,mode:String,line_end:int) -> Node3D:
+static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 	var lamps:Node3D=K.joint(car_body,Vector3.ZERO,"VehicleLamps")
 	var kit=K.new(lamps)
-	var length:=2.5 if kind=="hold" else 2.12
-	var width:=.99 if kind=="hold" else .89
-	var height:=.64 if kind=="hold" else .46
+	var size: Vector3 = car_body.get_meta("body_size")
+	var length:=size.z
+	var width:=size.x
+	var height:=size.y
 	if mode=="tow":
 		# Magnetic feet hold the portable light bar on the roof. Its amber
 		# clearance markers are visible to the operator in the side mirrors.
