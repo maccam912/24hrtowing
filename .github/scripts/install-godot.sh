@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# The editor and the four export templates must all come from the same release.
+# The editor and selected export templates must come from the same release.
 version=4.7.2
 release="https://github.com/godotengine/godot-builds/releases/download/$version-stable"
 cache="$HOME/.cache/24hrtowing/godot-$version"
@@ -20,12 +20,18 @@ if [[ ! -x "$cache/godot" ]]; then
     chmod +x "$cache/godot"
 fi
 if [[ "${1:-}" == --export ]]; then
-    if [[ ! -f "$cache/templates/version.txt" ]]; then
+    members=(templates/version.txt templates/android_{debug,release}.apk)
+    if [[ "${ENABLE_DESKTOP_BUILDS:-}" == true ]]; then
+        members+=(templates/linux_{debug,release}.x86_64 templates/windows_{debug,release}_x86_64{,_console}.exe templates/macos.zip)
+    fi
+    for member in "${members[@]}"; do
+        [[ -s "$cache/$member" ]] && continue
+        # Upstream distributes these templates together in one checksum-pinned archive.
         archive="Godot_v${version}-stable_export_templates.tpz"
         fetch "$archive" f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011
-        unzip -q "$RUNNER_TEMP/$archive" 'templates/linux_*x86_64' 'templates/windows_*x86_64*.exe' \
-            'templates/android_*.apk' templates/macos.zip templates/version.txt -d "$cache"
-    fi
+        unzip -qo "$RUNNER_TEMP/$archive" "${members[@]}" -d "$cache"
+        break
+    done
     ln -sfnT "$cache/templates" "$templates"
     # The hosted Linux runner is disposable. Use its installed SDK and selected JDK.
     settings="$HOME/.config/godot"

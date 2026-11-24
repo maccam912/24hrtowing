@@ -34,39 +34,27 @@ def stamp_android_version(presets, sha, code):
     raise ValueError("Missing Android export preset")
 
 
-def package(checkout, output, sha, index):
-    output.mkdir(parents=True)
-    engine = os.environ["GODOT_BIN"]
-    # Keep the APK upgradeable and expose its source revision in Android settings.
-    code = int(os.environ["GITHUB_RUN_NUMBER"]) * 4096 + index
-    stamp_android_version(checkout / "export_presets.cfg", sha, code)
-    version = f"0.1.{code}"
-    project = checkout / "project.godot"
-    project.write_text(re.sub(r'(?m)^config/version="[^"]+"$', f'config/version="{version}"', project.read_text()))
+def export_release(checkout, preset, file):
+    run([os.environ["GODOT_BIN"], "--headless", "--export-release", preset, file], checkout)
+    if not file.exists() or file.stat().st_size < 100_000:
+        raise ValueError(f"Incomplete {preset} export")
+
+
+def package_desktops(checkout, binary_dir, output, version):
     presets = checkout / "export_presets.cfg"
     presets.write_text(re.sub(r'(?m)^application/(short_version|version)="[^"]+"$',
                               lambda m: f'application/{m[1]}="{version}"', presets.read_text()))
-    binary_dir = output.parent / f"{sha}-binaries"
-    binary_dir.mkdir()
     linux = binary_dir / "24HRTowing.x86_64"
     windows = binary_dir / "24HRTowing.exe"
-    apk = output / "24HRTowing-Android.apk"
     mac = output / "24HRTowing-macOS.zip"
-    for preset, file in [("Linux", linux), ("Windows", windows), ("macOS", mac), ("Android", apk)]:
-        run([engine, "--headless", "--export-release", preset, file], checkout)
-        if not file.exists() or file.stat().st_size < 100_000:
-            raise ValueError(f"Incomplete {preset} export")
+    for preset, file in [("Linux", linux), ("Windows", windows), ("macOS", mac)]:
+        export_release(checkout, preset, file)
     linux.chmod(0o755)
     launched = subprocess.run([linux, "--headless", "--quit-after", "10"], cwd=binary_dir,
                               check=True, capture_output=True, text=True, timeout=90)
     log = launched.stdout + launched.stderr
     if "24 HR Towing | dispatch ready" not in log or re.search(r"^(SCRIPT ERROR|SHADER ERROR|ERROR|FATAL):", log, re.M):
         raise ValueError("Packaged Linux game failed to initialize: " + log)
-    tools = Path(os.environ["ANDROID_HOME"]) / "build-tools" / "36.0.0"
-    run([tools / "apksigner", "verify", "--verbose", apk], checkout)
-    metadata = subprocess.check_output([tools / "aapt", "dump", "badging", apk], text=True)
-    if "dev.maccam912.towing24hr" not in metadata or f"versionCode='{code}'" not in metadata or "application-debuggable" in metadata:
-        raise ValueError("Unexpected APK package, version code or debuggable flag")
     with zipfile.ZipFile(mac) as bundle:
         if not any(".app/Contents/MacOS/" in n and not n.endswith("/") for n in bundle.namelist()) or bundle.testzip():
             raise ValueError("Invalid macOS app bundle")
@@ -74,6 +62,32 @@ def package(checkout, output, sha, index):
         bundle.write(windows, windows.name)
     with tarfile.open(output / "24HRTowing-Linux-x64.tar.gz", "w:gz", compresslevel=6) as bundle:
         bundle.add(linux, arcname=linux.name)
+
+
+def package(checkout, output, sha, index):
+    output.mkdir(parents=True)
+    # Keep the APK upgradeable and expose its source revision in Android settings.
+    code = int(os.environ["GITHUB_RUN_NUMBER"]) * 4096 + index
+    stamp_android_version(checkout / "export_presets.cfg", sha, code)
+    version = f"0.1.{code}"
+    project = checkout / "project.godot"
+    project.write_text(re.sub(r'(?m)^config/version="[^"]+"$', f'config/version="{version}"', project.read_text()))
+    binary_dir = output.parent / f"{sha}-binaries"
+    binary_dir.mkdir()
+    apk = binary_dir / "24HRTowing-Android.apk"
+    export_release(checkout, "Android", apk)
+    tools = Path(os.environ["ANDROID_HOME"]) / "build-tools" / "36.0.0"
+    run([tools / "apksigner", "verify", "--verbose", apk], checkout)
+    metadata = subprocess.check_output([tools / "aapt", "dump", "badging", apk], text=True)
+    if "dev.maccam912.towing24hr" not in metadata or f"versionCode='{code}'" not in metadata or "application-debuggable" in metadata:
+        raise ValueError("Unexpected APK package, version code or debuggable flag")
+    apk.rename(output / apk.name)
+    if os.environ.get("ENABLE_DESKTOP_BUILDS") == "true":
+        package_desktops(checkout, binary_dir, output, version)
+        # Full releases historically include the signer's optional v4 sidecar.
+        sidecar = apk.with_suffix(".apk.idsig")
+        if sidecar.is_file():
+            sidecar.rename(output / sidecar.name)
     records = []
     for file in sorted(output.iterdir()):
         with file.open("rb") as asset:

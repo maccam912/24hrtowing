@@ -2,7 +2,7 @@
 
 You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow ban. When Arlene calls, take the heavy wrecker out, find the car by its road and landmarks, and bring the paperwork home.
 
-**[Download the Android APK](https://github.com/maccam912/24hrtowing/releases/latest/download/24HRTowing-Android.apk)** · [All desktop builds and checksums](https://github.com/maccam912/24hrtowing/releases/latest)
+**[Download the Android APK](https://github.com/maccam912/24hrtowing/releases/latest/download/24HRTowing-Android.apk)** · [SHA-256 checksums](https://github.com/maccam912/24hrtowing/releases/latest/download/SHA256SUMS.txt) · [Past releases and desktop downloads](https://github.com/maccam912/24hrtowing/releases)
 
 ## Your first call
 
@@ -44,9 +44,13 @@ mkdir -p build
 godot --headless --export-release Linux build/24HRTowing.x86_64
 ```
 
-For Android development, configure the SDK and JDK 17 in Godot, then use the Android preset. The release pipeline uses a dedicated signing key. Set the repository's encrypted Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS`, and `ANDROID_KEY_PASSWORD` when setting up a separate release repository.
+For a local Android build, configure the Android SDK and JDK 17 in Godot, then run `godot --headless --export-debug Android build/24HRTowing-Android-debug.apk`. The project also includes Linux, Windows and macOS export presets.
 
-Every pushed revision is tested and receives its own full release. Android version codes increase with the workflow run and commit position. The workflow checks the signed ARM APK, launches the Linux, Windows and universal macOS packages on their respective operating systems, and publishes SHA-256 sums. macOS downloads are ad-hoc signed.
+## Releases
+
+GitHub Actions tests each pushed revision. By default, each passing revision gets an Android release with a signed ARM APK and its SHA-256 checksum. Android version codes increase with the workflow run and commit position. When setting up a separate release repository, configure the encrypted Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` for signing.
+
+To include desktop downloads in future releases, set the GitHub Actions repository variable `ENABLE_DESKTOP_BUILDS` to `true` before pushing the next revision. The workflow then also exports Linux and Windows x86-64 packages and a universal, ad-hoc-signed macOS app, and checks that each launches on its own operating system. Earlier desktop packages are available in the [release history](https://github.com/maccam912/24hrtowing/releases).
 
 ## Assets
 
