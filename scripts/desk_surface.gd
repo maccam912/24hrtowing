@@ -247,7 +247,7 @@ func _menu() -> void:
 			var line_y := y+94
 			var entries: Array
 			if desk.is_touch_mode():
-				entries = [["DRIVE","Hold either side of the wheel to steer. Use the pedals and REV."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","RADIO opens the call log, answer key and talk-in."],["PAPER","PLAT and SLIP open a lap view while moving."]]
+				entries = [["DRIVE","Hold either side of the wheel to steer. Use the pedals and REV."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","In the cab, tap RADIO, then Take contract."],["PAPER","PLAT and SLIP open a lap view while moving."]]
 			else:
 				entries = [["W A S D","Drive or walk. Use the mouse to look around."],["E","Step out, climb aboard, or use the point you face."],["SPACE","Brake in the cab. Hold at the side panel to winch."],["R   /   T","Answer the radio or ask Arlene for directions."],["M   /   J","Open the plat book or tow slip. Press again to stow."],["C","Switch between chase and cab view while driving."],["ESC","Put down a document or open the truck log."]]
 			for entry in entries:
@@ -304,7 +304,28 @@ func _glance() -> void:
 	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE*unit)
 	hit("close",p)
 
+func _contract_hint() -> float:
+	var title := str(drawn.get("hint_title",""))
+	var instruction := str(drawn.get("hint_action",""))
+	if desk.glance or title.is_empty() or instruction.is_empty():
+		return 0.0
+	var touch: bool = desk.is_touch_mode()
+	# The top row belongs to the touch controls and the desktop camera switch.
+	var max_width := minf(640,dim.x - (2*HUD_MARGIN if touch else 325))
+	var type_size := 21
+	var width := minf(max_width, maxf(MONO.get_string_size(title.to_upper(),HORIZONTAL_ALIGNMENT_LEFT,-1,15).x,
+		subtle.get_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,-1,type_size).x)+32)
+	var lines := subtle.get_multiline_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,width-28,type_size)
+	var box := Rect2(HUD_MARGIN,106 if touch else 16,width,lines.y+36)
+	draw_rect(Rect2(box.position+Vector2(2,3),box.size),Color(0,0,0,0.36))
+	draw_rect(box,PAPER)
+	draw_rect(Rect2(box.position,Vector2(4,box.size.y)),OXBLOOD)
+	text(box.position+Vector2(15,20),title.to_upper(),MONO,15,OXBLOOD)
+	multiline(box.position+Vector2(15,25+subtle.get_ascent(type_size)),instruction,subtle,type_size,INK,width-28)
+	return box.end.y
+
 func _hud() -> void:
+	var hint_bottom := _contract_hint()
 	if not drawn.get("in_cab",true):
 		draw_circle(dim*0.5,1.7,Color(0.08,0.11,0.13,0.70))
 		draw_circle(dim*0.5,1.0,Color(0.92,0.95,0.90,0.82))
@@ -313,23 +334,18 @@ func _hud() -> void:
 		var line_width := minf(dim.x-180,580)
 		var size_prompt := 19
 		var label := prompt
-		if drawn.get("mode","") == "available" and drawn.get("in_cab",true):
-			label = "RADIO   ·   Answer dispatch" if desk.is_touch_mode() else "R   ·   Answer dispatch"
-		elif drawn.get("work_available",false):
-			label = prompt
-		elif not desk.is_touch_mode() and not prompt.begins_with("[") and not prompt.begins_with("Hold "):
+		if not desk.is_touch_mode() and not drawn.get("work_available",false) and not prompt.begins_with("[") and not prompt.begins_with("Hold "):
 			label = "E   "+prompt
 		var length := minf(line_width,subtle.get_string_size(label,HORIZONTAL_ALIGNMENT_LEFT,-1,size_prompt).x)
 		var box := Rect2((dim.x-length)*.5-10,dim.y*.555,length+20,33)
-		if drawn.get("in_cab",true) and drawn.get("driving_view","chase") == "chase" and drawn.get("mode","") == "available":
-			box.position = Vector2(HUD_MARGIN,dim.y-210)
 		draw_rect(box, Color(0.045,0.065,0.07,0.77))
 		draw_rect(Rect2(box.position,Vector2(2,box.size.y)),AMBER)
 		fitted(box.grow(-4),label,subtle,size_prompt,WHITE)
 	var words: String = str(drawn.get("subtitle","")).strip_edges()
 	if not words.is_empty() and not desk.glance and (not desk.is_touch_mode() or words != prompt):
 		var available := minf(665,dim.x-90)
-		var box := Rect2((dim.x-available)*0.5,110 if desk.is_touch_mode() else dim.y-97,available,73)
+		var top := maxf(110,hint_bottom+8) if desk.is_touch_mode() else dim.y-97
+		var box := Rect2((dim.x-available)*0.5,top,available,73)
 		draw_rect(box,Color(0.035,0.048,0.055,0.86))
 		draw_rect(Rect2(box.position,Vector2(3,box.size.y)),AMBER)
 		var who := str(drawn.get("speaker","DISPATCH")).to_upper()

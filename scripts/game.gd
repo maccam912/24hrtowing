@@ -10,7 +10,7 @@ const Ledger := preload("res://scripts/ledger.gd")
 const WORLD_RASTER_HEIGHT := 288
 const SPAWN := Vector3(-27,0,-64)
 const TITLE_CAMERA_OFFSET := Vector3(-10.5,2.65,-7.0)
-const STORAGE := Vector3(-44,0,-77)
+const STORAGE := County.STORAGE
 const BAY := Vector3(-48,0,-47)
 const FAX := Vector3(-40,0,-39)
 const PUMP := Vector3(-71,0,18)
@@ -319,11 +319,12 @@ func _accept() -> void:
 	if job.kind == "hold":
 		county.set_tripod_collected(false)
 	_say(job.id + "_call")
+	speaker = "DISPATCH  ·  CONTRACT %d ACCEPTED" % job.number
 	_save()
 
 func _directions() -> void:
 	if mode == "available":
-		_accept()
+		_message("DISPATCH","Standing by when you're ready to take the contract.")
 	elif mode in ["haul","return","invoice"]:
 		_say("yard_dir")
 	else:
@@ -353,7 +354,7 @@ func _survey() -> void:
 		rig.service_fuel()
 		shift_seconds += 18*60
 		_say("can")
-	if mode == "return" and pos.distance_to(SPAWN) < 27:
+	if mode == "return" and (pos.distance_to(SPAWN) < 27 or _near(FAX,4.4)):
 		mode = "invoice"
 		_save()
 
@@ -412,7 +413,7 @@ func _interact() -> void:
 			talked = true
 			_say(job.reply)
 		"fax":
-			if mode == "invoice":
+			if _can_file_here():
 				_file_invoice()
 			else:
 				desk.show_document("fax",state)
@@ -462,7 +463,6 @@ func _dropped() -> void:
 		stored.append(job.route)
 	rig.end_job()
 	_display_storage()
-	_message("BRANDT","Set down and secured. The office fax is by the yard door.")
 	_save()
 
 func _display_storage() -> void:
@@ -485,8 +485,11 @@ func _read_book() -> void:
 	desk.show_document("field",state)
 	_save()
 
+func _can_file_here() -> bool:
+	return mode in ["return","invoice"] and not rig.in_cab and _near(FAX,4.4)
+
 func _file_invoice() -> void:
-	if mode != "invoice" or rig.get_status().in_cab or not _near(FAX,4.4):
+	if not _can_file_here():
 		return
 	if job.kind == "hold" and not bay_locked:
 		_message("BRANDT","The hold bay needs locking before I file the custody card.")
@@ -550,13 +553,50 @@ func _procedure() -> String:
 			return "Walk to the office fax at the yard door. File the tow slip."
 	return ""
 
-func _prompt() -> String:
-	var site := _site_action()
-	var words := {"lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the light","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Fill the diesel tank","fax":"File tow slip at fax" if mode=="invoice" else "Read the county fax"}
+func _contract_hint(site: String, first_haul: bool) -> Dictionary:
+	var title := ""
+	var instruction := ""
+	match mode:
+		"available":
+			title = "First contract available"
+			if not slips.is_empty():
+				var number := int(slips.back().number)
+				title = "Slip %d disputed" % number if number == 1004 else "Slip %d filed" % number
+			if not rig.in_cab:
+				instruction = "Get in the cab for the next contract on the radio."
+			elif desk.is_touch_mode():
+				instruction = "Tap RADIO, then Take contract."
+			else:
+				instruction = "Press R to take a contract on the cab radio."
+		"haul":
+			if first_haul:
+				title = "Deliver to storage"
+				instruction = "At Brandt’s yard, pull into the amber-lit TOW DROP lane."
+				if rig.at_dropoff():
+					title = "In the drop zone"
+					if rig.in_cab:
+						instruction = "Stop and get out. Walk to the wrecker’s left rear panel."
+					else:
+						var control := "Tap USE" if desk.is_touch_mode() else "Press E"
+						instruction = "%s at the left rear panel to lower the car." % control
+		"return","invoice":
+			title = "Slip %d awaiting fax" % int(job.number)
+			if job.kind == "hold" and not bay_locked:
+				instruction = "Lock the chain at the hold bay, then go to the office fax."
+			elif site == "fax":
+				instruction = "Tap USE to file the slip." if desk.is_touch_mode() else "Press E to file the slip."
+			elif mode == "return":
+				instruction = "Return to Brandt’s yard. File the slip at the office fax."
+			elif rig.in_cab:
+				instruction = "Park by the OFFICE / FAX sign and get out."
+			else:
+				instruction = "Walk to the fax under the OFFICE / FAX sign."
+	return {"hint_title":title, "hint_action":instruction}
+
+func _prompt(site: String = _site_action()) -> String:
+	var words := {"lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the light","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Fill the diesel tank","fax":"File tow slip at fax" if _can_file_here() else "Read the county fax"}
 	if words.has(site):
 		return words[site]
-	if mode == "available" and rig.in_cab and absf(rig.speed)<0.65:
-		return "[RADIO]  Answer dispatch" if desk.is_touch_mode() else "[R]  Answer dispatch"
 	return rig.context_text()
 
 func _custody_record() -> String:
@@ -572,18 +612,23 @@ func _refresh() -> void:
 			ticket.loaded = 0.0 if job.kind == "ditch" else snappedf(maxf(0,drop_odo-pickup_odo),0.1)
 	var bearing := posmod(roundi(float(s.heading)/45.0),8)
 	var card := filed_card if held else (_custody_record() if signed_card else "")
-	state = {"prompt":_prompt(),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
+	var first_haul: bool = mode == "haul" and job.get("kind") == "hazard" and not slips.any(
+		func(slip: Dictionary) -> bool: return slip.get("kind") == "hazard")
+	county.set_storage_guide(first_haul)
+	var site := _site_action()
+	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,
-		"can_enter_cab":rig.action_id() == "enter" and _site_action().is_empty(),
+		"can_enter_cab":rig.action_id() == "enter" and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
 		"job":ticket,"slips":slips,"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
-		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":mode=="invoice" and not s.in_cab and _near(FAX,4.4),
+		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
 		"can_order":not s.in_cab and _near(FAX,4.4),"chains":rig.tire_chains,"wear":s.wear,
 		"progress":_procedure(),"paid":paid,"pending":pending,"phase":s.phase,"work_available":rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
+	state.merge(_contract_hint(site,first_haul))
 	desk.update_view(state)
 
 func _save() -> void:
@@ -640,5 +685,8 @@ func _restore(s: Dictionary) -> void:
 		rig.storage_point = BAY if job.kind == "hold" else STORAGE
 		county.set_hold_scene(job.kind=="hold" and mode=="fieldwork")
 		county.set_tripod_collected(packed_tripod)
+	else:
+		job = {}
+		county.set_hold_scene(false)
 	rig.restore_state(s.rig)
 	_display_storage()

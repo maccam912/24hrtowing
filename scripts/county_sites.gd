@@ -27,7 +27,7 @@ func cyl(x: float,y: float,z: float,w: float,h: float,mat: String,solid := false
 func beam(a: Vector3,bb: Vector3,w: float,d: float,mat: String) -> void:
 	draw.beam(origin+a,origin+bb,w,d,mat)
 
-func label(at: Vector3, words: String, height: float, yaw: float, ink: Color, align := HORIZONTAL_ALIGNMENT_CENTER) -> void:
+func label(at: Vector3, words: String, height: float, yaw: float, ink: Color, align := HORIZONTAL_ALIGNMENT_CENTER) -> Label3D:
 	var type := Label3D.new()
 	type.text = words
 	if world.county_font:
@@ -44,6 +44,7 @@ func label(at: Vector3, words: String, height: float, yaw: float, ink: Color, al
 	type.visibility_range_end = minf(155.,45.+height*65.)
 	type.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	draw.parent.add_child(type)
+	return type
 
 func placard(at: Vector3, words: String, width: float, height: float, yaw: float, panel := "green", both := false) -> void:
 	var front := Basis(Vector3.UP,yaw)*Vector3.BACK
@@ -243,6 +244,44 @@ func yard() -> void:
 	cyl(-31.1,.82,-37,.97,1.64,"oxide",true)
 	for j in 3:
 		cyl(-30,.22+j*.31,-36.6,.89,.29,"black")
+
+func storage_pad() -> void:
+	site(world.STORAGE.x, world.STORAGE.z)
+	# Leave both ends open so a loaded wrecker can pull straight through.
+	for z: float in [-3.3, 3.3]:
+		for x: float in [-7.2, -3.6, 0.0, 3.6, 7.2]:
+			b(x, .035, z, 2.85, .04, .30, "safety_yellow")
+	var sign_at := Vector3(0, 3.55, -5.4)
+	var yaw := 1.08 # Face the open gate on County K.
+	var basis := Basis(Vector3.UP, yaw)
+	var rotation := Vector3(0, yaw, 0)
+	for side: float in [-1.0, 1.0]:
+		var leg := sign_at + basis.x * side * 2.7
+		b(leg.x, 1.65, leg.z, .14, 3.3, .14, "post")
+	draw.box(origin + sign_at, Vector3(8.6, 2.0, .17), "black", false, rotation)
+	draw.box(origin + sign_at + basis.z * .097, Vector3(8.38, 1.78, .04), "safety_yellow", false, rotation)
+	var lettering := label(sign_at + basis.z * .126, "TOW DROP", 1.80, yaw, Color("#1e2428"))
+	var bold := FontVariation.new()
+	bold.base_font = world.county_font
+	bold.variation_opentype = {"weight": 740}
+	lettering.font = bold
+
+func storage_guide() -> void:
+	# This batch is local to the pad. The guide lights stay clear of the tire paths.
+	for z: float in [-3.65, 3.65]:
+		for x: float in [-9.0, 9.0]:
+			b(x, .075, z, .74, .15, .74, "black")
+			cyl(x, .81, z, .29, 1.52, "safety_yellow")
+			for h: float in [.54, 1.06]:
+				cyl(x, h, z, .31, .24, "black")
+			cyl(x, 1.61, z, .48, .15, "dark")
+			cyl(x, 1.85, z, .43, .38, "amber_lens")
+			for yaw: float in [0.0, PI * .5]:
+				draw.add("quad", p(x, 1.86, z), Vector3(3.5, 3.5, 1), "sodium", Vector3(0, yaw, 0))
+	# Two broad pavement chevrons lead inward from the gate.
+	for x: float in [13.3, 9.5]:
+		for z: float in [-1.0, 1.0]:
+			beam(Vector3(x + 1.0, .065, z * 1.5), Vector3(x - .6, .065, 0), .045, .38, "safety_yellow")
 
 func fuel() -> void:
 	site(-71,18)
@@ -504,6 +543,7 @@ func survey_tripod() -> void:
 
 func build() -> void:
 	yard()
+	storage_pad()
 	fuel()
 	esker()
 	river_and_seat()

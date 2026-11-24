@@ -33,9 +33,24 @@ func run() -> void:
 	check(rig.truck.global_transform.is_equal_approx(parked) and rig.fuel == initial_fuel and game.shift_seconds == 0.0, "the title leaves the parked truck and shift clock alone")
 	game._action("play")
 	check(game.world_view.get_camera_3d() == rig.get_camera(), "starting puts the operator in the cab")
+	check(game.mode == "available" and game.job.is_empty(), "the first contract waits for the operator")
+	var radio_key := RegEx.create_from_string("\\bR\\b")
+	check(radio_key.search(str(game.state.get("hint_action", ""))) != null, "the opening tutorial names the desktop radio key")
+	press_key(KEY_T)
+	check(game.mode == "available" and game.job.is_empty(), "asking for directions cannot accept a contract")
+	game.desk._touch_mode = true
+	game._refresh()
 	for i in 5:
-		game._action("radio")
+		if i == 0:
+			var instruction := str(game.state.get("hint_action", "")).to_lower()
+			check("radio" in instruction and "take contract" in instruction, "the touch tutorial explains both taps")
+			await tap_control("radio")
+			check(game.mode == "available" and game.desk.page == "radio", "opening the transceiver leaves the offer pending")
+			await tap_control("respond")
+		else:
+			press_key(KEY_R)
 		check(game.mode == "fieldwork","accepted radio call")
+		check(not game.county.storage_guide.visible, "the storage guide stays off until a vehicle is on the lift")
 		var job: Dictionary = game.job
 		var site: Vector3 = rig.car.position
 		if i == 0:
@@ -117,6 +132,7 @@ func run() -> void:
 			stand(panel+outside,panel)
 			game._action("interact")
 			check(rig.loaded and game.mode=="haul","lift and sign for tow")
+			check(game.county.storage_guide.visible == (i == 1), "only the first storage delivery lights the pad")
 		var casualty:Node3D=rig.car
 		var handle: Vector3 = rig.truck.to_global(rig.Truck.DOOR)
 		stand(handle + outside,handle)
@@ -128,12 +144,15 @@ func run() -> void:
 				rig.set_controls(Vector2(.35,-1),Vector2.ZERO,false,false,DT)
 			verify_tow()
 			if i==1:
-				var snapshot:Dictionary=JSON.parse_string(JSON.stringify(rig.save_state()))
-				rig.restore_state(snapshot)
+				resume_shift()
+				check(game.mode == "haul" and game.county.storage_guide.visible, "resuming a loaded first tow restores its landing guide")
 				verify_tow()
 			stop()
 			rig.set_spawn(rig.storage_point + Vector3(4,0,0),PI/2)
 			rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,DT)
+			if i == 1:
+				game._refresh()
+				check("panel" in hint_text(), "parking in the marked bay reveals where to operate the lift")
 			game._action("interact")
 			panel = rig._panel()
 			stand(panel-rig.truck.global_basis.x,panel)
@@ -141,19 +160,40 @@ func run() -> void:
 		else:
 			if i==0:
 				verify_departure()
-			rig.set_spawn(game.SPAWN,-PI/2)
+			# Park outside the truck's yard arrival radius on the second ditch call.
+			rig.set_spawn(Vector3(-18,0,-38) if i == 2 else game.SPAWN,-PI/2)
 			game._survey()
 			game._action("interact")
-		check(game.mode=="invoice","returned for invoice")
+		check(game.mode == ("return" if i == 2 else "invoice"), "ready to turn in the slip")
+		if i < 2:
+			resume_shift()
+			check("fax" in hint_text(), "turn-in instructions remain available until the office receives the slip")
+			check(not game.county.storage_guide.visible, "the storage guide is off once the lift is lowered")
 		if job.kind=="hold":
 			var latch: Vector3 = game.county.bay_latch_point()
 			stand(latch+Vector3(0,0,.7),latch)
 			game._action("interact")
 			check(game.bay_locked,"locked evidence chain")
 		stand(game.FAX+Vector3(0,0,-1.2),game.FAX)
-		game._action("interact")
+		game._refresh()
+		check(game.state.can_fax, "arriving at the actual fax on foot allows filing")
+		if i == 1:
+			await tap_control("slip")
+			await tap_control("send_fax")
+		else:
+			game._action("interact")
 		check(game.completed==i+1 and game.desk.page=="fax","invoice filed")
 		game.desk.dismiss()
+		if i < 2:
+			var invoice_balance: float = game.pending
+			game._action("fax")
+			resume_shift()
+			check(game.mode == "available" and game.completed == i+1 and game.slips.size() == i+1 and is_equal_approx(game.pending, invoice_balance), "a filed slip cannot be charged twice")
+			var receipt := str(game.state.get("hint_title","")).to_lower()
+			check(str(job.number) in receipt and "filed" in receipt, "the HUD confirms the numbered slip after stowing the fax and resuming")
+			check("cab" in str(game.state.get("hint_action","")).to_lower(), "the next-contract directions lead the operator back to the cab")
+		if i == 3:
+			check("disput" in hint_text(), "the county's disputed invoice is identified on the HUD")
 		if i == 2:
 			game._survey()
 			var printed := Vector3(409,0,246)
@@ -181,6 +221,42 @@ func run() -> void:
 	if failures == 0:
 		print("CHECKS PASSED — drove County K, five complete recoveries, resume, custody and optional field book")
 	quit(1 if failures else 0)
+
+func hint_text() -> String:
+	return ("%s %s" % [game.state.get("hint_title",""), game.state.get("hint_action","")]).to_lower()
+
+func resume_shift() -> void:
+	game._save()
+	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
+	var touch_mode: bool = game.desk.is_touch_mode()
+	game.free()
+	game = load("res://game.tscn").instantiate()
+	root.add_child(game)
+	game.set_physics_process(false)
+	game.desk._touch_mode = touch_mode
+	game.saved_data = snapshot
+	game._action("play")
+	rig = game.rig
+
+func press_key(key: Key) -> void:
+	var event := InputEventKey.new()
+	event.keycode = key
+	event.physical_keycode = key
+	event.pressed = true
+	root.push_input(event, true)
+
+func tap_control(id: String) -> void:
+	await process_frame
+	await process_frame
+	for entry in game.desk.surface.hit_boxes:
+		if entry.id == id:
+			var event := InputEventScreenTouch.new()
+			event.position = entry.rect.get_center() * game.desk.surface.unit
+			for pressed: bool in [true, false]:
+				event.pressed = pressed
+				root.push_input(event, true)
+			return
+	check(false, "missing touch control " + id)
 
 func drive_to(point: Vector3) -> void:
 	for tick in 2800:

@@ -6,11 +6,13 @@ You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow 
 
 ## Your first call
 
-Start the engine and answer the county radio. Angie Kraemer is in the west ditch on County K, just past St. Hedwig’s. Turn right out of the yard, cross Main, and watch for the twin steeples. Arlene can repeat the directions. The plat book and clipboard are available from the cab.
+Start the engine. Arlene has a contract waiting on the cab radio. Tap **RADIO**, then **Take contract**, or press **R** on desktop. Angie Kraemer is in the west ditch on County K, just past St. Hedwig’s. Turn right out of the yard, cross Main, and watch for the twin steeples. Arlene can repeat the directions. The plat book and clipboard are available from the cab.
 
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
 
-Ditch customers walk back to their cars and drive away after the pull. For a hazard tow, bring the axle up to the underlift, strap it, and haul to the storage pad. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room. Lower the vehicle at the destination. File the slip at the fax outside the yard office, then call for another job.
+Ditch customers walk back to their cars and drive away after the pull. For a hazard tow, bring the axle up to the underlift, strap it, and haul to the storage pad. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room. On your first haul, amber lights mark the **TOW DROP** lane in the yard. Stop there and use the wrecker’s left rear panel to lower the car.
+
+To turn in either job, walk to the fax under the **OFFICE / FAX** sign and tap **USE** or press **E**. The receipt shows the slip number and filing status. Stow it and get back in the cab to take the next contract on the radio.
 
 ## Controls
 
@@ -22,7 +24,7 @@ Ditch customers walk back to their cars and drive away after the pull. For a haz
 | Walk | Left thumb pad | WASD or arrows |
 | Step out, enter, or handle equipment | EXIT CAB, ENTER CAB, or USE | E |
 | Operate the winch at its panel | Hold WINCH | Hold Space or F |
-| Accept a call or ask directions | RADIO, then the appropriate key | R to answer, T for directions |
+| Accept a call or ask directions | RADIO, then Take contract or Ask for directions | R to accept, T for directions |
 | Plat book and current slip | PLAT or SLIP | M or J |
 | Set down paper or pause | Stow or pause button, Android Back | Escape |
 

@@ -6,6 +6,7 @@ const Bay = preload("res://scripts/county_bay.gd")
 const TERRAIN_X := Vector2i(-795, 1100)
 const TERRAIN_Z := Vector2i(-610, 1000)
 const YARD := Rect2(-65,-90,68,61)
+const STORAGE := Vector3(-44,0,-77)
 const ROADS := [
 	["Highway 64", -635, 0, 930, 0], ["County K", 0, -420, 0, 800],
 	["Kolpack Rd", 400, 0, 400, 800], ["County FF", 800, 0, 800, 800],
@@ -27,6 +28,8 @@ var spindrift: MultiMeshInstance3D
 var spindrift_shader: ShaderMaterial
 var materials := {}
 var bay: Node3D
+var storage_guide: Node3D
+var storage_guide_on := false
 var bay_locked := false
 var hold_shown := false
 var tripod_taken := false
@@ -90,6 +93,11 @@ func set_bay_locked(value: bool) -> void:
 	bay_locked = value
 	if is_instance_valid(bay):
 		bay.set_locked(value)
+
+func set_storage_guide(value: bool) -> void:
+	storage_guide_on = value
+	if is_instance_valid(storage_guide):
+		storage_guide.visible = value
 
 func hold_tripod_point() -> Vector3:
 	return Vector3(318.5, ground_height(318.5,-413), -413)
@@ -205,6 +213,7 @@ func _make_materials() -> void:
 		["slush","8a97a4"],["stripe","a99875"],["glass","3e4d54"],["river","425263"],
 		["lamp","ffac64","",0.82],["window","e6a46a","",0.43],["fluoro","dbe0db","",0.65],
 		["white","dfded1","",0.05],["mercury","b7d9cf","",.85],["red","be343c","",.80],
+		["safety_yellow","f6b83e","",.40],["amber_lens","ffb62a","",1.7],
 		["sign","ffffff","brandt_enamel"],["spruce","e1e4e7","black_spruce"],
 	]:
 		materials[item[0]] = _paint(item[1],item[2] if item.size()>2 else "",item[3] if item.size()>3 else 0.0)
@@ -317,6 +326,14 @@ func _build() -> void:
 	var places = Sites.new(self,draw)
 	places.build()
 	draw.finish()
+	storage_guide = Node3D.new()
+	storage_guide.name = "StorageDropLights"
+	storage_guide.position = STORAGE
+	county_model.add_child(storage_guide)
+	var guide = Sites.new(self,Batch.new(storage_guide,materials))
+	guide.storage_guide()
+	guide.draw.finish()
+	set_storage_guide(storage_guide_on)
 	bay = Bay.new()
 	county_model.add_child(bay)
 	bay.setup(materials,bay_locked)

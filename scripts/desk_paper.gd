@@ -133,34 +133,59 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 			words = str(message.get("text",""))
 		c.multiline(Vector2(x,ry+30+i*65),words,c.subtle,19,c.WHITE,w,2)
 		c.rule(x,ry+69+i*65,w,Color("#5a685e"))
-	var btn_width := (w-17.0)/2
 	var button_height := 80 if c.desk.is_touch_mode() else 52
-	c.button("respond",Rect2(x,p.end.y-32-button_height,btn_width,button_height),"Answer dispatch")
-	c.button("directions",Rect2(x+btn_width+17,p.end.y-32-button_height,btn_width,button_height),"Ask for directions")
+	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
+	if not s.get("can_radio",s.get("in_cab",true)):
+		c.fitted(key,"Get in the cab to use the radio.",c.subtle,23,c.CREAM)
+	elif s.get("mode","") == "available":
+		c.button("respond",key,"Take contract",true)
+	else:
+		c.button("directions",key,"Ask for directions",true)
 
 func _fax(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#e4e4d8"))
-	_header(c,p,"INCOMING FACSIMILE  /  COUNTY CLERK","Fax tray","ACCOUNTS PAYABLE",c.MONO)
 	var x := p.position.x+33
-	var y := p.position.y+132
+	var width := p.size.x-66
 	var archive: Array = s.get("faxes",[])
 	var number: int = archive.size()-1 if c.desk.fax_index < 0 else c.desk.fax_index
+	var receipt: bool = (s.get("mode","") == "available" and not s.get("slips",[]).is_empty()
+		and number == archive.size()-1 and not str(s.get("hint_title","")).is_empty())
+	var title := str(s.hint_title) if receipt else "Fax tray"
+	_header(c,p,"INCOMING FACSIMILE  /  COUNTY CLERK",title,"ACCOUNTS PAYABLE",c.MONO)
 	var contents := str(archive[number] if number>=0 and number<archive.size() else s.get("fax_text","")).strip_edges()
 	if contents.is_empty():
 		contents = "No incoming faxes."
-	c.multiline(Vector2(x,y+7),contents,c.MONO,17,Color("#50594f"),p.size.x-78,13)
 	var touch: bool = c.desk.is_touch_mode()
 	var key_size := Vector2(82,80) if touch else Vector2(52,40)
 	var footer_top := p.end.y-(87 if touch else 54)
-	c.rule(x,footer_top-(5 if touch else 11),p.size.x-66,LINE)
+	var body_y := p.position.y+111
+	var font_size := 17
+	while font_size>12 and c.MONO.get_multiline_string_size(contents,HORIZONTAL_ALIGNMENT_LEFT,width,font_size).y > footer_top-13-body_y:
+		font_size -= 1
+	c.multiline(Vector2(x,body_y+c.MONO.get_ascent(font_size)),contents,c.MONO,font_size,Color("#50594f"),width)
+	c.rule(x,footer_top-5,width,LINE)
 	if s.get("can_fax",false):
 		c.button("send_fax",Rect2(p.end.x-188,footer_top,156,80 if touch else 39),"Fax invoice",true)
+	var caption_x := x
+	var caption := "END OF TRANSMISSION"
 	if archive.size()>1:
 		c.button("prev_fax",Rect2(Vector2(x,footer_top),key_size),"‹")
 		c.button("next_fax",Rect2(Vector2(x+key_size.x+8,footer_top),key_size),"›")
-		c.text(Vector2(x+2*key_size.x+22,p.end.y-28),"FILED FAX  %d / %d" % [number+1,archive.size()],c.MONO,15,FADED)
+		caption_x += 2*key_size.x+22
+		caption = "FILED FAX  %d / %d" % [number+1,archive.size()]
+	if receipt:
+		var footer := Rect2(caption_x,footer_top,p.end.x-33-caption_x,key_size.y)
+		c.draw_rect(footer,Color("#d5d8c5"))
+		c.draw_rect(Rect2(footer.position,Vector2(3,footer.size.y)),GREEN)
+		var stow := "TAP STOW" if touch else "ESC TO STOW"
+		c.text(footer.position+Vector2(13,15),stow+"   /   "+caption,c.MONO,12,GREEN)
+		var instruction := str(s.get("hint_action",""))
+		if touch:
+			c.multiline(footer.position+Vector2(13,42),instruction,c.subtle,20,PAPER_INK,footer.size.x-22,2)
+		else:
+			c.fitted(footer.grow_individual(-13,-15,-8,0),instruction,c.subtle,18,PAPER_INK,HORIZONTAL_ALIGNMENT_LEFT)
 	else:
-		c.text(Vector2(x,p.end.y-34),"END OF TRANSMISSION",c.MONO,13,FADED)
+		c.text(Vector2(caption_x,p.end.y-28),caption,c.MONO,14,FADED)
 
 func _custody(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d8ccab"))

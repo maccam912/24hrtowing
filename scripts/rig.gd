@@ -516,6 +516,9 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 	# Forgiving hands' reach for mobile. At the edge, turn toward what you want.
 	return not require_facing or offset.length()<1.5 or (-eyes.global_basis.z).dot(offset.normalized())>-.13
 
+func at_dropoff() -> bool:
+	return loaded and (_flat_distance(car.position,storage_point)<12.0 or _flat_distance(truck.position,storage_point)<12.0)
+
 func action_id() -> String:
 	if in_cab:
 		return "exit" if absf(speed)<.65 else ""
@@ -535,7 +538,7 @@ func action_id() -> String:
 		if kind!="hold" and panel_range: return "lift"
 	if phase=="dollies" and panel_range: return "lift"
 	if phase=="loaded" and panel_range:
-		return "drop" if _flat_distance(car.position,storage_point)<12.0 or _flat_distance(truck.position,storage_point)<12.0 else "haul"
+		return "drop" if at_dropoff() else "haul"
 	if _at_door(): return "enter"
 	if phase=="flared" and near_casualty(2.7) and kind!="ditch": return "read_tape"
 	return ""
