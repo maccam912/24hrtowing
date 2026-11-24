@@ -108,6 +108,6 @@ func finish() -> void:
 		geometry.name = "Section_%d_%d" % [key.x, key.y]
 		geometry.mesh = mesh
 		geometry.visibility_range_end = 230.0
-		geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		geometry.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		parent.add_child(geometry)
 	batches.clear()

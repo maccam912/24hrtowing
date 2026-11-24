@@ -113,6 +113,9 @@ func run() -> void:
 		check(game.completed==i+1 and game.desk.page=="fax","invoice filed")
 		game.desk.dismiss()
 		if i == 2:
+			game._survey()
+			var printed := Vector3(409,0,246)
+			check(is_equal_approx(game.county.resolve_point(printed).z-printed.z,40.0),"offscreen section adds one odometer tenth")
 			var balance: float = game.paid
 			game._action("buy_chains")
 			game._action("buy_chains")

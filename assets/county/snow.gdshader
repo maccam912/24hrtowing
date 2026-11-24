@@ -9,6 +9,9 @@ void vertex() {
 	float distance_to_eye=length(pos);
 	falloff=smoothstep(2.0,5.0,distance_to_eye)*(1.-smoothstep(13.,18.,distance_to_eye));
 	vec3 center=eye+pos;
+	bool bay=center.x > -60. && center.x < -42. && center.z > -51. && center.z < -38.3 && center.y < 5.18;
+	bool pump=center.x > -76.6 && center.x < -65.4 && center.z > 12.5 && center.z < 19.5 && center.y < 4.45;
+	if (bay || pump) { falloff=0.; }
 	vec3 right=INV_VIEW_MATRIX[0].xyz;
 	vec3 tail=normalize(vec3(.38,1.,-.22));
 	VERTEX=(VIEW_MATRIX*vec4(center + right*VERTEX.x + tail*VERTEX.y,1.)).xyz;

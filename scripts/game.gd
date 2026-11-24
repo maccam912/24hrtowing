@@ -485,7 +485,7 @@ func _prompt() -> String:
 	var words := {"lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the light","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Fill the diesel tank","fax":"File tow slip at fax" if mode=="invoice" else "Read the county fax"}
 	if words.has(site):
 		return words[site]
-	if mode == "available" and rig.get_status().in_cab:
+	if mode == "available" and rig.in_cab and absf(rig.speed)<0.65:
 		return "[RADIO]  Answer dispatch" if desk.is_touch_mode() else "[R]  Answer dispatch"
 	return rig.context_text()
 
