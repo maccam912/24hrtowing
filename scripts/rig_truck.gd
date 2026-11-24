@@ -34,6 +34,7 @@ var steer_wheel: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
 var stinger: Node3D
+var headlamps: Array[SpotLight3D] = []
 var work_light:=SpotLight3D.new()
 var odo_label: Label3D
 var heading_label: Label3D
@@ -66,13 +67,15 @@ func build() -> void:
 			k.box(Vector3(s*(1+x),1.36,-3.919),Vector3(.18,.15,.025),Color("#f0e9d6"),Vector3.ZERO,"lamp")
 		var light := SpotLight3D.new()
 		add_child(light)
+		headlamps.append(light)
 		light.position=Vector3(s*.95,1.34,-3.97)
-		light.rotation.x=-.068
+		light.rotation.x=-.088
 		light.light_color=Color("#fff1d4")
-		light.light_energy=2.8
-		light.spot_range=83.0
+		light.light_energy=3.5
+		light.spot_attenuation=.48
+		light.spot_range=57.0
 		light.spot_angle=24.0
-		light.spot_attenuation=.65
+		light.spot_angle_attenuation=.8
 		k.tube(Vector3(s*.96,.81,-1.9),Vector3(s*.96,.81,-.07),.31,STEEL,16)
 		for z in [-1.75,-.25]:
 			k.tube(Vector3(s*.96,.81,z),Vector3(s*.96,.81,z+.07),.326,IRON,16)
@@ -360,6 +363,9 @@ func animate(dt:float, speed:float, steering:float, engine_rpm:float, load_on:bo
 		v.render_target_update_mode=SubViewport.UPDATE_ONCE
 
 func animate_weather(dt: float, beacons_on: bool) -> void:
+	RenderingServer.global_shader_parameter_set("headlamp_left", headlamps[0].global_position)
+	RenderingServer.global_shader_parameter_set("headlamp_right", headlamps[1].global_position)
+	RenderingServer.global_shader_parameter_set("headlamp_direction", -headlamps[0].global_basis.z)
 	elapsed += dt
 	var sweep := fmod(elapsed,3.6)
 	for w in wipers:

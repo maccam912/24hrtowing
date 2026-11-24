@@ -22,8 +22,14 @@ var lengthened := false
 var county_model: Node3D
 var hold: Node3D
 var tripod: Node3D
+var storm_environment: Environment
+var storm_time := 0.0
+var storm_gust := 0.0
+var storm_travel := 0.0
 var storm: MultiMeshInstance3D
 var snow_shader: ShaderMaterial
+var powder_clouds: MultiMeshInstance3D
+var powder_shader: ShaderMaterial
 var spindrift: MultiMeshInstance3D
 var spindrift_shader: ShaderMaterial
 var materials := {}
@@ -112,9 +118,24 @@ func set_hold_scene(value: bool) -> void:
 	if hold:
 		hold.visible = value
 
+func advance_storm(dt: float) -> void:
+	storm_time += dt
+	# Broad gust fronts pass at uneven intervals. Integrate the wind so flakes
+	# keep moving downwind as a front recedes, even on a long night shift.
+	var front := sin(storm_time * .42 + 1.2 * sin(storm_time * .13) - .7)
+	storm_gust = smoothstep(-.30, .90, front)
+	storm_travel += dt * lerpf(5.8, 13.5, storm_gust)
+	RenderingServer.global_shader_parameter_set("storm_time", storm_time)
+	RenderingServer.global_shader_parameter_set("storm_gust", storm_gust)
+	RenderingServer.global_shader_parameter_set("storm_travel", storm_travel)
+	storm_environment.fog_depth_begin = lerpf(16.0, 6.0, storm_gust)
+	storm_environment.fog_depth_end = lerpf(98.0, 60.0, storm_gust)
+
 func follow_camera(pos: Vector3) -> void:
 	if snow_shader:
 		snow_shader.set_shader_parameter("eye",pos)
+		powder_shader.set_shader_parameter("eye",pos)
+		powder_clouds.position = pos
 		spindrift_shader.set_shader_parameter("eye",pos)
 		spindrift.position = pos
 		storm.position = pos # keep the renderer's coarse bounds around the player
@@ -214,7 +235,7 @@ func _make_materials() -> void:
 		["lamp","ffac64","",0.82],["window","e6a46a","",0.43],["fluoro","dbe0db","",0.65],
 		["white","dfded1","",0.05],["mercury","b7d9cf","",.85],["red","be343c","",.80],
 		["safety_yellow","f6b83e","",.40],["amber_lens","ffb62a","",1.7],
-		["sign","ffffff","brandt_enamel"],["spruce","e1e4e7","black_spruce"],
+		["sign","ffffff","brandt_enamel"],
 	]:
 		materials[item[0]] = _paint(item[1],item[2] if item.size()>2 else "",item[3] if item.size()>3 else 0.0)
 	var road_material := ShaderMaterial.new()
@@ -232,9 +253,13 @@ func _make_materials() -> void:
 		wall.uv1_triplanar=true
 		wall.uv1_world_triplanar=true
 		wall.uv1_scale=Vector3(.26,.16,.26)
-	var spruce: StandardMaterial3D = materials.spruce
-	spruce.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-	spruce.alpha_scissor_threshold = 0.43
+	var spruce := ShaderMaterial.new()
+	spruce.shader = preload("res://assets/county/spruce.gdshader")
+	spruce.set_shader_parameter("needles",preload("res://assets/county/black_spruce.png"))
+	materials["spruce"] = spruce
+	var conductor := ShaderMaterial.new()
+	conductor.shader = preload("res://assets/county/power_line.gdshader")
+	materials["conductor"] = conductor
 	var wire := ShaderMaterial.new()
 	wire.shader = preload("res://assets/county/wire.gdshader")
 	materials["wire"] = wire
@@ -246,6 +271,7 @@ func _make_materials() -> void:
 
 func _weather() -> void:
 	var env := Environment.new()
+	storm_environment = env
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
 	var sky_mat := ShaderMaterial.new()
@@ -253,47 +279,39 @@ func _weather() -> void:
 	sky.sky_material = sky_mat
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("#94a5ba")
-	env.ambient_light_energy = .64
+	env.ambient_light_color = Color("#a0a5b0")
+	env.ambient_light_energy = .50
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_DISABLED
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color("#354051")
-	env.fog_light_energy = .76
-	env.fog_depth_begin = 30.
-	env.fog_depth_end = 146.
-	env.fog_depth_curve = 1.13
-	env.fog_sky_affect = .34
+	env.fog_light_color = Color("#555965")
+	env.fog_light_energy = .90
+	advance_storm(0.)
+	env.fog_depth_curve = .90
+	env.fog_sky_affect = .23
 	env.fog_aerial_perspective = .08
 	var weather := WorldEnvironment.new()
 	weather.environment = env
 	add_child(weather)
 	var skylight := DirectionalLight3D.new()
 	skylight.rotation_degrees = Vector3(-48,-34,10)
-	skylight.light_color = Color("#a6b6cc")
-	skylight.light_energy = .36
+	skylight.light_color = Color("#adb1bc")
+	skylight.light_energy = .30
 	add_child(skylight)
-	var flake := QuadMesh.new()
-	flake.size = Vector2(.046,.19)
 	snow_shader = ShaderMaterial.new()
 	snow_shader.shader = preload("res://assets/county/snow.gdshader")
-	flake.material = snow_shader
-	var spread := MultiMesh.new()
-	spread.transform_format = MultiMesh.TRANSFORM_3D
-	spread.use_custom_data = true
-	spread.mesh = flake
-	spread.instance_count = 1380
+	powder_shader = ShaderMaterial.new()
+	powder_shader.shader = preload("res://assets/county/blowing_powder.gdshader")
 	rng.seed = 32006
-	for i in spread.instance_count:
-		spread.set_instance_transform(i,Transform3D.IDENTITY)
-		spread.set_instance_custom_data(i,Color(rng.randf(),rng.randf(),rng.randf(),rng.randf()))
-	storm = MultiMeshInstance3D.new()
-	storm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	storm.multimesh = spread
-	storm.custom_aabb = AABB(Vector3(-24,-12,-24),Vector3(48,24,48))
-	add_child(storm)
+	storm = _airborne_snow(snow_shader, 4100)
+	powder_clouds = _airborne_snow(powder_shader, 280)
+	_build_spindrift()
+
+func _build_spindrift() -> void:
 	var wisp := QuadMesh.new()
-	wisp.size = Vector2(7.0,.70)
+	# Subdivision lets the crest curl and follow a bank down into the ditch.
+	wisp.subdivide_width = 8
+	wisp.subdivide_depth = 3
 	spindrift_shader = ShaderMaterial.new()
 	spindrift_shader.shader = preload("res://assets/county/spindrift.gdshader")
 	wisp.material = spindrift_shader
@@ -301,15 +319,60 @@ func _weather() -> void:
 	eddies.transform_format = MultiMesh.TRANSFORM_3D
 	eddies.use_custom_data = true
 	eddies.mesh = wisp
-	eddies.instance_count = 34
+	eddies.instance_count = 76
 	for i in eddies.instance_count:
-		eddies.set_instance_transform(i,Transform3D.IDENTITY)
-		eddies.set_instance_custom_data(i,Color(rng.randf(),rng.randf(),rng.randf(),rng.randf()))
-	spindrift=MultiMeshInstance3D.new()
+		eddies.set_instance_transform(i, Transform3D.IDENTITY)
+		eddies.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	spindrift = MultiMeshInstance3D.new()
+	spindrift.name = "GroundSpindrift"
 	spindrift.multimesh = eddies
 	spindrift.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	spindrift.custom_aabb=AABB(Vector3(-30,-10,-30),Vector3(60,16,60))
+	spindrift.custom_aabb = AABB(Vector3(-44, -22, -44), Vector3(88, 30, 88))
 	add_child(spindrift)
+
+func _bake_spindrift_ground(xs: Array, zs: Array, heights: Array) -> void:
+	var surface := Image.create_empty(xs.size(), zs.size(), false, Image.FORMAT_RH)
+	var mapped_zs := []
+	for row in zs.size():
+		mapped_zs.append(_mapped_z(zs[row]))
+		for col in xs.size():
+			surface.set_pixel(col, row, Color(heights[row][col], 0., 0.))
+	# The terrain packs extra vertices into ditches. Translate world metres
+	# into fractional row/column indices so wisps sample that same surface.
+	var axes := [xs, mapped_zs]
+	var width := ceili(maxf(xs.back() - xs[0], mapped_zs.back() - mapped_zs[0])) + 1
+	var lookup := Image.create_empty(width, 2, false, Image.FORMAT_RH)
+	for dim in 2:
+		var axis: Array = axes[dim]
+		var cell := 0
+		for metre in width:
+			var at: float = minf(axis[0] + metre, axis.back())
+			while cell < axis.size() - 2 and at > axis[cell + 1]:
+				cell += 1
+			var t := inverse_lerp(axis[cell], axis[cell + 1], at)
+			lookup.set_pixel(metre, dim, Color((cell + t + .5) / axis.size(), 0., 0.))
+	spindrift_shader.set_shader_parameter("ground_surface", ImageTexture.create_from_image(surface))
+	spindrift_shader.set_shader_parameter("ground_axes", ImageTexture.create_from_image(lookup))
+	spindrift_shader.set_shader_parameter("ground_origin", Vector2(xs[0], mapped_zs[0]))
+
+func _airborne_snow(material: ShaderMaterial, count: int) -> MultiMeshInstance3D:
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	quad.material = material
+	var spread := MultiMesh.new()
+	spread.transform_format = MultiMesh.TRANSFORM_3D
+	spread.use_custom_data = true
+	spread.mesh = quad
+	spread.instance_count = count
+	for i in count:
+		spread.set_instance_transform(i, Transform3D.IDENTITY)
+		spread.set_instance_custom_data(i, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf()))
+	var cloud := MultiMeshInstance3D.new()
+	cloud.multimesh = spread
+	cloud.custom_aabb = AABB(Vector3(-33,-12,-33), Vector3(66,24,66))
+	cloud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(cloud)
+	return cloud
 
 func _build() -> void:
 	if is_instance_valid(county_model):
@@ -374,6 +437,7 @@ func _build_ground(draw) -> void:
 		for x: float in xs:
 			heights.append(ground_height(x,_mapped_z(z)))
 		h_rows.append(heights)
+	_bake_spindrift_ground(xs, zs, h_rows)
 	for row in range(zs.size()-1):
 		var z0 := _mapped_z(zs[row])
 		var z1 := _mapped_z(zs[row+1])

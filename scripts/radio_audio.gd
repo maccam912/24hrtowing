@@ -76,9 +76,10 @@ func effect(id: String) -> void:
 	if audible:
 		p.play()
 
-func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: float) -> void:
+func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: float, gust: float = 0.0) -> void:
 	var cab: bool = s.get("in_cab",true)
-	_volume("wind", (-27.0 if cab else -12.0) if player_active else -19.0, delta)
+	var wind_db := (-28.0 if cab else -15.0) if player_active else -21.0
+	_volume("wind", wind_db + gust * (4.0 if cab and player_active else 6.0), delta)
 	_volume("heater", -29.0 if cab and player_active else -65.0, delta)
 	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
 	engines.winch.pitch_scale = 0.80 + 0.56 * float(s.get("tension",0.0))

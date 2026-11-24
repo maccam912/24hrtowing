@@ -43,6 +43,10 @@ func _primitive(kind: String) -> PrimitiveMesh:
 			mesh = drift
 		"quad":
 			mesh = QuadMesh.new()
+		"spruce":
+			var crown := QuadMesh.new()
+			crown.subdivide_depth = 4
+			mesh = crown
 		_:
 			var cyl := CylinderMesh.new()
 			cyl.radial_segments = 8 if kind == "cylinder" else 6

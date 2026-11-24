@@ -6,6 +6,7 @@ signal sound_event(id:String)
 
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
+const VehicleDrifts = preload("res://scripts/vehicle_drifts.gd")
 const Kit = preload("res://scripts/rig_mesh.gd")
 const GAME_MILE := 400.0
 const CABLE_REACH := 37.0
@@ -451,6 +452,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float) -> void:
 	car=Scene.car(self,kind,variant)
 	car.position=Vector3(target.x,_ground(target),target.z)
 	car.rotation.y=yaw
+	if kind == "hazard":
+		VehicleDrifts.place(car, _ground)
 	_set_car_lamps("hazard")
 	if kind in ["ditch","hold"]:
 		witness=Scene.person(self,kind=="hold",variant)
@@ -488,6 +491,8 @@ func store_vehicle(job_kind:String,point:Vector3,yaw:float) -> Node3D:
 	var stored:=Scene.car(self,model_kind,variant)
 	stored.position=Vector3(point.x,_ground(point),point.z)
 	stored.rotation.y=yaw
+	if model_kind == "hazard":
+		VehicleDrifts.place(stored, _ground)
 	return stored
 
 func _face_operator(dt: float) -> void:
@@ -842,7 +847,7 @@ func _depart(dt:float) -> void:
 			car.rotation.y=yaw
 			car.position+=step
 			car.position.y=_ground(car.position)
-	# Beyond the county's 146 m fog horizon. A player following the car can
+	# Beyond even a lull in the blizzard. A player following the car can
 	# keep it in sight all the way to the end of the road.
 	if _flat_distance(car.position,get_player_position())>165.0 and _flat_distance(car.position,job_site)>120.0:
 		car.hide()

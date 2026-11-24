@@ -146,6 +146,8 @@ func test_line() -> void:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
 	var taut:float=rig.tension
 	require(taut>.35 and initial.distance_to(rig.car.position)>.5,"tension moves the disabled vehicle")
+	var snow := rig.car.get_node_or_null("SettledSnow") as Node3D
+	require(snow != null and snow.global_position.is_equal_approx(initial), "the winch pulls the car out of its drift")
 	for i in 54:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,STEP)
 	require(rig.tension<taut-.3,"releasing the drum eases line pressure")

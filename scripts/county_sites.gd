@@ -1,5 +1,6 @@
 extends RefCounted
 ## County architecture is built in site-local coordinates, then baked in culling cells.
+const SignMount = preload("res://scripts/sign_mount.gd")
 var world
 var draw
 var origin := Vector3.ZERO
@@ -79,8 +80,15 @@ func lamp(x: float,z: float, height := 6.0, is_cold := false, actual := true) ->
 func street_sign(x: float,z: float, first: String, second: String) -> void:
 	site(x,z,world.ground_height(x,world.resolve_point(Vector3(0,0,z)).z))
 	cyl(0,1.8,0,.12,3.6,"post")
-	placard(Vector3(0,3.35,0),first,3.1,.44,0.0,"green",true)
-	placard(Vector3(0,2.84,0),second,3.1,.44,PI*.5,"green",true)
+	var mount := SignMount.new()
+	mount.county = world
+	mount.position = origin + Vector3.UP * 3.10
+	draw.parent.add_child(mount)
+	# Bake each pair of blades and both faces of its lettering onto the mount.
+	var plates = get_script().new(world, world.Batch.new(mount, world.materials))
+	plates.placard(Vector3.UP * .25,first,3.1,.44,0.0,"green",true)
+	plates.placard(Vector3.DOWN * .26,second,3.1,.44,PI*.5,"green",true)
+	plates.draw.finish()
 
 func address(x: float,z:float, text: String, yaw: float) -> void:
 	site(x,z,world.ground_height(x,world.resolve_point(Vector3(0,0,z)).z))
@@ -405,20 +413,46 @@ func river_and_seat() -> void:
 			beam(ray*width*.5+Vector3.UP*y,other*width*.47+Vector3.UP*(y+3.3),.09,.09,"post")
 	cyl(0,61,0,1.2,.9,"red")
 
+func spruce_at(x: float, z: float, solid: bool) -> void:
+	var real_z: float = world.resolve_point(Vector3(0,0,z)).z
+	site(x,z,world.ground_height(x,real_z))
+	var height := rng.randf_range(5.3,15.3)
+	var yaw := rng.randf_range(-PI,PI)
+	for side: float in [0.0,PI*.5]:
+		draw.add("spruce",p(0,height*.5,0),Vector3(height*.48,height,1.0),"spruce",Vector3(0,yaw+side,0))
+	if solid:
+		draw.solid_box(p(0,1.5,0),Vector3(.34,3,.34))
+
 func grove_at(x: float,z: float,number: int,radius: float) -> void:
 	for i in number:
 		var xx := x+rng.randf_range(-radius,radius)
 		var zz := z+rng.randf_range(-radius,radius)
 		var real_z: float = world.resolve_point(Vector3(0,0,zz)).z
-		if world.road_distance(xx,real_z) < 15 or Rect2(-142,-98,200,199).has_point(Vector2(xx,zz)):
+		var road_distance: float = world.road_distance(xx,real_z)
+		if road_distance < 15 or Rect2(-142,-98,200,199).has_point(Vector2(xx,zz)):
 			continue
-		site(xx,zz,world.ground_height(xx,real_z))
-		var h := rng.randf_range(5.3,15.3)
-		var yaw := rng.randf_range(-PI,PI)
-		for side:float in [0.,PI*.5]:
-			draw.add("quad",p(0,h*.5,0),Vector3(h*.48,h,1.),"spruce",Vector3(0,yaw+side,0))
-		if world.road_distance(xx,real_z) < 55 and i%2 == 0:
-			draw.solid_box(p(0,1.5,0),Vector3(.34,3,.34))
+		spruce_at(xx,zz,road_distance < 55 and i%2 == 0)
+
+func shelterbelts() -> void:
+	# Loose rows along the backs of the yard and fields give the gusts a
+	# silhouette near the driver, with gaps at the gates, turnouts and job sites.
+	for run: Array in [
+		[-79,-98,-70,-35],[-59,-102,-10,-102],[19,-124,19,-64],
+		[-22,116,-30,174],[23,135,30,202],[-29,216,-20,286],
+		[50,378,114,371],[128,420,179,422],[422,167,431,218],
+		[378,246,373,304],[418,506,427,552],[23,526,21,609],
+		[-408,-24,-348,-17],[-407,25,-366,34],[-273,-22,-194,-17],
+		[-588,154,-588,222],[124,18,188,24],[514,-22,588,-19],
+		[-20,-350,-25,-293],[75,-382,139,-375],[270,-431,338,-436],
+		[308,-378,365,-383],[768,706,777,767],[154,779,227,777]
+	]:
+		var start := Vector2(run[0],run[1])
+		var end := Vector2(run[2],run[3])
+		var steps := ceili(start.distance_to(end)/5.5)
+		for i in steps:
+			var at := start.lerp(end, float(i)/steps)
+			at += Vector2(rng.randf_range(-3.7,3.7),rng.randf_range(-3.7,3.7))
+			spruce_at(at.x,at.y,true)
 
 func rural_grid() -> void:
 	house(431,246)
@@ -455,6 +489,22 @@ func rural_grid() -> void:
 		beam(Vector3(-7,2.97,0),Vector3(24,2.97,0),.052,.052,"post")
 	for spec:Array in [[-62,152,21,33],[82,180,27,44],[-100,334,55,70],[270,122,42,56],[243,360,24,31],[473,85,27,43],[452,345,31,39],[865,450,32,71],[241,480,55,53],[310,720,34,62],[-54,-268,34,44],[63,-337,44,37],[45,-456,95,55],[225,-454,84,48],[408,-475,65,50],[-210,-416,36,44],[-350,42,40,34],[-215,-71,49,41],[180,57,34,29],[610,-42,38,41],[676,751,43,53]]:
 		grove_at(spec[0],spec[1],spec[2],spec[3])
+	shelterbelts()
+
+func power_span(a: Vector3, b_end: Vector3, across: Vector3) -> void:
+	var sections := ceili(a.distance_to(b_end)/6.0)
+	var sag := minf(a.distance_to(b_end)*.022,1.65)
+	var orientation := absf(across.x)
+	var previous := a
+	for segment in range(1,sections+1):
+		var t := float(segment)/sections
+		var next := a.lerp(b_end,t) - Vector3.UP * (4.0*t*(1.0-t)*sag)
+		var uv_a := Vector2(float(segment-1)/sections,orientation)
+		var uv_b := Vector2(t,orientation)
+		var uv := PackedVector2Array([uv_a,uv_a,uv_b,uv_b])
+		for width: Vector3 in [Vector3.UP*.032,across*.032]:
+			draw.quad(previous-width,previous+width,next+width,next-width,"conductor",uv)
+		previous = next
 
 func road_furniture() -> void:
 	for r:Array in world.ROADS:
@@ -486,9 +536,7 @@ func road_furniture() -> void:
 					if previous != Vector3.ZERO:
 						var start_line := previous + side*arm+Vector3.UP*7.4
 						var end_line := ins+Vector3.UP*.13
-						var mid := (start_line+end_line)*.5-Vector3.UP*.63
-						draw.beam(start_line,mid,.038,.038,"black")
-						draw.beam(mid,end_line,.038,.038,"black")
+						power_span(start_line,end_line,side)
 				previous = here
 			# Low reflective snow stakes parallel the road without covering the lane.
 			if i%96==0:

@@ -14,7 +14,11 @@ void fragment() {
 	float grit=smoothstep(.22,.54,wind)*.23 + .038;
 	float crown=(1.-smoothstep(.15,1.1,crosslane))*(.1+grit*.3);
 	float ruts=1.-smoothstep(.14,.48, min(abs(crosslane-1.15),abs(crosslane-2.72)));
-	float powder=clamp(verge*.90+grit+crown-ruts*.13,0.,1.);
+	// Windpacks feather out across the crown. Traffic still cuts two dark ruts.
+	float packed = smoothstep(.24, .53, wind + band * .12);
+	float bank_edge = sin(UV.y * .37 + UV.x * .52 + 2.6 * sin(UV.y * .11));
+	float tongue = smoothstep(.42, 1.0, bank_edge) * (.18 + packed * .17);
+	float powder=clamp(.17 + verge*.78+grit+crown+packed*.36+tongue-ruts*(.31-.50*tongue),0.,1.);
 	ALBEDO=mix(pavement*vec3(.75,.80,.88),snow*vec3(.82,.87,.93),powder);
 	ROUGHNESS=.94;
 }

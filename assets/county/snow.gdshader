@@ -1,25 +1,48 @@
 shader_type spatial;
-render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never;
-varying float falloff;
+render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never, skip_vertex_transform;
+#include "res://assets/weather/headlamp.gdshaderinc"
+
+global uniform float storm_time;
+global uniform float storm_gust;
+global uniform float storm_travel;
 uniform vec3 eye;
+varying float opacity;
+varying vec3 snow_color;
+
 void vertex() {
-	vec3 volume=vec3(33.,14.,33.);
-	vec3 drift=vec3(-1.75,-3.8,.87)*(TIME+INSTANCE_CUSTOM.a*68.);
-	vec3 pos=mod(INSTANCE_CUSTOM.rgb*volume+drift-eye+volume*.5,volume)-volume*.5;
-	float distance_to_eye=length(pos);
-	falloff=smoothstep(2.0,5.0,distance_to_eye)*(1.-smoothstep(13.,18.,distance_to_eye));
-	vec3 center=eye+pos;
-	bool bay=center.x > -60. && center.x < -42. && center.z > -51. && center.z < -38.3 && center.y < 5.18;
-	bool pump=center.x > -76.6 && center.x < -65.4 && center.z > 12.5 && center.z < 19.5 && center.y < 4.45;
-	if (bay || pump) { falloff=0.; }
-	vec3 right=INV_VIEW_MATRIX[0].xyz;
-	vec3 tail=normalize(vec3(.38,1.,-.22));
-	VERTEX=(VIEW_MATRIX*vec4(center + right*VERTEX.x + tail*VERTEX.y,1.)).xyz;
-	POSITION=PROJECTION_MATRIX*vec4(VERTEX,1.);
+	float grain = INSTANCE_CUSTOM.a;
+	float strength = mix(.55, 1., storm_gust);
+	// Small nearby grains and a deeper field of powder share one draw call.
+	float outer = step(.54, grain);
+	vec3 volume = mix(vec3(24., 10., 24.), vec3(60., 21., 60.), outer);
+	float speed = .82 + .38 * INSTANCE_CUSTOM.b;
+	float swirl = storm_time * 1.7 + grain * 47.;
+	vec3 drift = vec3(storm_travel, -storm_time * (1.25 + grain), .26 * storm_travel) * speed;
+	drift.yz += vec2(.15 * sin(swirl), .29 * cos(swirl * .72));
+	vec3 local = mod((INSTANCE_CUSTOM.rgb - .5) * volume + drift - eye + volume * .5, volume) - volume * .5;
+	vec3 center = eye + local;
+	float dist = length(local);
+	float falloff = smoothstep(1.7, 3.5, dist) * (1.0 - smoothstep(.35, .49, dist / volume.x));
+	falloff *= 1. - smoothstep(.40, .50, abs(local.y) / volume.y);
+	bool bay = center.x > -60. && center.x < -42. && center.z > -51. && center.z < -38.3 && center.y < 5.18;
+	bool pump = center.x > -76.6 && center.x < -65.4 && center.z > 12.5 && center.z < 19.5 && center.y < 4.45;
+	float light = headlamp_scatter(center);
+	snow_color = mix(vec3(.62,.65,.70), vec3(1.,.95,.83), light);
+	opacity = (bay || pump) ? 0.0 : falloff * (.31 + .22 * strength + .47 * light);
+
+	vec3 wind = normalize(vec3(1., -.20 + .055 * sin(swirl), .26 + .08 * cos(swirl)));
+	vec3 sight = normalize(CAMERA_POSITION_WORLD - center + vec3(.0001));
+	vec3 side = cross(wind, sight);
+	side /= max(.025, length(side));
+	float width = (.023 + .028 * INSTANCE_CUSTOM.g) * (1.0 + .65 * outer);
+	float streak = (.14 + .27 * INSTANCE_CUSTOM.r) * (.6 + .65 * strength + .3 * light);
+	vec3 point = center + side * VERTEX.x * width + wind * VERTEX.y * streak;
+	VERTEX = (VIEW_MATRIX * vec4(point, 1.)).xyz;
 }
+
 void fragment() {
-	float width=1.-abs(UV.x*2.-1.);
-	float tip=1.-abs(UV.y*2.-1.);
-	ALBEDO=vec3(.71,.76,.82);
-	ALPHA=falloff*width*tip*.80;
+	vec2 p = (UV - .5) * 2.;
+	float flake = max(0., 1. - p.x * p.x) * (1. - abs(p.y));
+	ALBEDO = snow_color;
+	ALPHA = opacity * flake;
 }

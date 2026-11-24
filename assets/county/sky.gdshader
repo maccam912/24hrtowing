@@ -7,13 +7,13 @@ float noise2d(vec2 p) {
 	return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);
 }
 void sky() {
-	vec3 d=EYEDIR;
-	float up=max(0.,d.y);
-	vec2 plane=d.xz/(up+0.18);
-	float clouds=.58*noise2d(plane*1.6)+.28*noise2d(plane*3.3)+.14*noise2d(plane*7.1);
-	float bank=exp(-7.*up);
-	float glow=pow(max(0.,dot(d,normalize(vec3(-1.,.06,.35)))),5.)+
-		.65*pow(max(0.,dot(d,normalize(vec3(1.,.06,.05)))),8.);
-	vec3 night=mix(vec3(.018,.028,.053),vec3(.085,.107,.151),bank);
-	COLOR=night+vec3(.15,.064,.017)*bank*glow*(.55+clouds)+vec3(.041,.045,.048)*(clouds-.18);
+	vec3 d = EYEDIR;
+	float up = max(0.,d.y);
+	vec2 plane = d.xz / (up + .20);
+	float clouds = .63 * noise2d(plane * vec2(1.2,2.7)) + .37 * noise2d(plane * 4.5);
+	float bank = 1. - smoothstep(.07, .46, up);
+	float town = pow(max(0.,dot(d,normalize(vec3(-1.,.06,.35)))),8.) +
+		.55 * pow(max(0.,dot(d,normalize(vec3(1.,.06,.05)))),12.);
+	vec3 overcast = mix(vec3(.017,.020,.026), vec3(.318,.332,.377), bank);
+	COLOR = overcast + (clouds-.5) * vec3(.063,.066,.071) * (1. - .93 * bank) + vec3(.052,.023,.007) * bank * town;
 }

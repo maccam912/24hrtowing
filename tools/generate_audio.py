@@ -4,6 +4,7 @@ import json
 import math
 import os
 from pathlib import Path
+import random
 import stat
 import struct
 import subprocess
@@ -45,6 +46,11 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         return None
 
+def save_mono_mp3(dst, pcm, rate):
+    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "s16le", "-ar", str(rate),
+                    "-ac", "1", "-i", "pipe:0", "-b:a", "128k", "-f", "mp3", "-y", str(dst)],
+                   input=pcm, check=True)
+
 def make_reverse_beep(dst):
     rate = 44100
     frames = round(0.35 * rate)
@@ -54,17 +60,38 @@ def make_reverse_beep(dst):
         ramp = min(1.0, i / (0.012 * rate), (frames - 1 - i) / (0.022 * rate))
         tone = math.sin(phase) + 0.14 * math.sin(2 * phase) + 0.06 * math.sin(3 * phase)
         pcm.extend(struct.pack("<h", round(12500 * tone * ramp)))
-    subprocess.run(["ffmpeg", "-loglevel", "error", "-f", "s16le", "-ar", str(rate),
-                    "-ac", "1", "-i", "pipe:0", "-b:a", "128k", "-f", "mp3", "-y", str(dst)],
-                   input=pcm, check=True)
+    save_mono_mp3(dst, pcm, rate)
+
+def make_sign_rattle(dst):
+    # Irregular contacts between the steel bracket and a thin aluminum blade.
+    rate = 44100
+    samples = [0.0] * round(.72 * rate)
+    rng = random.Random(804)
+    modes = [(324, .14, .036), (609, .35, .074), (1057, .23, .043),
+             (1771, .17, .030), (2874, .12, .017)]
+    for onset, strength in [(0.018, .62), (.055, 1), (.108, .73), (.169, .48),
+                            (.285, .64), (.324, .41), (.399, .24)]:
+        start = round(onset * rate)
+        previous = 0.0
+        for i in range(min(len(samples) - start, round(.28 * rate))):
+            t = i / rate
+            noise = rng.uniform(-1, 1)
+            contact = (noise - previous) * .37 * math.exp(-t / .0033)
+            previous = noise
+            panel = sum(weight * math.exp(-t / decay) * math.sin(math.tau * hz * t)
+                        for hz, weight, decay in modes)
+            samples[start+i] += strength * min(t / .0008, 1.0) * (contact + panel)
+    pcm = b"".join(struct.pack("<h", round(25000 * sample)) for sample in samples)
+    save_mono_mp3(dst, pcm, rate)
 
 def generate(name):
     dst = AUDIO / (name + ".mp3")
     if dst.exists():
         return
     tmp = dst.with_suffix(".part")
-    if name == "reverse":
-        make_reverse_beep(tmp)
+    local_effects = {"reverse": make_reverse_beep, "sign_rattle": make_sign_rattle}
+    if name in local_effects:
+        local_effects[name](tmp)
         tmp.replace(dst)
         print("Generated", name, flush=True)
         return
@@ -85,7 +112,7 @@ def generate(name):
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description=__doc__)
     args.add_argument("names", nargs="*")
-    effects = [*EFFECTS, "reverse"]
+    effects = [*EFFECTS, "reverse", "sign_rattle"]
     names = args.parse_args().names or effects
     for name in names:
         if name not in effects:

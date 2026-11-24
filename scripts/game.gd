@@ -176,6 +176,8 @@ func _physics_process(dt: float) -> void:
 		return
 	var playing: bool = active and not desk.is_blocking()
 	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or desk.is_title() else SubViewport.UPDATE_DISABLED
+	if playing or desk.is_title():
+		county.advance_storm(dt)
 	if desk.is_title():
 		_animate_title(dt)
 	if playing:
@@ -204,7 +206,7 @@ func _physics_process(dt: float) -> void:
 	if ui_timer >= 0.10:
 		ui_timer = 0.0
 		_refresh()
-	audio.mix_truck(rig.get_status(),active and not desk.is_title(),playing,dt)
+	audio.mix_truck(rig.get_status(),active and not desk.is_title(),playing,dt,county.storm_gust)
 	if not desk.is_touch_mode() and DisplayServer.get_name() != "headless":
 		var capture := Input.MOUSE_MODE_CAPTURED if playing else Input.MOUSE_MODE_VISIBLE
 		if Input.mouse_mode != capture:
