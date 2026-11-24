@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode cull_disabled;
 
-global uniform float storm_time;
-global uniform float storm_gust;
+uniform float storm_time;
+uniform float storm_gust;
 
 void vertex() {
 	// UV.x runs from insulator to insulator. UV.y selects the direction across

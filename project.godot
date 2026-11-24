@@ -31,18 +31,6 @@ environment/defaults/default_clear_color=Color(0.106,0.137,0.188,1)
 
 [shader_globals]
 
-storm_time={
-"type": "float",
-"value": 0.0
-}
-storm_gust={
-"type": "float",
-"value": 0.0
-}
-storm_travel={
-"type": "float",
-"value": 0.0
-}
 headlamp_left={
 "type": "vec3",
 "value": Vector3(0, 0, 0)

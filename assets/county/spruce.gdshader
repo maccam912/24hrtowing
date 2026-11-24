@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode cull_disabled, world_vertex_coords;
 
-global uniform float storm_time;
-global uniform float storm_gust;
+uniform float storm_time;
+uniform float storm_gust;
 uniform sampler2D needles : source_color, filter_linear_mipmap, repeat_disable;
 
 void vertex() {

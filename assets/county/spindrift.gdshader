@@ -2,9 +2,9 @@ shader_type spatial;
 render_mode unshaded, shadows_disabled, cull_disabled, depth_draw_never, skip_vertex_transform;
 #include "res://assets/weather/headlamp.gdshaderinc"
 
-global uniform float storm_time;
-global uniform float storm_gust;
-global uniform float storm_travel;
+uniform float storm_time;
+uniform float storm_gust;
+uniform float storm_travel;
 uniform vec3 eye;
 uniform sampler2D ground_surface : filter_linear, repeat_disable;
 uniform sampler2D ground_axes : filter_linear, repeat_disable;

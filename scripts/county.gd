@@ -32,6 +32,7 @@ var powder_clouds: MultiMeshInstance3D
 var powder_shader: ShaderMaterial
 var spindrift: MultiMeshInstance3D
 var spindrift_shader: ShaderMaterial
+var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
 var bay: Node3D
 var storage_guide: Node3D
@@ -125,9 +126,14 @@ func advance_storm(dt: float) -> void:
 	var front := sin(storm_time * .42 + 1.2 * sin(storm_time * .13) - .7)
 	storm_gust = smoothstep(-.30, .90, front)
 	storm_travel += dt * lerpf(13.5, 27.0, storm_gust)
-	RenderingServer.global_shader_parameter_set("storm_time", storm_time)
-	RenderingServer.global_shader_parameter_set("storm_gust", storm_gust)
-	RenderingServer.global_shader_parameter_set("storm_travel", storm_travel)
+	# The Adreno 830 GLES compiler crashes when the wind shaders read these
+	# values through Godot's global uniform buffer on the first yard frame.
+	for material in wind_materials:
+		material.set_shader_parameter(&"storm_time", storm_time)
+		material.set_shader_parameter(&"storm_gust", storm_gust)
+	snow_shader.set_shader_parameter(&"storm_travel", storm_travel)
+	powder_shader.set_shader_parameter(&"storm_travel", storm_travel)
+	spindrift_shader.set_shader_parameter(&"storm_travel", storm_travel)
 	storm_environment.fog_depth_begin = lerpf(16.0, 6.0, storm_gust)
 	storm_environment.fog_depth_end = lerpf(98.0, 60.0, storm_gust)
 
@@ -286,7 +292,6 @@ func _weather() -> void:
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_color = Color("#555965")
 	env.fog_light_energy = .90
-	advance_storm(0.)
 	env.fog_depth_curve = .90
 	env.fog_sky_affect = .23
 	env.fog_aerial_perspective = .08
@@ -306,6 +311,8 @@ func _weather() -> void:
 	storm = _airborne_snow(snow_shader, 4100)
 	powder_clouds = _airborne_snow(powder_shader, 280)
 	_build_spindrift()
+	wind_materials.assign([snow_shader, powder_shader, spindrift_shader, materials.spruce, materials.conductor])
+	advance_storm(0.)
 
 func _build_spindrift() -> void:
 	var wisp := QuadMesh.new()
