@@ -14,8 +14,9 @@ const GAME_MILE := 400.0
 const CABLE_REACH := 37.0
 const WALK_EYES := 1.68
 const FOOTSTEP_DISTANCE := 2.1
-const MAX_SPEED := 25.6
-const MAX_LOADED := 18.2
+const MPH_PER_MPS := 2.237
+const MAX_SPEED := 40.0 / MPH_PER_MPS
+const MAX_LOADED := 34.0 / MPH_PER_MPS
 const IDLE_RPM := 680.0
 # Road speeds in m/s at 2050 RPM, from first gear to overdrive.
 const GEAR_TOP_SPEEDS: Array[float] = [4.4, 7.7, 12.0, 17.5, 23.0, 29.5]
@@ -297,6 +298,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	var max_forward := lerpf(packed_speed,snow_speed,offroad) * load_factor
 	var pumping:=fuel>0 and not phase in ["cable","rigged","at_lift","dollies"]
 	var tire_grip:float=1.29 if tire_chains else 1.0
+	var coast_decel := .56 + offroad*.78 + speed*speed*.0018
 	var demand := 0.0
 	if handbrake:
 		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip*load_factor)
@@ -304,12 +306,17 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	elif absf(throttle)>.04 and pumping:
 		var reversing:=speed*throttle<-.20
 		var target:float=throttle*(max_forward if throttle>0 else 5.15)
-		var accel:float=(2.58 if loaded else 4.34)*(1-.77*clampf(absf(speed)/max_forward,0,.96))
-		if reversing: accel=(4.8 if loaded else 7.6)*tire_grip
-		if throttle<0 and not reversing: accel=2.44
+		var accel := 2.44
+		if reversing:
+			accel = (4.8 if loaded else 7.6) * tire_grip
+		elif throttle > 0:
+			# The diesel pulls steadily out of the yard, then gains speed slowly above 30 mph.
+			var road_pull := lerpf(1.0, .10, smoothstep(8.5, 13.4, speed))
+			accel = (1.0 if loaded else 1.45) * road_pull
 		if tire_chains and not reversing:
 			accel *= lerpf(1.0,1.28,offroad)
-		speed=move_toward(speed,target,accel*dt*load_factor)
+		var rate := coast_decel if speed > target and throttle > 0 else accel * load_factor
+		speed=move_toward(speed,target,rate*dt)
 		if not reversing:
 			# Ease back once the truck reaches its governed road speed.
 			var pulling := smoothstep(0.0, 2.5, absf(target)-absf(speed))
@@ -317,7 +324,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 			if loaded:
 				demand = minf(1.0, demand * 1.2)
 	else:
-		speed=move_toward(speed,0,(.56+offroad*.78+speed*speed*.0018)*dt)
+		speed=move_toward(speed,0,coast_decel*dt)
 	if not pumping and fuel<=0 and info_timer<=0: _note("Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
 	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
@@ -964,7 +971,7 @@ func _note(message:String,seconds:float) -> void:
 	info_timer=seconds
 
 func get_status() -> Dictionary:
-	return {"in_cab":in_cab,"speed_mph":absf(speed)*2.237,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_heading_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
+	return {"in_cab":in_cab,"speed_mph":absf(speed)*MPH_PER_MPS,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_heading_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
 
 func _v(p:Vector3)->Array:
 	return [p.x,p.y,p.z]

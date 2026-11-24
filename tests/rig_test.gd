@@ -26,6 +26,7 @@ func run() -> void:
 	rig.setup(floor_world)
 	await physics_frame
 	test_footsteps()
+	test_road_speed()
 	var empty := drive_sample(false)
 	var heavy := drive_sample(true)
 	require(heavy.accel_seconds > empty.accel_seconds * 1.3, "underlift load changes acceleration")
@@ -70,6 +71,32 @@ func test_footsteps() -> void:
 	require(not sounds.has("footstep"), "standing still is quiet")
 	rig.sound_event.disconnect(listen)
 	rig.restore_state(parked)
+
+func test_road_speed() -> void:
+	for hauling: bool in [false, true]:
+		rig.loaded = hauling
+		rig.set_spawn(Vector3(0, 0, 900))
+		rig.speed = 0.0
+		rig.motion = Vector3.ZERO
+		var seconds_to_35 := 0.0
+		var seconds_to_40 := 0.0
+		var peak_mph := 0.0
+		for tick in 3900:
+			rig.set_controls(Vector2.UP, Vector2.ZERO, false, false, STEP)
+			var mph: float = rig.get_status().speed_mph
+			peak_mph = maxf(peak_mph, mph)
+			if mph >= 35.0 and seconds_to_35 == 0.0:
+				seconds_to_35 = (tick + 1) * STEP
+			if mph >= 39.99 and seconds_to_40 == 0.0:
+				seconds_to_40 = (tick + 1) * STEP
+		if hauling:
+			require(peak_mph >= 33.0 and peak_mph < 35.0, "a regular tow stays below 35 mph on a long straight")
+		else:
+			require(seconds_to_35 >= 30.0, "35 mph takes sustained full throttle")
+			require(seconds_to_40 >= seconds_to_35 + 12.0, "the last five mph come gradually")
+			require(peak_mph >= 39.99 and peak_mph <= 40.01, "empty truck tops out at 40 mph")
+			print("Full throttle from rest: 35 mph at %.1f s, 40 mph at %.1f s." % [seconds_to_35, seconds_to_40])
+	rig.loaded = false
 
 func drive_sample(hauling: bool, heavy_recovery := false) -> Dictionary:
 	rig.end_job()
