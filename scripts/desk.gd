@@ -28,6 +28,8 @@ func _ready() -> void:
 	surface.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
 func update_view(next_state: Dictionary) -> void:
+	if state.get("in_cab",true) != next_state.get("in_cab",true):
+		_clear_controls()
 	state = next_state
 	if glance and absf(float(state.get("speed_mph", 0))) < 0.8:
 		glance = false
@@ -177,15 +179,20 @@ func _press(index: int, point: Vector2) -> void:
 		id = "look"
 	_touches[index] = {"id": id, "origin": point}
 	if id == "stick":
-		_stick = ((point - surface.stick_center) / 52.0).limit_length()
+		_stick = surface.stick_input(point)
 	surface.queue_redraw()
 
 func _drag(index: int, point: Vector2, relative: Vector2) -> void:
 	var contact: Dictionary = _touches[index]
 	if contact.id == "look":
 		_look += relative
+	elif contact.id in ["steer_l","steer_r"]:
+		var side: String = surface.hit_at(point)
+		if side in ["steer_l","steer_r"] and side != contact.id:
+			contact.id = side
+			surface.queue_redraw()
 	elif contact.id == "stick":
-		_stick = ((point - surface.stick_center) / 52.0).limit_length()
+		_stick = surface.stick_input(point)
 		surface.queue_redraw()
 
 func _release(index: int, point: Vector2) -> void:
@@ -231,5 +238,5 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"interact", "quit", "buy_chains", "service_winch":
+		"interact", "camera", "quit", "buy_chains", "service_winch":
 			action.emit(id)

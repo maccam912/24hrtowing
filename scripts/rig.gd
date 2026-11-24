@@ -13,6 +13,7 @@ const WALK_EYES := 1.68
 const MAX_SPEED := 25.6
 const MAX_LOADED := 18.2
 const START_ODO := 82146.2
+const CHASE_ELEVATION := 0.25
 var world: Node3D
 var truck:Node3D
 var body:Node3D
@@ -32,6 +33,11 @@ var track_count:=0
 var track_previous:=Vector3.INF
 var camera_yaw:=0.0
 var camera_pitch:=-.067
+var driving_view := "chase"
+var chase_heading := 0.0
+var chase_orbit := 0.0
+var chase_elevation := CHASE_ELEVATION
+var chase_look_hold := 0.0
 var in_cab:=true
 var foot:=Vector3.ZERO
 var speed:=0.0
@@ -120,6 +126,7 @@ func set_spawn(at:Vector3, yaw:=0.0) -> void:
 	truck.position=at
 	truck.position.y=_ground(at)
 	heading=yaw
+	chase_heading=yaw
 	truck.rotation.y=yaw
 	body.rotation=Vector3.ZERO
 	ground_spring=0
@@ -193,10 +200,22 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 	if not _ready_to_run: return
 	dt=minf(dt,.0667)
 	info_timer=maxf(0,info_timer-dt)
-	camera_yaw=wrapf(camera_yaw-look.x,-PI,PI)
-	camera_pitch=clampf(camera_pitch-look.y,-1.34,1.29)
+	if in_cab and driving_view == "chase":
+		chase_orbit = wrapf(chase_orbit-look.x,-PI,PI)
+		chase_elevation = clampf(chase_elevation+look.y,-0.08,0.95)
+		if not look.is_zero_approx():
+			chase_look_hold = 1.4
+		else:
+			chase_look_hold = maxf(0.0,chase_look_hold-dt)
+			if chase_look_hold == 0.0 and absf(speed) > 1.5:
+				chase_orbit = lerp_angle(chase_orbit,0.0,1.0-exp(-2.5*dt))
+				chase_elevation = lerpf(chase_elevation,CHASE_ELEVATION,1.0-exp(-2.5*dt))
+	else:
+		camera_yaw=wrapf(camera_yaw-look.x,-PI,PI)
+		camera_pitch=clampf(camera_pitch-look.y,-1.34,1.29)
 	if in_cab:
 		_drive(move,brake,dt)
+		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
 		_walk(move,dt)
 		_suspension(dt)
@@ -209,7 +228,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 	if in_cab and fuel>0:
 		fuel=maxf(fuel-dt*.000017,0)
 	body.glass_material.set_shader_parameter("cold",1.0-warmth)
-	body.animate(dt,speed,steering,acceleration,loaded,tension,fuel,odo,_heading_degrees(),in_cab,near_casualty(55.0))
+	body.animate(dt,speed,steering,acceleration,loaded,tension,fuel,odo,_heading_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
 	if not in_cab and warmth<=0.0 and info_timer<=0:
 		_note("Hands numb. The cab heater is running.",7.0)
 
@@ -301,8 +320,41 @@ func _walk(move:Vector2, dt:float) -> void:
 		walked=0.0
 		sound_event.emit("footstep")
 
+func toggle_driving_view() -> void:
+	if not in_cab:
+		return
+	driving_view = "cab" if driving_view == "chase" else "chase"
+	camera_yaw = 0.0
+	camera_pitch = -.067
+	_reset_chase()
+	_update_eyes()
+
+func _reset_chase() -> void:
+	chase_heading = heading
+	chase_orbit = 0.0
+	chase_elevation = CHASE_ELEVATION
+	chase_look_hold = 0.0
+
+func _update_chase() -> void:
+	# Start the boom above the cab so it can shorten over the roof in tight yards.
+	var pivot := truck.global_position + Vector3.UP*3.7
+	var behind := Vector3.BACK.rotated(Vector3.UP,chase_heading+chase_orbit)
+	var length := 17.0 if loaded else 11.2
+	var offset := (behind*cos(chase_elevation) + Vector3.UP*sin(chase_elevation))*length
+	var hit := _ray(pivot,pivot+offset)
+	if not hit.is_empty():
+		offset = offset.normalized()*maxf(0.0,pivot.distance_to(hit.position)-0.35)
+	var at := pivot + offset
+	at.y = maxf(at.y,_ground(at)+0.55)
+	eyes.global_position = at
+	var look_ahead := 0.35 if loaded else 2.6
+	eyes.look_at(truck.global_position+Vector3.UP*2.05-behind*look_ahead,Vector3.UP)
+
 func _update_eyes() -> void:
-	if in_cab:
+	eyes.fov = 62.0 if in_cab and driving_view == "chase" else 76.0
+	if in_cab and driving_view == "chase":
+		_update_chase()
+	elif in_cab:
 		var view:=body.global_transform*Transform3D(Basis.from_euler(Vector3(camera_pitch,camera_yaw,0),EULER_ORDER_YXZ),Truck.EYE)
 		eyes.global_transform=view
 	else:
@@ -460,7 +512,11 @@ func interact() -> void:
 			speed=0
 			foot=body.to_global(Truck.DOOR+Vector3(-.27,0,0))
 			foot.y=_ground(foot)
-			camera_yaw=wrapf(camera_yaw+heading,-PI,PI)
+			if driving_view == "chase":
+				camera_yaw = wrapf(chase_heading+chase_orbit,-PI,PI)
+				camera_pitch = -.067
+			else:
+				camera_yaw=wrapf(camera_yaw+heading,-PI,PI)
 			in_cab=false
 			sound_event.emit("door")
 		"enter":
@@ -470,6 +526,7 @@ func interact() -> void:
 				return
 			camera_yaw=wrapf(camera_yaw-heading,-PI,PI)
 			in_cab=true
+			_reset_chase()
 			sound_event.emit("door")
 		"flare":
 			var loc:=foot+(car.position-foot).normalized()*.55
@@ -686,6 +743,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"departed":departure_time,"chains":tire_chains}
+	d["driving_view"] = driving_view
 	if car:
 		d["car"]=_v(car.position)
 		d["car_rot"]=_v(car.rotation)
@@ -700,6 +758,8 @@ func restore_state(d:Dictionary) -> void:
 		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)))
 	else: end_job()
 	in_cab=d.get("cab",true)
+	driving_view = "cab" if d.get("driving_view") == "cab" else "chase"
+	_reset_chase()
 	foot=_unpack(d.get("foot"),truck.position)
 	camera_yaw=d.get("yaw",0.0)
 	camera_pitch=d.get("pitch",-.067)

@@ -318,7 +318,7 @@ There is no score. The soundtrack is the truck, the wind and three radios, and s
 
 ## UI and typography
 
-Almost all of the UI is paper or a dashboard. While you drive, the only HUD is the gauges in the cab. Everything else is a slip, a book, a fax or a card you hold up to the camera.
+Almost all of the UI is paper or truck hardware. A drive opens behind the wrecker, with a small MPH readout beside the camera switch. Switch to the cab to read the dash instruments. The operator’s view choice carries across shifts. On touchscreens, the wheel, pedals and equipment controls take the shapes of the things you handle. The paperwork is a slip, a book, a fax or a card you hold up to the camera.
 
 ### Screens
 

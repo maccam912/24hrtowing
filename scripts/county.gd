@@ -104,9 +104,9 @@ func set_hold_scene(value: bool) -> void:
 	if hold:
 		hold.visible = value
 
-func follow_player(pos: Vector3) -> void:
+func follow_camera(pos: Vector3) -> void:
 	if snow_shader:
-		snow_shader.set_shader_parameter("eye",pos+Vector3.UP*1.5)
+		snow_shader.set_shader_parameter("eye",pos)
 		spindrift_shader.set_shader_parameter("eye",pos)
 		spindrift.position = pos
 		storm.position = pos # keep the renderer's coarse bounds around the player

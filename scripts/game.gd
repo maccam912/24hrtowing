@@ -139,7 +139,7 @@ func _physics_process(dt: float) -> void:
 			direction_timer = 0.0
 			_survey()
 	mouse_motion = Vector2.ZERO
-	county.follow_player(rig.get_player_position())
+	county.follow_camera(world_view.get_camera_3d().global_position)
 	if active and desk.page != "pause":
 		sub_time = maxf(0.0,sub_time-dt)
 	ui_timer += dt
@@ -174,6 +174,7 @@ func _input(event: InputEvent) -> void:
 	elif not desk.is_blocking():
 		match event.physical_keycode:
 			KEY_E: _action("interact")
+			KEY_C: _action("camera")
 			KEY_R: _action("radio")
 			KEY_T: _action("talk_in")
 			KEY_H: desk.show_document("help",state)
@@ -202,6 +203,10 @@ func _action(id: String) -> void:
 			else:
 				_message("BRANDT","Use the radio in the cab.")
 		"interact": _interact()
+		"camera":
+			if active and not desk.is_blocking() and rig.in_cab:
+				rig.toggle_driving_view()
+				_save()
 		"fax": _file_invoice()
 		"read_field":
 			if held and (book_read or _near(BAY,5.0)):
@@ -504,6 +509,8 @@ func _refresh() -> void:
 	var card := filed_card if held else (_custody_record() if signed_card else "")
 	state = {"prompt":_prompt(),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
+		"driving_view":rig.driving_view,
+		"can_enter_cab":rig.action_id() == "enter" and _site_action().is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
 		"job":ticket,"slips":slips,"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
