@@ -50,9 +50,21 @@ func _header(c, p: Rect2, small: String, title: String, reference: String, font:
 
 func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var history: Array = s.get("slips",[])
-	var archived: bool = c.desk.slip_index >= 0 and c.desk.slip_index < history.size()
-	var active_job: Dictionary = history[c.desk.slip_index] if archived else s.get("job",{})
-	var num := str(active_job.get("number",1001+history.size()))
+	var pending: Array = s.get("pending_slips",[])
+	var index: int = c.desk.slip_index
+	var archived := index >= 0 and index < history.size()
+	var awaiting := index >= history.size() and index < history.size()+pending.size()
+	var active_job: Dictionary = s.get("job",{})
+	var caption := "NEXT SLIP" if active_job.is_empty() else "CURRENT SLIP"
+	if archived:
+		active_job = history[index]
+		caption = "FILED  %d / %d" % [index+1,history.size()]
+	elif awaiting:
+		active_job = pending[index-history.size()]
+		caption = "AWAITING FAX  %d / %d" % [index-history.size()+1,pending.size()]
+	elif not pending.is_empty():
+		caption += "   /   %d TO FAX" % pending.size()
+	var num := str(active_job.get("number",s.get("offer",{}).get("number",1001+history.size()+pending.size())))
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
 	var detail: Dictionary = Campaign.DETAILS.get(active_job.get("case_id",""),{})
 	if not detail.is_empty():
@@ -80,7 +92,7 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	for i in 3:
 		_entry(c,Rect2(x+i*col,y+155,col-14,48),["ODOMETER / PICKUP","ODOMETER / DROP","BILLABLE LOADED MI"][i],values[i])
 	var note := ""
-	if archived:
+	if archived or awaiting:
 		note = "County schedule    $%.2f" % float(active_job.get("pay",0))
 		var shoulder: String = str(active_job.get("run","")).get_slice("/",1)
 		if not shoulder.is_empty():
@@ -88,7 +100,7 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		if float(active_job.get("heavy_fee",0)) > 0:
 			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
 		var clipped: Array = s.get("clipped_slips",[])
-		if not clipped.is_empty():
+		if archived and not clipped.is_empty():
 			note += "\nPaper clip    " + "  /  ".join(clipped.map(func(n): return str(int(n))))
 	else:
 		note = str(s.get("progress",""))
@@ -100,14 +112,14 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var archive_button := Vector2(82,80) if touch else Vector2(52,36)
 	var footer_top := p.end.y-(87 if touch else 53)
 	c.rule(x,footer_top-(5 if touch else 13),w,LINE)
-	if not history.is_empty():
+	if not history.is_empty() or not pending.is_empty():
 		c.button("prev_slip",Rect2(Vector2(x,footer_top),archive_button),"‹")
 		c.button("next_slip",Rect2(Vector2(x+archive_button.x+8,footer_top),archive_button),"›")
-		c.text(Vector2(x+2*archive_button.x+21,p.end.y-29),"FILED  %d / %d" % [c.desk.slip_index+1,history.size()] if archived else "CURRENT SLIP",c.MONO,13,FADED)
+		c.text(Vector2(x+2*archive_button.x+21,p.end.y-29),caption,c.MONO,13,FADED)
 	else:
 		c.text(Vector2(x,p.end.y-29),"COPY  2    /    OPERATOR",c.MONO,14,FADED)
 	if s.get("can_fax",false) and not archived:
-		c.button("send_fax",Rect2(p.end.x-185,p.end.y-(87 if touch else 56),154,80 if touch else 41),"Fax invoice",true)
+		c.button("send_fax",Rect2(p.end.x-185,p.end.y-(87 if touch else 56),154,80 if touch else 41),_fax_label(s),true)
 	if archived and active_job.get("loaded",0) > 0:
 		var attached: bool = int(active_job.number) in s.get("clipped_slips",[])
 		c.button("clip_slip",Rect2(p.end.x-214,footer_top,182,archive_button.y),"Unclip carbon" if attached else "Clip for radio")
@@ -116,6 +128,10 @@ func _entry(c, r: Rect2, title: String, value: String) -> void:
 	c.text(r.position+Vector2(0,12),title,c.MONO,12,FADED)
 	c.fitted(Rect2(r.position+Vector2(1,13),r.size-Vector2(2,13)),value,c.HAND,27,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 	c.rule(r.position.x,r.end.y,r.size.x,LINE)
+
+func _fax_label(s: Dictionary) -> String:
+	var count := int(s.get("fax_count",1))
+	return "Fax %d slips" % count if count > 1 else "Fax slip"
 
 func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var steel := Color("#33413f")
@@ -204,9 +220,9 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 	var width := p.size.x-66
 	var archive: Array = s.get("faxes",[])
 	var number: int = archive.size()-1 if c.desk.fax_index < 0 else c.desk.fax_index
-	var receipt: bool = (s.get("mode","") == "available" and not s.get("slips",[]).is_empty()
-		and number == archive.size()-1 and not str(s.get("hint_title","")).is_empty())
-	var title := str(s.hint_title) if receipt else "Fax tray"
+	var filed: Array = s.get("slips",[])
+	var receipt: bool = not archive.is_empty() and number == archive.size()-1 and not filed.is_empty() and filed.back().has("number")
+	var title := "Slip %d filed" % int(filed.back().number) if receipt else "Fax tray"
 	var contents := str(archive[number] if number>=0 and number<archive.size() else s.get("fax_text","")).strip_edges()
 	if contents.is_empty():
 		contents = "No incoming faxes."
@@ -233,7 +249,7 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 	c.multiline(Vector2(x,body_y+c.MONO.get_ascent(font_size)),body,c.MONO,font_size,Color("#50594f"),width)
 	c.rule(x,footer_top-5,width,LINE)
 	if s.get("can_fax",false):
-		c.button("send_fax",Rect2(p.end.x-188,footer_top,156,80 if touch else 39),"Fax invoice",true)
+		c.button("send_fax",Rect2(p.end.x-188,footer_top,156,80 if touch else 39),_fax_label(s),true)
 	var caption_x := x
 	var caption := "END OF TRANSMISSION"
 	if archive.size()>1:
@@ -411,8 +427,12 @@ func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 		_map(c,Rect2(p.position+Vector2(12,25),p.size-Vector2(24,35)),s,false)
 	else:
 		var x := p.position.x+12
+		var note := str(job.get("dispatch",s.get("progress","")))
+		if job.is_empty() and not s.get("pending_slips",[]).is_empty():
+			job = s.pending_slips.back()
+			note = "Slip %d awaiting fax" % int(job.number)
 		_entry(c,Rect2(x,p.position.y+24,p.size.x-24,46),"SERVICE LOCATION",str(job.get("location","—")))
-		c.multiline(Vector2(x,p.position.y+97),str(job.get("dispatch",s.get("progress",""))),c.HAND,19,FORM_BLUE,p.size.x-24,2)
+		c.multiline(Vector2(x,p.position.y+97),note,c.HAND,19,FORM_BLUE,p.size.x-24,2)
 
 func _parts(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d9d9c5"))

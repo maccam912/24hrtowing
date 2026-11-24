@@ -6,6 +6,7 @@ signal sound_event(id:String)
 
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
+const DepartingDriver := preload("res://scripts/departing_driver.gd")
 const VehicleDrifts = preload("res://scripts/vehicle_drifts.gd")
 const Kit = preload("res://scripts/rig_mesh.gd")
 const YardDrop = preload("res://scripts/yard_drop.gd")
@@ -79,10 +80,7 @@ var line_end:=-1
 var free_line:=0.0
 var reverse_timer:=0.0
 var slip_cooldown:=0.0
-var departure_time:=0.0
-var backing_distance:=0.0
-var departure_lane_start:=Vector3.ZERO
-var departure_lane_end:=Vector3.ZERO
+var departures: Array[DepartingDriver] = []
 var walked:=0.0
 var dropoff: Dictionary:
 	get: return YardDrop.for_vehicle(kind)
@@ -503,6 +501,10 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {}) -> void:
 	_update_highlight()
 
 func end_job() -> void:
+	# The customer keeps the same car and driver when the radio assigns a new scene.
+	if phase == "departing":
+		car = null
+		witness = null
 	for n in [car,witness,flame,chocks,dollies]:
 		if is_instance_valid(n): n.queue_free()
 	car=null
@@ -519,8 +521,6 @@ func end_job() -> void:
 	working=false
 	tension=0
 	free_line=0
-	departure_time=0
-	backing_distance=0
 	if body:
 		body.stinger.position.z=-1.31
 		body.work_light.hide()
@@ -667,7 +667,7 @@ func _hint() -> String:
 		"at_lift": return "Fit wheel dollies at the county pickup before lifting." if kind=="hold" else "Use the side panel to lift and strap the axle."
 		"dollies": return "At the side panel, raise the lift and secure the straps."
 		"loaded": return "Unload at %s using the wrecker’s left rear panel." % dropoff.sign
-		"departing","done": return "The recovery is complete. Return to the office with the tow slip."
+		"departing","done": return "The recovery is complete."
 	return ""
 
 func interact() -> void:
@@ -823,7 +823,8 @@ func _winch(operate:bool,dt:float) -> void:
 		working=false
 		if kind=="ditch":
 			phase="departing"
-			_note("Ditch pull complete · the driver is taking the car home.",8.0)
+			_begin_departure()
+			_note("Ditch pull complete · driver leaving. Clear for the next call.",8.0)
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("ratchet")
@@ -861,101 +862,34 @@ func _track_underlift() -> void:
 	car.rotation=Vector3(-line_end*asin(clampf(rise/(2.0*half_wheelbase),-.60,.60)),trailing_yaw+(PI if line_end>0 else 0.0),0)
 	car.global_position=hitch-car.global_basis*lifted_axle
 
-func _departure_lane() -> void:
-	var forward:=Vector3.FORWARD.rotated(Vector3.UP,job_yaw)
-	departure_lane_start=job_site-forward*500
-	departure_lane_end=job_site+forward*500
-	if not world.has_method("map_roads"):
-		return
-	var nearest:=INF
-	for road:Dictionary in world.map_roads():
-		var points:PackedVector2Array=road.points
-		for i in range(1,points.size()):
-			var a:Vector3=world.resolve_point(Vector3(points[i-1].x,0,points[i-1].y))
-			var b:Vector3=world.resolve_point(Vector3(points[i].x,0,points[i].y))
-			var distance:=job_site.distance_squared_to(Geometry3D.get_closest_point_to_segment(job_site,a,b))
-			if distance>=nearest: continue
-			nearest=distance
-			if (b-a).dot(forward)<0:
-				var swap:=a
-				a=b
-				b=swap
-			var lane_offset:Vector3=(b-a).normalized().cross(Vector3.UP)*2.15
-			departure_lane_start=a+lane_offset
-			departure_lane_end=b+lane_offset
-
-func _depart(dt:float) -> void:
-	if witness and witness.visible:
-		var door:=car.to_global(Vector3(-1.10,0,-.25))
-		var stride:=door-witness.position
-		stride.y=0
-		if stride.length()>.16:
-			Scene.walk_person(witness)
-			witness.rotation.y=lerp_angle(witness.rotation.y,atan2(-stride.x,-stride.z),1.0-exp(-7.0*dt))
-			witness.position+=stride.limit_length(dt*1.65)
-			witness.position.y=_ground(witness.position)
-			return
-		witness.hide()
-		_set_car_lamps("running")
-		_departure_lane()
-		sound_event.emit("door")
-	departure_time+=dt
-	if departure_time<1.0:
-		return
-	var lane:=departure_lane_end-departure_lane_start
-	var lane_forward:=lane.normalized()
-	var lane_right:=lane_forward.cross(Vector3.UP)
-	var along:=clampf((car.position-departure_lane_start).dot(lane_forward)+8.0,0.0,lane.length())
-	var aim:=departure_lane_start+lane_forward*along
-	# Stay on the near side of the parked wrecker until the car can merge
-	# without cutting across its bed. Account for parking across the road.
-	var to_truck:=truck.position-car.position
-	var truck_ahead:=to_truck.dot(lane_forward)
-	if truck_ahead> -8.0 and truck_ahead<13.0:
-		var clearance:=1.35*absf(truck.global_basis.x.dot(lane_right))+5.1*absf(truck.global_basis.z.dot(lane_right))+1.35
-		var side:float=-1.0 if to_truck.dot(lane_right)>0.0 else 1.0
-		var space:float=(aim-truck.position).dot(lane_right)*side
-		aim+=lane_right*side*maxf(0.0,clearance-space)
-	var direction:=aim-car.position
-	direction.y=0
-	if direction.length()>1.0:
-		var yaw_target:=atan2(-direction.x,-direction.z)
-		var distance:=minf((departure_time-1.0)*1.55,10.5)*dt
-		var yaw:=rotate_toward(car.rotation.y,yaw_target,distance*.32)
-		var step:=Vector3.FORWARD.rotated(Vector3.UP,yaw)*distance
-		# A close pull can leave the bumper pointed at the wrecker. Back up to
-		# make enough room to swing around its bed before trying forward again.
-		if backing_distance<=0 and _in_wrecker(car.position+step.normalized()*2.2+step):
-			backing_distance=3.2
-		if backing_distance>0:
-			distance=minf(backing_distance,dt*2.6)
-			yaw=rotate_toward(car.rotation.y,yaw_target,distance*.38)
-			step=Vector3.BACK.rotated(Vector3.UP,yaw)*distance
-			backing_distance=maxf(0.0,backing_distance-distance)
-		if not _in_wrecker(car.position+step.normalized()*2.2+step):
-			car.rotation.y=yaw
-			car.position+=step
-			car.position.y=_ground(car.position)
-	# Beyond even a lull in the blizzard. A player following the car can
-	# keep it in sight all the way to the end of the road.
-	if _flat_distance(car.position,get_player_position())>165.0 and _flat_distance(car.position,job_site)>120.0:
-		car.hide()
-		phase="done"
+func _begin_departure() -> DepartingDriver:
+	var driver := DepartingDriver.new(self,car,witness,car_lamps,job_site,job_yaw,vehicle_identity)
+	driver.flash_time = flash_time
+	departures.append(driver)
+	return driver
 
 func _in_wrecker(point:Vector3) -> bool:
 	var local:=truck.to_local(point)
 	return absf(local.x)<1.75 and local.z> -4.5 and local.z<5.1
 
 func _trail(dt:float) -> void:
+	for i in range(departures.size()-1,-1,-1):
+		var driver := departures[i]
+		if driver.advance(dt):
+			if driver.car == car:
+				car.hide()
+				phase = "done"
+			else:
+				driver.car.queue_free()
+				driver.witness.queue_free()
+			departures.remove_at(i)
 	if not car: return
 	body.work_light.visible=loaded or near_casualty(CABLE_REACH)
 	var extending:=kind!="ditch" and phase in ["rigged","at_lift","dollies","loaded"]
 	body.stinger.position.z=move_toward(body.stinger.position.z,0.0 if extending else -1.31,dt*1.5)
-	if phase=="departing":
-		_depart(dt)
-	elif loaded:
+	if loaded:
 		_track_underlift()
-	if phase not in ["loaded","done"] and (phase!="departing" or witness.visible):
+	if phase not in ["loaded","done","departing"]:
 		flash_time=fmod(flash_time+dt,1.0)
 		car_lamps.visible=flash_time<.5
 
@@ -1040,17 +974,18 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 	return fallback
 
 func save_state() -> Dictionary:
-	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"departed":departure_time,"chains":tire_chains}
+	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	if not vehicle_identity.is_empty():
 		d["identity"] = vehicle_identity.duplicate()
 	if loaded:
 		d["lift_height"]=body.lift.position.y
-	if phase=="departing" and witness:
-		d["backing_distance"]=backing_distance
-		d["driver_boarded"]=not witness.visible
-		d["witness"]=_v(witness.position)
-		d["witness_yaw"]=witness.rotation.y
+	d.departures = []
+	for driver in departures:
+		if driver.car == car:
+			d.merge(driver.save_state(),true)
+		else:
+			d.departures.append(driver.save_state())
 	if car:
 		d["car"]=_v(car.position)
 		d["car_rot"]=_v(car.rotation)
@@ -1060,6 +995,18 @@ func save_state() -> Dictionary:
 func restore_state(d:Dictionary) -> void:
 	if d.is_empty(): return
 	set_spawn(_unpack(d.get("truck"),truck.position),float(d.get("heading",heading)))
+	for driver in departures:
+		driver.car.queue_free()
+		driver.witness.queue_free()
+	departures.clear()
+	for data: Dictionary in d.get("departures",[]):
+		var ticket: Dictionary = data.identity
+		var vehicle := Scene.car(self,"ditch",ticket.variant,ticket)
+		var driver := Scene.person(self,false,ticket.driver_variant)
+		var lamps := Scene.car_lamps(vehicle,"hazard",-1)
+		var departure := DepartingDriver.new(self,vehicle,driver,lamps,_unpack(data.site,Vector3.ZERO),data.site_yaw,ticket)
+		departure.restore_state(data)
+		departures.append(departure)
 	var active:String=d.get("kind","")
 	if active in ["ditch","hazard","hold"]:
 		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)),d.get("identity",{}))
@@ -1077,22 +1024,13 @@ func restore_state(d:Dictionary) -> void:
 	tire_chains=d.get("chains",false)
 	phase=d.get("phase","idle")
 	loaded=d.get("loaded",false)
-	departure_time=d.get("departed",0)
-	backing_distance=d.get("backing_distance",0)
 	line_end=d.get("line_end",-1)
 	free_line=d.get("free_line",0)
 	if car:
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
 		if phase=="departing" and witness:
-			witness.visible=not d.get("driver_boarded",departure_time>7.0)
-			witness.position=_unpack(d.get("witness"),witness.position)
-			witness.rotation.y=d.get("witness_yaw",witness.rotation.y)
-			if not d.has("driver_boarded"):
-				departure_time=maxf(0.0,departure_time-6.5) if not witness.visible else 0.0
-			if not witness.visible:
-				_departure_lane()
-				_set_car_lamps("running")
+			_begin_departure().restore_state(d)
 		elif phase=="done" and kind=="ditch":
 			car.hide()
 			witness.hide()

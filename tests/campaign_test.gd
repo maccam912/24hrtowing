@@ -200,7 +200,7 @@ func follow_detail(id: String) -> void:
 			check(game.mode == "invoice" and not rig.loaded, "yard panel receives Angie's sedan")
 			return
 	use_contact("report_detail")
-	check(game.mode == "return", "reported " + id)
+	check(game.mode == "available" and game._radio_contact().is_empty(), "reporting " + id + " frees the rig without reoffering the same detail")
 
 func pick_up_tou() -> void:
 	var point: Vector3 = game.county.story_point("tou")

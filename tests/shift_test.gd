@@ -150,7 +150,7 @@ func run() -> void:
 			rig.set_controls(Vector2.ZERO,Vector2.ZERO,rig.tension < .94,false,DT)
 			game.seconds_worked += DT
 		if job.kind == "ditch":
-			check(game.mode=="return","ditch driver released")
+			check(game.mode == "available" and game.pending_slips.size() == 1, "ditch driver released with one slip awaiting fax")
 		else:
 			check(rig.phase=="at_lift","winched to underlift")
 			if job.kind=="hold":
@@ -205,7 +205,7 @@ func run() -> void:
 			rig.set_spawn(Vector3(-18,0,-38) if i == 2 else game.SPAWN,-PI/2)
 			game._survey()
 			game._action("interact")
-		check(game.mode == ("return" if i == 2 else "invoice"), "ready to turn in the slip")
+		check(game.mode == ("available" if job.kind == "ditch" else "invoice"), "completed work can be filed at the office")
 		if i < 2:
 			resume_shift()
 			check("fax" in hint_text(), "turn-in instructions remain available until the office receives the slip")
@@ -320,7 +320,7 @@ func investigate_kolpack() -> void:
 	game._action("interact")
 	press_key(KEY_R)
 	await tap_control("report_farm")
-	check(game.mode == "return" and game.survey.farm_reported,"operator calls in the VIN from the cab")
+	check(game.mode == "available" and game.survey.farm_reported, "calling in the VIN from the cab clears the truck for dispatch")
 	rig.set_spawn(game.SPAWN,-PI/2)
 	game._action("interact")
 	stand(game.FAX+Vector3.FORWARD,game.FAX)

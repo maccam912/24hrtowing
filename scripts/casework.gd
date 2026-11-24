@@ -29,7 +29,7 @@ func _init(owner_game: Node, county_case: Campaign) -> void:
 
 func contact() -> Dictionary:
 	var id := campaign.chapter()
-	if game.mode == "available" and campaign.due() and Campaign.DETAILS.has(id):
+	if game.mode == "available" and game._case_due() and Campaign.DETAILS.has(id):
 		return {"id":"take_detail","label":Campaign.DETAILS[id].label}
 	if game.job.get("case_id","") == "ride" and campaign.evidence.has("passenger") and not campaign.released:
 		return {"id":"talk_tou","label":"Talk to Tou"}
@@ -82,7 +82,8 @@ func inspect(item: String) -> void:
 			game._speak("TOU","Bring the cab up here, would you? I’ve been carrying this book all night.")
 			return
 		campaign.evidence["passenger"] = game.rig.odo
-		begin_return()
+		game._record_visit()
+		game.mode = "return"
 		game._sync_survey_scene()
 		game._speak("TOU","I’ve got my book. Take me to Thirty-eight. Heater still work on your side?")
 	elif item == "release":
@@ -94,16 +95,9 @@ func inspect(item: String) -> void:
 		game._speak("TOU","That’s my signature. The tripod goes back on the seat. Send the county my figures, would you?")
 	elif item == "angie":
 		campaign.evidence["angie_consent"] = game.rig.odo
-		var met: bool = game.slips.any(func(s): return s.get("vin","") == game.job.vin)
+		var met: bool = (game.slips + game.pending_slips).any(func(s): return s.get("vin","") == game.job.vin)
 		var intro := "You pulled this one out for me once." if met else "I’m Angie Kraemer. Blue sedan’s mine."
 		game._speak("ANGIE",intro + " Take it in. I can walk to work from here now. No, I don’t need a lift.")
-
-func begin_return() -> void:
-	game.mode = "return"
-	game.pickup_odo = game.rig.odo
-	game.drop_odo = game.pickup_odo
-	game.pickup_time = game._clock()
-	game.drop_time = game.pickup_time
 
 func procedure() -> String:
 	match game.job.get("case_id",""):

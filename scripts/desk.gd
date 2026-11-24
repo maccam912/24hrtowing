@@ -63,6 +63,8 @@ func show_document(id: String, next_state: Dictionary) -> void:
 	if id in ["options", "help", "guidance"]:
 		_return_page = "pause" if started else "title"
 	_change_page(id)
+	if id == "slip" and state.get("job",{}).is_empty() and not state.get("pending_slips",[]).is_empty():
+		slip_index = state.get("slips",[]).size() + state.pending_slips.size() - 1
 	if id in ["map", "slip"] and state.get("in_cab", true) and not state.get("truck_stopped", true):
 		glance = true
 
@@ -260,7 +262,7 @@ func _activate(id: String) -> void:
 				atlas_notes = false
 			surface.queue_redraw()
 		"prev_slip", "next_slip":
-			var count: int = state.get("slips", []).size()
+			var count: int = state.get("slips", []).size() + state.get("pending_slips", []).size()
 			var order := -1 if id == "prev_slip" else 1
 			slip_index = posmod(slip_index + 1 + order, count + 1) - 1
 			surface.queue_redraw()

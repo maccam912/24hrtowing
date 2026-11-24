@@ -45,8 +45,9 @@ func run() -> void:
 	test_axle_steering()
 	test_line()
 	test_double_line()
+	test_departing_driver()
 	if not failed:
-		print("CHECKS PASSED — steering, braking, cable relief, chains in deep snow and double-line utility tow. Stops from 12 m/s: empty %.1f m / chained %.1f m / sedan %.1f m / utility %.1f m." % [empty.braking,chained.braking,heavy.braking,utility.braking])
+		print("CHECKS PASSED — steering, braking, cable relief, chains, double-line utility tow and independent customer departures. Stops from 12 m/s: empty %.1f m / chained %.1f m / sedan %.1f m / utility %.1f m." % [empty.braking,chained.braking,heavy.braking,utility.braking])
 	quit(1 if failed else 0)
 
 func test_footsteps() -> void:
@@ -213,3 +214,37 @@ func test_double_line() -> void:
 	require(rig.phase=="at_lift","double-line pull brings the utility pickup to the underlift")
 	operate("lift",rig._panel())
 	require(rig.loaded,"heavy utility pickup can be secured for the return haul")
+
+func test_departing_driver() -> void:
+	rig.set_spawn(Vector3.ZERO)
+	var site := Vector3(10,0,15)
+	rig.start_job("ditch",site,0,{"vin":"FIRST","variant":1})
+	var snapshot: Dictionary = rig.save_state()
+	snapshot.phase = "departing"
+	snapshot.driver_boarded = false
+	rig.restore_state(snapshot)
+	var driver: Node3D = rig.witness
+	var customer_car: Node3D = rig.car
+	var original: Vector3 = driver.position
+	rig.start_job("hazard",Vector3(40,0,10),0,{"vin":"NEXT"})
+	require(not customer_car.is_queued_for_deletion() and not driver.is_queued_for_deletion(),
+		"taking a new tow keeps the previous customer and car on the road")
+	rig._trail(STEP)
+	require(driver.position.distance_to(original)>0 and customer_car.position.is_equal_approx(site),
+		"the previous customer continues walking to the car while the new tow is active")
+	snapshot = JSON.parse_string(JSON.stringify(rig.save_state()))
+	rig.restore_state(snapshot)
+	require(rig.departures.size()==1 and rig.departures[0].identity.vin=="FIRST" and rig.vehicle_identity.vin=="NEXT",
+		"resume restores the departing customer independently of the active tow")
+	var waiting: Vector3 = rig.car.position
+	for i in 720:
+		rig._trail(STEP)
+	if rig.departures.is_empty():
+		require(false, "the previous customer remains visible within the storm horizon")
+		return
+	var released = rig.departures[0]
+	require(not released.witness.visible and released.car.position.distance_to(site)>25.0 and rig.car.position.is_equal_approx(waiting),
+		"the released car drives away while the next vehicle stays at its site")
+	for i in 1800:
+		rig._trail(STEP)
+	require(rig.departures.is_empty() and rig.phase=="scene", "a departing driver clears the horizon independently of the current call")

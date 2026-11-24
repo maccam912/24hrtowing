@@ -47,6 +47,7 @@ var paired_slips := []
 var kolpack_haul_filed := false
 var completed := 0
 var slips := []
+var pending_slips := []
 var calls := []
 var roads_driven := []
 var stored := []
@@ -281,7 +282,7 @@ func _action(id: String) -> void:
 			get_tree().physics_frame.connect(_frame_parked_truck,CONNECT_ONE_SHOT)
 		"radio":
 			if rig.get_status().in_cab:
-				if _needs_fuel_can() or not _radio_contact().is_empty() or (mode == "available" and campaign.due()):
+				if _needs_fuel_can() or not _radio_contact().is_empty() or (mode == "available" and _case_due()):
 					desk.show_document("radio",state)
 				elif mode == "available":
 					_take_rotation()
@@ -295,10 +296,12 @@ func _action(id: String) -> void:
 		"take_detail","report_detail","talk_tou":
 			if _radio_contact().get("id") == id:
 				match id:
-					"take_detail": _accept(campaign.ticket(1001+completed))
+					"take_detail": _accept(campaign.ticket(1001 + completed + pending_slips.size()))
 					"report_detail":
-						casework.begin_return()
+						_record_visit()
 						_speak("DISPATCH",job.report)
+						_clear_field_job()
+						_prepare_offers()
 						_save()
 					"talk_tou": desk.show_document("passenger",state)
 		"tou_0","tou_1","tou_2","tou_3":
@@ -397,20 +400,21 @@ func _shop_purchase(id: String) -> void:
 
 func _prepare_offers() -> void:
 	if mode == "available":
+		var issued := completed + pending_slips.size()
 		if rotation_offer.is_empty():
-			rotation_offer = Dispatch.ordinary(completed,dispatch_seed,slips,account.owns("snatch_block"))
+			rotation_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,account.owns("snatch_block"))
 		else:
 			# A case may have used the next blank on the clipboard.
-			rotation_offer.number = 1001 + completed
+			rotation_offer.number = 1001 + issued
 		if case_offer.is_empty():
 			match survey.pending_order():
 				"hold":
-					case_offer = Dispatch.hold_ticket(completed,audio.lines,true)
+					case_offer = Dispatch.hold_ticket(issued,audio.lines,true)
 					case_offer.point = county.survey_point
 					case_offer.angle = county.survey_yaw
-				"looksee": case_offer = Dispatch.looksee(completed)
+				"looksee": case_offer = Dispatch.looksee(issued)
 		if not case_offer.is_empty():
-			case_offer.number = 1001 + completed
+			case_offer.number = 1001 + issued
 	_sync_waiting_hazard()
 
 func _sync_waiting_hazard() -> void:
@@ -433,10 +437,13 @@ func _take_rotation() -> void:
 	survey.defer_order()
 	_accept(rotation_offer)
 
+func _case_due() -> bool:
+	return campaign.due() and not pending_slips.any(func(slip): return slip.get("case_id") == campaign.chapter())
+
 func _radio_contact() -> Dictionary:
 	if not rig.in_cab:
 		return {}
-	if campaign.chapter() == "unit" and campaign.due() and survey.can_report_unit():
+	if campaign.chapter() == "unit" and _case_due() and survey.can_report_unit():
 		return {"id":"report_unit","label":"Report Unit 38 and rod case"}
 	if not _case_lock().is_empty():
 		return {}
@@ -444,7 +451,7 @@ func _radio_contact() -> Dictionary:
 		if survey.pending_order() == "hold":
 			return {"id":"take_case","label":"Meet Kowalski at Unit 38"}
 		return {"id":"take_case","label":"Take the N5104 look-see"}
-	if campaign.chapter() == "farm" and campaign.due() and survey.can_request_farm():
+	if campaign.chapter() == "farm" and _case_due() and survey.can_request_farm():
 		if survey.notes.has("sketch"):
 			return {"id":"ask_farm","label":"Ask about Tou’s Kolpack sketch"}
 		if paired_slips.size() == 2:
@@ -462,7 +469,7 @@ func _case_lock() -> String:
 		# Keep a custody order already issued on an older rig's original terms.
 		if case_offer.get("kind") == "hold" and not case_offer.get("heavy_recovery",false):
 			return ""
-	elif not campaign.due():
+	elif not _case_due():
 		return ""
 	var part := campaign.required_equipment()
 	return campaign.equipment_note() if not part.is_empty() and not account.owns(part) else ""
@@ -494,12 +501,9 @@ func _radio_case(id: String) -> void:
 			job.vehicle = "Blue sedan at N5104"
 			job.plate = County.KOLPACK_SEDAN.plate
 			job.vin = County.KOLPACK_SEDAN.vin
-			mode = "return"
-			pickup_odo = rig.odo
-			drop_odo = rig.odo
-			pickup_time = _clock()
-			drop_time = pickup_time
-			_speak("DISPATCH","Copy N5104 and the VIN ending 510428. No checked tag on file. Leave the car there. Send your report from the yard.")
+			_record_visit()
+			_speak("DISPATCH","Copy N5104 and the VIN ending 510428. No checked tag on file. Leave the car there. You’re clear for another call. Fax the report next time you’re in.")
+			_clear_field_job()
 	_prepare_offers()
 	_save()
 
@@ -671,7 +675,7 @@ func _interact() -> void:
 			talked = true
 			_say(job.reply)
 		"fax":
-			if _can_file_here():
+			if _can_file_here() or mode in ["return","invoice"]:
 				_file_invoice()
 			else:
 				_open_shop()
@@ -708,7 +712,6 @@ func _recovered(kind: String) -> void:
 	if kind != "hold" or pickup_time.is_empty():
 		pickup_odo = rig.get_status().odo
 		pickup_time = _clock()
-	mode = "return" if kind == "ditch" else "haul"
 	if kind == "ditch":
 		drop_odo = pickup_odo
 		drop_time = pickup_time
@@ -716,7 +719,10 @@ func _recovered(kind: String) -> void:
 			_say("clear")
 		else:
 			_say(job.reply)
+		_clear_field_job()
+		_prepare_offers()
 	else:
+		mode = "haul"
 		_speak("DISPATCH","Copy, Brandt. Bring this one to %s." % rig.dropoff.sign)
 	_refresh()
 	_save()
@@ -732,7 +738,7 @@ func _dropped() -> void:
 		filed_card = _custody_record()
 		_sync_survey_scene()
 	else:
-		stored.append({"route":job.route,"variant":job.get("variant",2),"plate":job.plate,"vin":job.vin,
+		stored.append({"number":job.number,"route":job.route,"variant":job.get("variant",2),"plate":job.plate,"vin":job.vin,
 			"heavy_recovery":job.get("heavy_recovery",false)})
 	rig.end_job()
 	_display_storage()
@@ -759,19 +765,8 @@ func _read_book() -> void:
 	desk.show_document("field",state)
 	_save()
 
-func _can_file_here() -> bool:
-	return mode in ["return","invoice"] and not rig.in_cab and _near(FAX,4.4)
-
-func _file_invoice() -> void:
-	if not _can_file_here():
-		return
-	if job.kind == "hold" and not bay_locked:
-		_message("BRANDT","The hold bay needs locking before I file the custody card.")
-		return
-	if job.get("case_id") == "ride" and not campaign.released:
-		_message("BRANDT","Tou’s custody release still needs a signature at the hold bay.")
-		return
-	var slip := Dispatch.issue_slip(job,dispatch_odo,pickup_odo,drop_odo,seconds_worked,_clock())
+func _current_slip() -> Dictionary:
+	var slip := Dispatch.issue_slip(job,dispatch_odo,pickup_odo,drop_odo,seconds_worked,drop_time if not drop_time.is_empty() else _clock())
 	var case_id: String = job.get("case_id","")
 	if job.kind == "hold":
 		case_id = "unit"
@@ -779,16 +774,79 @@ func _file_invoice() -> void:
 		case_id = "farm"
 	if not case_id.is_empty():
 		slip.case_id = case_id
-	var lead := campaign.on_file(job.kind,case_id)
+	if job.has("receipt"):
+		slip.receipt = job.receipt
+	return slip
+
+func _record_visit() -> void:
+	pickup_odo = rig.odo
+	drop_odo = pickup_odo
+	pickup_time = _clock()
+	drop_time = pickup_time
+
+func _clear_field_job() -> void:
+	pending_slips.append(_current_slip())
+	job = {}
+	mode = "available"
+
+func _filing_blocker() -> String:
+	if job.get("kind") == "hold" and not bay_locked:
+		return "The hold bay needs locking before I file the custody card."
+	if job.get("case_id") == "ride" and not campaign.released:
+		return "Tou’s custody release still needs a signature at the hold bay."
+	return ""
+
+func _fax_count() -> int:
+	return pending_slips.size() + int(mode in ["return","invoice"] and _filing_blocker().is_empty())
+
+func _can_file_here() -> bool:
+	return _at_office() and _fax_count() > 0
+
+func _file_invoice() -> void:
+	if not _at_office():
+		return
+	var blocker := ""
+	if mode in ["return","invoice"]:
+		blocker = _filing_blocker()
+		if blocker.is_empty():
+			pending_slips.append(_current_slip())
+			rig.end_job()
+			job = {}
+			mode = "available"
+	if pending_slips.is_empty():
+		if not blocker.is_empty():
+			_message("BRANDT",blocker)
+		return
+	for slip: Dictionary in pending_slips:
+		_file_slip(slip)
+	pending_slips.clear()
+	audio.effect("fax")
+	if not blocker.is_empty():
+		_message("BRANDT",blocker)
+	elif mode == "available":
+		if slips.back().get("case_id") == "angie":
+			_speak("DISPATCH","Brandt, you on? I’ve got another one for you when you’re ready.")
+		else:
+			_message("DISPATCH","Standing by, Brandt. Call when you're ready.")
+	_sync_survey_scene()
+	_survey()
+	_prepare_offers()
+	_refresh()
+	desk.show_document("fax",state)
+	_save()
+
+func _file_slip(slip: Dictionary) -> void:
+	var case_id: String = slip.get("case_id","")
+	var lead := campaign.on_file(slip.kind,case_id)
 	slips.append(slip)
-	if job.kind == "hazard" and job.site == "farm":
+	if slip.kind == "hazard" and slip.site == "farm":
 		kolpack_haul_filed = true
 	completed += 1
 	var prior_fuel_due := account.fuel_due
 	var payment := account.file_invoice(slip.pay,completed)
-	if job.kind == "hold":
+	if case_id == "unit":
 		survey.hold_order = "filed"
-	elif job.get("id") == "n5104":
+	elif case_id == "farm":
 		survey.farm_order = "filed"
 	fax_text = "TO  BRANDT TOWING & RECOVERY\nRE  SERVICE SLIP %04d\n\nReceived for county review.\nCall-out  $%d    Hookup  $%d\nWinch  $%d    Storage  $%d\nLoaded  %.1f mi @ $3.25" % [slip.number,slip.call_out,slip.hookup,slip.winch,slip.storage,slip.loaded]
 	if slip.heavy_fee > 0:
@@ -798,32 +856,19 @@ func _file_invoice() -> void:
 		fax_text += "\n\nBATCH PAYMENT ISSUED   $%.2f" % payment
 		if prior_fuel_due > account.fuel_due:
 			fax_text += "\nLess county fuel can   $%.2f" % (prior_fuel_due-account.fuel_due)
-		stored.clear()
+		# A later tow may already be parked when an earlier invoice settles the batch.
+		stored = stored.filter(func(car): return car is Dictionary and car.get("number",0) > slip.number)
 		_display_storage()
-	if survey.queried_slip == 0 and case_id.is_empty() and job.kind == "hazard" and slip.loaded > 0 and job.has("schedule") and absf(slip.loaded-float(job.schedule)) >= 0.09:
+	if survey.queried_slip == 0 and case_id.is_empty() and slip.kind == "hazard" and slip.loaded > 0 and slip.schedule > 0 and absf(slip.loaded-float(slip.schedule)) >= 0.09:
 		survey.queried_slip = int(slip.number)
-		fax_text += "\n\nRE %04d   Pickup %.1f / drop %.1f. Your %.1f loaded mi, our schedule %.1f. When was the odometer calibrated? Pencil the date on our copy. — D. Pfaff" % [slip.number,slip.pickup_odo,slip.drop_odo,slip.loaded,job.schedule]
-	if job.has("receipt"):
-		fax_text += "\f" + str(job.receipt)
+		fax_text += "\n\nRE %04d   Pickup %.1f / drop %.1f. Your %.1f loaded mi, our schedule %.1f. When was the odometer calibrated? Pencil the date on our copy. — D. Pfaff" % [slip.number,slip.pickup_odo,slip.drop_odo,slip.loaded,slip.schedule]
+	if slip.has("receipt"):
+		fax_text += "\f" + str(slip.receipt)
 	if not lead.is_empty():
 		fax_text += "\f" + lead
 		if not campaign.required_equipment().is_empty() and not account.owns(campaign.required_equipment()):
 			fax_text += "\n\n" + campaign.equipment_note()
-	if case_id == "angie":
-		_speak("DISPATCH","Brandt, you on? I’ve got another one for you when you’re ready.")
-	else:
-		_message("DISPATCH","Standing by, Brandt. Call when you're ready.")
 	faxes.append(fax_text)
-	audio.effect("fax")
-	rig.end_job()
-	job = {}
-	mode = "available"
-	_sync_survey_scene()
-	_survey()
-	_prepare_offers()
-	_refresh()
-	desk.show_document("fax",state)
-	_save()
 
 func _say(id: String) -> void:
 	var line: Array = audio.lines[id]
@@ -852,7 +897,10 @@ func _procedure() -> String:
 		if not instruction.is_empty():
 			return instruction
 	match mode:
-		"available": return "County dispatch is standing by. Answer on the cab radio."
+		"available":
+			if not pending_slips.is_empty():
+				return "Take the next call on the cab radio. Fax the finished slips next time you’re at the yard."
+			return "County dispatch is standing by. Answer on the cab radio."
 		"fieldwork":
 			if job.kind == "looksee":
 				if not survey.notes.has("house"):
@@ -879,16 +927,20 @@ func _contract_hint(site: String) -> Dictionary:
 	match mode:
 		"available":
 			title = "First contract available"
-			if not slips.is_empty():
+			if not pending_slips.is_empty():
+				title = "Clear for dispatch · %d %s awaiting fax" % [pending_slips.size(),"slip" if pending_slips.size() == 1 else "slips"]
+			elif not slips.is_empty():
 				var number := int(slips.back().number)
 				title = "Slip %d filed" % number
-			if not _case_lock().is_empty():
+			if site == "fax" and not pending_slips.is_empty():
+				instruction = "Tap USE to fax the finished paperwork." if desk.is_touch_mode() else "Press E to fax the finished paperwork."
+			elif not _case_lock().is_empty():
 				instruction = _case_lock()
-			elif campaign.due() and not rig.in_cab:
+			elif _case_due() and not rig.in_cab:
 				instruction = "Case message on file. Check the cab radio when you’re ready."
 			elif not rig.in_cab:
 				instruction = "Get in the cab for the next contract on the radio."
-			elif not _radio_contact().is_empty() or campaign.due():
+			elif not _radio_contact().is_empty() or _case_due():
 				instruction = "Open RADIO for the next call or a case contact." if desk.is_touch_mode() else "Press R for the next call or a case contact."
 			elif desk.is_touch_mode():
 				instruction = "Tap RADIO, then Take contract."
@@ -940,7 +992,7 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
-	var words := {"unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Read the fire number and knock","vin":"Copy the VIN at the windshield","cap":"Take a rubbing of the brass cap","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the gate","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"File tow slip at fax" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Read the fire number and knock","vin":"Copy the VIN at the windshield","cap":"Take a rubbing of the brass cap","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the gate","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -986,6 +1038,8 @@ func _road_note() -> Dictionary:
 			heading = 90.0
 	elif in_yard or (mode == "available" and p.distance_to(target) < 90):
 		return {}
+	elif mode == "available" and not pending_slips.is_empty():
+		title = "Office fax   /   Optional return"
 	elif mode == "haul":
 		title = "Return   /   %s" % rig.dropoff.sign
 	elif mode in ["return", "invoice"]:
@@ -1015,9 +1069,9 @@ func _refresh() -> void:
 		"can_enter_cab":rig.action_id() == "enter" and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
-		"job":ticket,"slips":slips,"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
-		"offer":rotation_offer,"radio_contact":_radio_contact(),"pending_case":not survey.pending_order().is_empty() or (campaign.due() and Campaign.DETAILS.has(campaign.chapter())),
-		"case_lead":Campaign.LEADS.get(campaign.chapter(),"") if campaign.due() else "",
+		"job":ticket,"slips":slips,"pending_slips":pending_slips,"fax_count":_fax_count(),"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
+		"offer":rotation_offer,"radio_contact":_radio_contact(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
+		"case_lead":Campaign.LEADS.get(campaign.chapter(),"") if _case_due() else "",
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
 		"adopted":county.case_landmarks.has("angie_house"),
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
@@ -1039,7 +1093,7 @@ func _save() -> void:
 	if not active or not rig:
 		return
 	save_timer = 0
-	saved_data = {"completed":completed,"mode":mode,"rig":rig.save_state(),"slips":slips,
+	saved_data = {"completed":completed,"mode":mode,"rig":rig.save_state(),"slips":slips,"pending_slips":pending_slips,
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
@@ -1056,6 +1110,7 @@ func _restore(s: Dictionary) -> void:
 	completed = int(s.completed)
 	mode = s.mode
 	slips = s.slips
+	pending_slips = s.get("pending_slips",[])
 	calls = s.calls.duplicate()
 	roads_driven = s.roads
 	stored = s.stored
@@ -1097,11 +1152,14 @@ func _restore(s: Dictionary) -> void:
 	campaign.restore(s.get("campaign",{}),survey,slips)
 	_compare_carbons()
 	kolpack_haul_filed = slips.any(func(slip): return slip.get("site") == "farm" and slip.kind == "hazard")
-	_sync_survey_scene()
-	_prepare_offers()
 	var rig_state: Dictionary = s.rig.duplicate()
 	if not job.is_empty() and not rig_state.has("identity"):
 		rig_state.identity = job
+	# Older shifts kept finished roadside work as the active ticket until the yard fax.
+	if mode in ["return","invoice"] and job.get("kind") in ["ditch","looksee"] and job.get("case_id") != "ride":
+		_clear_field_job()
+	_sync_survey_scene()
+	_prepare_offers()
 	rig.restore_state(rig_state)
 	_fit_equipment()
 	# Older saves could close the chain around the operator or a parked rig.

@@ -59,8 +59,8 @@ Most of the time you just run the loop. The story moves only when you step off i
 2. **Plan.** Open the plat book on the passenger seat, find the parcel, count section lines, pick a route. If you're unsure, ask Arlene to talk you in. That's always free.
 3. **Drive out, empty.** The wrecker is quick and loose with nothing on the hook, and the rear steps out on ice.
 4. **The scene.** Leave the cab. Set flares, read the tape, talk to whoever is there, then rig it: anchor, winch line, snatch block, wheel-lift or dollies.
-5. **Drive back.** After a ditch pull, the driver takes their car and you go back empty. With a car on the wheel-lift, braking takes longer and steering goes light. When someone needs a ride, you have company in the cab.
-6. **The yard.** Deliver any car on the hook to storage or the hold bay. The slip prints the odometer reading. Fax the invoice to the county.
+5. **Drive back.** After a ditch pull, the driver takes their car. Keep the slip on the clipboard and take the next call from the cab, or head back to the yard. With a car on the wheel-lift, braking takes longer and steering goes light. When someone needs a ride, you have company in the cab.
+6. **The yard.** Deliver any car on the hook to storage or the hold bay. The slip prints the odometer reading. Fax the finished slips to the county together.
 7. **Between calls.** Fuel, coffee at Esker Fuel & Food, upgrades from the parts catalog, or a drive to look at something you noticed.
 
 ### Pressure

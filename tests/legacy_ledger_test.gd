@@ -18,7 +18,7 @@ func old_save() -> Dictionary:
 	data.version = 1
 	data.paid = game.account.cash
 	data.pending = game.account.pending
-	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign","account"]:
+	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign","account","pending_slips"]:
 		data.erase(key)
 	data.rig.erase("identity")
 	data.rig.erase("snatch_block")
@@ -37,6 +37,24 @@ func run() -> void:
 	root.add_child(game)
 	game.set_physics_process(false)
 	game._action("play")
+	# A released v1 ditch was still the active ticket until the next yard visit.
+	game._accept(Dispatch.legacy_ticket(0,game.audio.lines))
+	var roadside := old_save()
+	roadside.mode = "return"
+	roadside.rig.phase = "departing"
+	roadside.pickup = 19241.1
+	roadside.drop = roadside.pickup
+	roadside.pickup_time = "03:24"
+	roadside.drop_time = roadside.pickup_time
+	load_shift(roadside)
+	check(game.mode == "available" and game.pending_slips.size() == 1 and game.completed == 0, "an unfiled legacy ditch resumes ready for dispatch")
+	game._action("rotation")
+	check(game.job.number == 1002 and game.job.kind == "hazard", "the recovered v1 ditch counts toward the next numbered call")
+	game.rig.in_cab = false
+	game.rig.foot = game.FAX
+	game._action("fax")
+	check(game.slips.size() == 1 and game.slips[0].vin == Dispatch.Legacy.JOBS.angie.vin and is_equal_approx(game.slips[0].pickup_odo,roadside.pickup), "the legacy slip still files with its original VIN and pickup")
+	load_shift({})
 	# A v1 recovery existed only as its index and the physical rig state.
 	game.completed = 3
 	var ticket := Dispatch.legacy_ticket(3,game.audio.lines)
