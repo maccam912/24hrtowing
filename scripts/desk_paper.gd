@@ -8,6 +8,7 @@ const GREEN := Color("#344e43")
 const ORIGINAL := Color("#e4e0cd")
 const TISSUE := Color("#e3d5ce")
 const HATCH := Color("#a6b4a3")
+const RADIO_ENAMEL := preload("res://assets/ui/sign_enamel.jpg")
 const ATLAS_A := Vector2(-635,-465)
 const ATLAS_B := Vector2(934,836)
 const KEY_PLACES := [
@@ -35,8 +36,12 @@ func _header(c, p: Rect2, small: String, title: String, reference: String, font:
 	var y := p.position.y+32
 	c.text(Vector2(x,y),small,c.MONO,13,FADED)
 	c.text(Vector2(x,y+43),title,font,38,PAPER_INK)
-	c.text(Vector2(p.end.x-232,y),reference,c.MONO,13,FADED,199,HORIZONTAL_ALIGNMENT_RIGHT)
+	var stamp_width: float = c.MONO.get_string_size(reference,HORIZONTAL_ALIGNMENT_LEFT,-1,13).x+16
+	var stamp := Rect2(p.end.x-32-stamp_width,y-18,stamp_width,25)
+	c.draw_rect(stamp,c.OXBLOOD,false,1)
+	c.fitted(stamp,reference,c.MONO,13,c.OXBLOOD)
 	c.rule(x,y+59,p.size.x-64,PAPER_INK,1.8)
+	c.rule(x,y+63,p.size.x-64,LINE)
 
 func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var history: Array = s.get("slips",[])
@@ -75,15 +80,18 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 			note = str(active_job.get("dispatch",active_job.get("directions","Dispatch calls come in on the county radio.")))
 	c.text(Vector2(x,y+231),"OPERATOR NOTES",c.MONO,12,FADED)
 	c.multiline(Vector2(x,y+257),note,c.HAND,24,FORM_BLUE,w,2)
-	c.rule(x,p.end.y-66,w,LINE)
+	var touch: bool = c.desk.is_touch_mode()
+	var archive_button := Vector2(82,80) if touch else Vector2(52,36)
+	var footer_top := p.end.y-(87 if touch else 53)
+	c.rule(x,footer_top-(5 if touch else 13),w,LINE)
 	if not history.is_empty():
-		c.button("prev_slip",Rect2(x,p.end.y-53,52,36),"‹")
-		c.button("next_slip",Rect2(x+60,p.end.y-53,52,36),"›")
-		c.text(Vector2(x+125,p.end.y-29),"FILED  %d / %d" % [c.desk.slip_index+1,history.size()] if archived else "CURRENT SLIP",c.MONO,13,FADED)
+		c.button("prev_slip",Rect2(Vector2(x,footer_top),archive_button),"‹")
+		c.button("next_slip",Rect2(Vector2(x+archive_button.x+8,footer_top),archive_button),"›")
+		c.text(Vector2(x+2*archive_button.x+21,p.end.y-29),"FILED  %d / %d" % [c.desk.slip_index+1,history.size()] if archived else "CURRENT SLIP",c.MONO,13,FADED)
 	else:
 		c.text(Vector2(x,p.end.y-29),"COPY  2    /    OPERATOR",c.MONO,14,FADED)
 	if s.get("can_fax",false) and not archived:
-		c.button("send_fax",Rect2(p.end.x-185,p.end.y-56,154,41),"Fax invoice",true)
+		c.button("send_fax",Rect2(p.end.x-185,p.end.y-(87 if touch else 56),154,80 if touch else 41),"Fax invoice",true)
 
 func _entry(c, r: Rect2, title: String, value: String) -> void:
 	c.text(r.position+Vector2(0,12),title,c.MONO,12,FADED)
@@ -92,17 +100,26 @@ func _entry(c, r: Rect2, title: String, value: String) -> void:
 
 func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var steel := Color("#33413f")
-	c._sheet(p,steel)
+	c.switch_face(p,steel)
+	c.draw_texture_rect(RADIO_ENAMEL,p.grow(-5),false,Color(0.75,0.66,0.55,0.22))
 	c.draw_rect(p.grow(-9),Color("#26322f"),false,2)
+	for dx in [15,p.size.x-15]:
+		for dy in [16,p.size.y-16]:
+			c._bolt(p.position+Vector2(dx,dy))
 	var x := p.position.x+34
 	var y := p.position.y+35
 	var w := p.size.x-68
 	c.text(Vector2(x,y),"VHF TRANSCEIVER",c.MONO,13,Color("#b9c1ad"))
 	c.text(Vector2(p.end.x-242,y),"BRANDT  /  UNIT 01",c.MONO,14,c.WHITE,208,HORIZONTAL_ALIGNMENT_RIGHT)
-	var lcd := Rect2(x,y+18,w,67)
-	c.draw_rect(lcd,Color("#151d19"))
-	c.draw_rect(lcd.grow(-6),Color("#b0bb8b"))
-	c.fitted(lcd.grow(-16),"COUNTY DISPATCH",c.LCD,26,Color("#27372c"),HORIZONTAL_ALIGNMENT_LEFT)
+	var lcd := Rect2(x,y+18,w*0.66,67)
+	c.switch_face(lcd,Color("#171e1b"),true)
+	c.draw_rect(lcd.grow(-7),Color("#c1ac75"))
+	c.fitted(lcd.grow(-16),"COUNTY DISPATCH",c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
+	for i in 8:
+		var grille_x := lcd.end.x+21
+		var grille_y := lcd.position.y+8+i*7
+		c.rule(grille_x,grille_y,p.end.x-35-grille_x,Color("#192321"),3)
+		c.rule(grille_x,grille_y+2,p.end.x-35-grille_x,Color("#596054"))
 	var records: Array = s.get("calls",[])
 	var ry := y+116
 	c.text(Vector2(x,ry),"LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
@@ -117,8 +134,9 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		c.multiline(Vector2(x,ry+30+i*65),words,c.subtle,19,c.WHITE,w,2)
 		c.rule(x,ry+69+i*65,w,Color("#5a685e"))
 	var btn_width := (w-17.0)/2
-	c.button("respond",Rect2(x,p.end.y-84,btn_width,52),"Answer dispatch")
-	c.button("directions",Rect2(x+btn_width+17,p.end.y-84,btn_width,52),"Ask for directions")
+	var button_height := 80 if c.desk.is_touch_mode() else 52
+	c.button("respond",Rect2(x,p.end.y-32-button_height,btn_width,button_height),"Answer dispatch")
+	c.button("directions",Rect2(x+btn_width+17,p.end.y-32-button_height,btn_width,button_height),"Ask for directions")
 
 func _fax(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#e4e4d8"))
@@ -131,13 +149,16 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 	if contents.is_empty():
 		contents = "No incoming faxes."
 	c.multiline(Vector2(x,y+7),contents,c.MONO,17,Color("#50594f"),p.size.x-78,13)
-	c.rule(x,p.end.y-65,p.size.x-66,LINE)
+	var touch: bool = c.desk.is_touch_mode()
+	var key_size := Vector2(82,80) if touch else Vector2(52,40)
+	var footer_top := p.end.y-(87 if touch else 54)
+	c.rule(x,footer_top-(5 if touch else 11),p.size.x-66,LINE)
 	if s.get("can_fax",false):
-		c.button("send_fax",Rect2(p.end.x-188,p.end.y-54,156,39),"Fax invoice",true)
+		c.button("send_fax",Rect2(p.end.x-188,footer_top,156,80 if touch else 39),"Fax invoice",true)
 	if archive.size()>1:
-		c.button("prev_fax",Rect2(x,p.end.y-54,52,40),"‹")
-		c.button("next_fax",Rect2(x+60,p.end.y-54,52,40),"›")
-		c.text(Vector2(x+126,p.end.y-28),"FILED FAX  %d / %d" % [number+1,archive.size()],c.MONO,15,FADED)
+		c.button("prev_fax",Rect2(Vector2(x,footer_top),key_size),"‹")
+		c.button("next_fax",Rect2(Vector2(x+key_size.x+8,footer_top),key_size),"›")
+		c.text(Vector2(x+2*key_size.x+22,p.end.y-28),"FILED FAX  %d / %d" % [number+1,archive.size()],c.MONO,15,FADED)
 	else:
 		c.text(Vector2(x,p.end.y-34),"END OF TRANSMISSION",c.MONO,13,FADED)
 
@@ -304,7 +325,8 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		c.text(Vector2(cols,ry+28),row[2].to_upper(),c.MONO,12,FADED)
 		c.text(Vector2(cols,ry+56),row[1],c.print_face,25,PAPER_INK)
 		c.text(Vector2(cols,ry+81),row[3],c.print_face,15,PAPER_INK)
-		var button_rect := Rect2(p.end.x-194,ry+53,162,43)
+		var touch: bool = c.desk.is_touch_mode()
+		var button_rect := Rect2(p.end.x-194,ry+(44 if touch else 53),162,80 if touch else 43)
 		c.text(Vector2(button_rect.position.x,ry+35),"$%.2f" % row[4],c.MONO,20,FORM_BLUE,162,HORIZONTAL_ALIGNMENT_CENTER)
 		var status := ""
 		if i==0 and chain_fitted: status="Fitted"

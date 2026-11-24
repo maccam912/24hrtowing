@@ -218,6 +218,7 @@ func _activate(id: String) -> void:
 		"title":
 			started = false
 			_change_page("title")
+			action.emit("title")
 		"options", "help", "map", "slip", "radio", "fax", "custody", "field", "parts":
 			show_document(id, state)
 		"respond", "directions", "send_fax":

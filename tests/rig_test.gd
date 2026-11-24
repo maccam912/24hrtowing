@@ -26,9 +26,10 @@ func run() -> void:
 	require(heavy.accel_seconds > empty.accel_seconds * 1.3, "underlift load changes acceleration")
 	require(heavy.braking > empty.braking * 1.18, "same-speed loaded braking needs more road")
 	require(heavy.yaw < empty.yaw * .95, "loaded front axle steers lighter at the same entry speed")
+	test_axle_steering()
 	test_line()
 	if not failed:
-		print("CHECKS PASSED — at 12 m/s, empty braking %.1f m, loaded %.1f m; control, cable and tension relief" % [empty.braking,heavy.braking])
+		print("CHECKS PASSED — front steering and rear axle paths in both gears, 12 m/s braking %.1f m empty / %.1f m loaded, cable and tension relief" % [empty.braking,heavy.braking])
 	quit(1 if failed else 0)
 
 func drive_sample(hauling: bool) -> Dictionary:
@@ -55,6 +56,32 @@ func drive_sample(hauling: bool) -> Dictionary:
 	for i in 36:
 		rig.set_controls(Vector2(.7,0),Vector2.ZERO,false,false,STEP)
 	return {"accel_seconds":ticks*STEP,"braking":stopping_distance,"yaw":absf(rig.heading)}
+
+func test_axle_steering() -> void:
+	rig.end_job()
+	var front := Vector3.BACK * Rig.Truck.FRONT_AXLE_Z
+	var rear := Vector3.BACK * Rig.Truck.REAR_AXLE_Z
+	for direction: float in [1.0, -1.0]:
+		rig.set_spawn(Vector3.ZERO)
+		rig.speed = 0.0
+		rig.motion = Vector3.ZERO
+		rig.steering = 0.0
+		for i in 60:
+			rig.set_controls(Vector2.RIGHT,Vector2.ZERO,false,false,STEP)
+		require(is_zero_approx(rig.heading) and rig.truck.position.is_zero_approx(), "turning the wheel at rest leaves the truck parked")
+		var left: Node3D = rig.body.wheels[0].get_parent_node_3d()
+		var right: Node3D = rig.body.wheels[3].get_parent_node_3d()
+		require(right.rotation.y < left.rotation.y and left.rotation.y < -.4, "inside front wheel turns more sharply at parking lock")
+		rig.speed = direction * 2.8
+		for i in 12:
+			rig.set_controls(Vector2.RIGHT,Vector2.ZERO,false,false,STEP)
+		var front_travel: Vector3 = rig.truck.to_global(front) - front
+		var rear_travel: Vector3 = rig.truck.to_global(rear) - rear
+		require(front_travel.x * direction > .30, "steered axle swings into the forward or reverse arc")
+		require(absf(rear_travel.x) < .04 and rear_travel.z * direction < -.49, "rear tandem rolls along its heading at yard speed")
+		require(rig.heading * direction < -.06, "backing up reverses yaw with the same steering lock")
+		require(rig.body.wheels[3].basis.x.is_equal_approx(Vector3.RIGHT), "wheel spin stays on its own axle at full lock")
+	rig.steering = 0.0
 
 func walk_to(point:Vector3) -> void:
 	for i in 950:

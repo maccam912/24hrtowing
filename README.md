@@ -10,7 +10,7 @@ Start the engine and answer the county radio. Angie Kraemer is in the west ditch
 
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
 
-Ditch customers drive away after the pull. For a hazard tow, bring the axle up to the underlift, strap it, and haul to the storage pad. The loaded truck needs more braking room. Lower the vehicle at the destination. File the slip at the fax outside the yard office, then call for another job.
+Ditch customers walk back to their cars and drive away after the pull. For a hazard tow, bring the axle up to the underlift, strap it, and haul to the storage pad. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room. Lower the vehicle at the destination. File the slip at the fax outside the yard office, then call for another job.
 
 ## Controls
 
@@ -48,6 +48,6 @@ Every pushed revision is tested and receives its own full release. Android versi
 
 ## Assets
 
-The game uses the bundled OFL copies of Overpass, IBM Plex Mono, Caveat, Architects Daughter, Public Sans and DSEG Classic. Licenses ship in `assets/ui/fonts/`. The material textures, touch-control artwork, evergreen sprite, Brandt sign, title art and launcher illustration were made with ImageGen. The wrecker, vehicles, objects and township are built in Godot. The dash and gauges use original instrument artwork.
+The game uses the bundled OFL copies of Overpass, IBM Plex Mono, Caveat, Architects Daughter, Public Sans and DSEG Classic. Licenses ship in `assets/ui/fonts/`. The material textures, touch-control artwork, evergreen sprite and Brandt sign were made with ImageGen. The title camera moves around the playable wrecker in the live county scene. The launcher icon is a still taken in Godot. The wrecker, vehicles, objects and township are built in Godot. The dash and gauges use original instrument artwork.
 
 The effects and spoken lines are local audio files. To generate missing cues, run `python3 tools/generate_audio.py` with an ElevenLabs API key in the environment or a private `~/.config/24hrtowing/elevenlabs.key` file. The tool also recognizes the existing Home Twenty key location. Generation uses API credits. The installed game plays offline.

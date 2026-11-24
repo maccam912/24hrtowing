@@ -90,33 +90,57 @@ static func car(parent:Node3D, kind:String, variant:int) -> Node3D:
 		e.finish()
 	return p
 
-static func person(parent:Node3D,deputy:bool) -> Node3D:
-	var p=K.joint(parent,Vector3.ZERO,"Deputy" if deputy else "Driver")
-	var g=K.new(p)
-	var coat:=Color("#424844") if deputy else Color("#7f6559")
-	var trouser:=Color("#464a4c") if deputy else Color("#3b4653")
-	var skin:=Color("#b9927b")
-	for side in [-1.0,1.0]:
-		var x:float=side*.11
-		g.box(Vector3(x,.085,-.048),Vector3(.165,.17,.32),BLACK)
-		g.tube(Vector3(x,.16,0),Vector3(x,.74,0),.088,trouser,8,"paint",.11)
-	g.tube(Vector3(0,.76,0),Vector3(0,1.36,0),.212,coat,10,"paint",.26)
-	g.tube(Vector3(0,1.34,0),Vector3(0,1.43,0),.20,coat,10,"paint",.12)
-	g.tube(Vector3(0,1.41,0),Vector3(0,1.49,0),.079,skin,8,"paint")
-	g.tube(Vector3(0,1.455,-.006),Vector3(0,1.55,-.012),.086,skin,9,"paint",.122)
-	g.tube(Vector3(0,1.55,-.012),Vector3(0,1.686,0),.122,skin,9,"paint",.116)
-	g.tube(Vector3(0,1.635,0),Vector3(0,1.722,0),.13,Color("#393b39"),10,"paint",.114)
-	g.tube(Vector3(0,1.722,0),Vector3(0,1.755,0),.114,Color("#393b39"),10,"paint",.050)
-	g.box(Vector3(0,1.557,-.126),Vector3(.043,.052,.03),skin.darkened(.08))
-	for s in [-1.0,1.0]:
-		g.box(Vector3(s*.047,1.598,-.115),Vector3(.025,.009,.012),Color("#483d34"))
-		g.tube(Vector3(s*.204,1.32,0),Vector3(s*.285,1.032,-.012),.081,coat,8,"paint",.074)
-		g.tube(Vector3(s*.285,1.039,-.012),Vector3(s*.174,.936,-.142),.074,coat,8,"paint",.069)
-		g.tube(Vector3(s*.175,.937,-.143),Vector3(s*.145,.913,-.156),.066,BLACK,8,"paint",.044)
-		if deputy:
-			g.box(Vector3(s*.114,1.21,-.193),Vector3(.038,.29,.027),Color("#a8a58b"),Vector3(0,0,s*.13))
-	g.finish()
-	return p
+static func car_lamps(car_body:Node3D,kind:String,mode:String,line_end:int) -> Node3D:
+	var lamps:Node3D=K.joint(car_body,Vector3.ZERO,"VehicleLamps")
+	var kit=K.new(lamps)
+	var length:=2.5 if kind=="hold" else 2.12
+	var width:=.99 if kind=="hold" else .89
+	var height:=.64 if kind=="hold" else .46
+	if mode=="tow":
+		# Magnetic feet hold the portable light bar on the roof. Its amber
+		# clearance markers are visible to the operator in the side mirrors.
+		var bar_y:=height+1.35
+		kit.box(Vector3(0,bar_y,0),Vector3(1.82,.17,.16),Color("#d7a44e"))
+		for side:float in [-1.0,1.0]:
+			kit.box(Vector3(side*.52,bar_y-.09,0),Vector3(.15,.09,.22),BLACK)
+			kit.box(Vector3(side*.72,bar_y,-line_end*.09),Vector3(.25,.13,.04),Color("#ff4039"),Vector3.ZERO,"lamp")
+			kit.box(Vector3(side*.855,bar_y,0),Vector3(.12,.13,.19),Color("#ffbe47"),Vector3.ZERO,"lamp")
+	else:
+		for end_sign:float in [-1.0,1.0]:
+			var tint:=Color("#ffaa35") if mode=="hazard" else (Color("#ffeac2") if end_sign<0 else Color("#f03937"))
+			for side:float in [-1.0,1.0]:
+				kit.box(Vector3(side*width*.82,height+.25,end_sign*length*.997),Vector3(.19,.112,.035),tint,Vector3.ZERO,"lamp")
+		if mode=="running":
+			var beam:=SpotLight3D.new()
+			lamps.add_child(beam)
+			beam.position=Vector3(0,height+.25,-length-.08)
+			beam.rotation.x=-.08
+			beam.light_color=Color("#fff0ce")
+			beam.light_energy=1.8
+			beam.spot_range=38
+			beam.spot_angle=29
+	kit.finish()
+	return lamps
+
+static func person(parent: Node3D, deputy: bool, variant: int = 0) -> Node3D:
+	var scene := preload("res://assets/characters/stranded_driver.glb")
+	if deputy:
+		scene = preload("res://assets/characters/deputy.glb")
+	elif variant == 1:
+		scene = preload("res://assets/characters/farm_driver.glb")
+	var witness := scene.instantiate() as Node3D
+	witness.name = "Deputy" if deputy else "Driver"
+	parent.add_child(witness)
+	var animation: AnimationPlayer = witness.get_node("AnimationPlayer")
+	animation.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
+	animation.get_animation("walk").loop_mode = Animation.LOOP_LINEAR
+	animation.play("idle")
+	return witness
+
+static func walk_person(witness: Node3D) -> void:
+	var animation: AnimationPlayer = witness.get_node("AnimationPlayer")
+	if animation.current_animation != "walk":
+		animation.play("walk", 0.18)
 
 static func flare(parent:Node3D, at:Vector3) -> Node3D:
 	var p=K.joint(parent,at,"RoadFlare")

@@ -6,8 +6,6 @@ const MONO = preload("res://assets/ui/fonts/plex_mono.ttf")
 const HAND = preload("res://assets/ui/fonts/caveat.ttf")
 const FIELD = preload("res://assets/ui/fonts/architects_daughter.ttf")
 const LCD = preload("res://assets/ui/fonts/dseg14.ttf")
-const ENAMEL = preload("res://assets/ui/sign_enamel.jpg")
-const YARD = preload("res://assets/ui/yard_at_night.jpg")
 const Documents = preload("res://scripts/desk_paper.gd")
 const CabControls = preload("res://scripts/cab_controls.gd")
 
@@ -98,6 +96,11 @@ func switch_face(r: Rect2, fill: Color, pressed: bool = false) -> void:
 	draw_polyline(PackedVector2Array([rim[6],rim[7],rim[0],rim[1],rim[2]]),shadow if pressed else light,1.5,true)
 	draw_polyline(PackedVector2Array([rim[2],rim[3],rim[4],rim[5],rim[6]]),light if pressed else shadow,2.5,true)
 
+func _bolt(at: Vector2) -> void:
+	draw_circle(at,3.2,Color("#282929"),true,-1,true)
+	draw_circle(at-Vector2(0,0.6),2.4,Color("#978e78"),true,-1,true)
+	draw_line(at-Vector2(1.5,-0.7),at+Vector2(1.5,-0.7),DARK,1.2,true)
+
 func button(id: String, r: Rect2, caption: String, dark: bool = false) -> void:
 	var down: bool = desk._is_down(id)
 	var focus: bool = hover == id or down
@@ -152,38 +155,29 @@ func _draw() -> void:
 				_documents()
 
 func _title_background() -> void:
-	var world_ratio := dim.aspect()
-	var image_size: Vector2 = YARD.get_size()
-	var src := Rect2(Vector2.ZERO, image_size)
-	if world_ratio > image_size.aspect():
-		src.size.y = src.size.x / world_ratio
-		src.position.y = (image_size.y - src.size.y) * 0.58
-	else:
-		src.size.x = src.size.y * world_ratio
-		src.position.x = (image_size.x - src.size.x) * 0.40
-	draw_texture_rect_region(YARD, Rect2(Vector2.ZERO, dim), src)
 	var shade := Color("#0d1720")
 	var edge := Color(shade,0.67)
 	draw_polygon(PackedVector2Array([Vector2.ZERO,Vector2(dim.x*0.7,0),Vector2(dim.x*0.7,dim.y),Vector2(0,dim.y)]), PackedColorArray([edge, Color(shade,0), Color(shade,0), edge]))
 
 func _title() -> void:
 	_title_background()
-	var w := clampf(dim.x * 0.44, 340.0, 502.0)
+	var w := clampf(dim.x * 0.42, 335.0, 458.0)
 	var x := clampf(dim.x * 0.060, 28, 115)
 	var y := dim.y * 0.25
 	var r := Rect2(x, y, w, 175)
-	draw_rect(Rect2(r.position+Vector2(3,7), r.size), Color(0.01,0.02,0.02,0.38))
-	draw_texture_rect(ENAMEL, r, false, Color("#a8beb1"))
-	draw_rect(r.grow(-5), WHITE.darkened(0.12), false, 2.6)
-	for dx in [13.0, w-13.0]:
-		for dy in [13.0, r.size.y-13.0]:
-			draw_circle(r.position+Vector2(dx,dy), 2.3, Color("#61766a"))
-			draw_line(r.position+Vector2(dx-1,dy), r.position+Vector2(dx+1,dy), Color("#b8c7bc"))
-	text(Vector2(x+23,y+36), "TAMARACK COUNTY", scaled, 16, WHITE)
-	text(Vector2(x+w-94,y+36), "WISCONSIN", subtle, 13, WHITE)
-	rule(x+22, y+49, w-44, Color("#a5b4a3"), 1.0)
-	fitted(Rect2(x+22,y+49,w-44,83), "24 HR Towing", scaled, 70, WHITE, HORIZONTAL_ALIGNMENT_LEFT)
-	text(Vector2(x+25,y+152), "Brandt Towing & Recovery", subtle, 23, WHITE)
+	switch_face(Rect2(r.position+Vector2(2,4),r.size),Color("#262828"))
+	switch_face(r,OXBLOOD)
+	draw_rect(r.grow(-7),CREAM,false,1.2)
+	text(Vector2(x+24,y+35),"TAMARACK COUNTY",MONO,14,CREAM)
+	text(Vector2(x+w-134,y+35),"WISCONSIN",MONO,14,CREAM,109,HORIZONTAL_ALIGNMENT_RIGHT)
+	rule(x+22,y+48,w-44,CREAM)
+	fitted(Rect2(x+21,y+49,w-42,78),"24 HR TOWING",scaled,73,CREAM)
+	draw_rect(Rect2(x+8,y+124,w-16,36),CREAM)
+	rule(x+8,y+164,w-16,CREAM,2)
+	fitted(Rect2(x+20,y+124,w-40,36),"BRANDT TOWING & RECOVERY",scaled,20,OXBLOOD)
+	for dx in [13.0,w-13.0]:
+		_bolt(Vector2(x+dx,y+14))
+		_bolt(Vector2(x+dx,y+153))
 	var touch: bool = desk.is_touch_mode()
 	var play := Rect2(x, y+198, maxf(246,w*0.65), 80 if touch else 49)
 	var down: bool = desk._is_down("play")
@@ -211,11 +205,10 @@ func _ignition(at: Vector2, scale_factor: float, down: bool) -> void:
 	draw_set_transform(Vector2.ZERO,0,Vector2.ONE*unit)
 
 func _title_link(id: String, at: Vector2, label: String) -> void:
-	var r := Rect2(at,Vector2(134,39))
-	draw_rect(r, Color(0.06,0.10,0.12,0.78))
-	fitted(r.grow(-4), label, subtle, 18, WHITE)
-	if hover == id:
-		rule(r.position.x+10,r.end.y-5,r.size.x-20,WHITE)
+	var touch: bool = desk.is_touch_mode()
+	var r := Rect2(at,Vector2(176,78) if touch else Vector2(134,39))
+	switch_face(r,Color("#4a453a") if hover == id else RUBBER,desk._is_down(id))
+	fitted(r.grow(-6), label, subtle, 23 if touch else 18, CREAM)
 	hit(id,r)
 
 func _menu() -> void:
@@ -223,27 +216,33 @@ func _menu() -> void:
 		_title_background()
 	draw_rect(Rect2(Vector2.ZERO,dim), Color(0.035,0.05,0.06,0.67))
 	var width := minf(730, dim.x-52)
-	var p := Rect2((dim.x-width)*0.5,(dim.y-452)*0.5,width,452)
+	var touch: bool = desk.is_touch_mode()
+	var height := 506 if touch else 452
+	var p := Rect2((dim.x-width)*0.5,(dim.y-height)*0.5,width,height)
+	switch_face(p.grow(9),Color("#533f32"))
 	_sheet(p,PAPER)
+	draw_line(p.position+Vector2(16,0),Vector2(p.position.x+16,p.end.y),Color("#b99283"),1.3)
 	var x := p.position.x+28
 	var y := p.position.y+28
 	text(Vector2(x,y), "BRANDT TOWING & RECOVERY   /   ESKER, WIS.", MONO, 12, BLUE)
 	var heading: String = {"pause":"Truck log","options":"Cab settings","help":"Operator guide"}[desk.page]
 	text(Vector2(x,y+47),heading,scaled,40,INK)
-	rule(x,y+62,width-56,INK,1.7)
+	rule(x,y+62,width-56,OXBLOOD,2.5)
+	rule(x,y+67,width-56,OXBLOOD)
 	match desk.page:
 		"pause":
-			button("close", Rect2(x,y+91, width-56,56),"Return to work",true)
-			button("help", Rect2(x,y+163,width-56,52),"Operator guide")
-			button("options", Rect2(x,y+226,width-56,52),"Cab settings")
-			button("title", Rect2(x,y+317,width-56,47),"Title screen")
+			var row := 88 if touch else 68
+			var button_height := 78 if touch else 52
+			button("close", Rect2(x,y+91,width-56,button_height),"Return to work",true)
+			button("help", Rect2(x,y+91+row,width-56,button_height),"Operator guide")
+			button("options", Rect2(x,y+91+row*2,width-56,button_height),"Cab settings")
+			button("title", Rect2(x,y+109+row*3,width-56,button_height),"Title screen")
 		"options":
 			text(Vector2(x,y+112), "FRAME RATE", MONO, 14, BLUE)
 			var current: int = int(drawn.get("frame_rate",desk.fps))
-			button("settings_30",Rect2(x,y+136,166,52), "30 FPS", current==30)
-			button("settings_60",Rect2(x+178,y+136,166,52), "60 FPS", current==60)
-			text(Vector2(x,y+227),"Changes take effect immediately.",print_face,17,INK)
-			button("close",Rect2(x,y+332,155,45),"Back")
+			button("settings_30",Rect2(x,y+136,166,78 if touch else 52), "30 FPS", current==30)
+			button("settings_60",Rect2(x+178,y+136,166,78 if touch else 52), "60 FPS", current==60)
+			button("close",Rect2(x,y+332,155,78 if touch else 45),"Back")
 		"help":
 			var line_y := y+94
 			var entries: Array
@@ -256,17 +255,22 @@ func _menu() -> void:
 				text(Vector2(x+132,line_y),entry[1],print_face,17,INK)
 				rule(x,line_y+11,width-56,Color("#b4b7a9"))
 				line_y += 34 if entries.size() > 6 else 39
-			button("close",Rect2(x,y+344,148,44),"Back")
+			button("close",Rect2(x,y+344,148,78 if touch else 44),"Back")
 
 func _sheet(p: Rect2, colour: Color) -> void:
 	draw_rect(Rect2(p.position+Vector2(5,8),p.size), Color(0,0,0,0.4))
 	draw_rect(Rect2(p.position+Vector2(2,3),p.size), colour.darkened(.25))
 	draw_rect(p,colour)
+	rule(p.position.x+1,p.position.y+1,p.size.x-2,colour.lightened(0.2))
+	rule(p.position.x+1,p.end.y-2,p.size.x-2,colour.darkened(0.17))
 
 func _documents() -> void:
 	draw_rect(Rect2(Vector2.ZERO,dim),Color(0.035,0.05,0.06,0.68))
 	var width := minf(846,dim.x-58)
-	var p := Rect2((dim.x-width)*0.5,(dim.y-486)*0.5-9,width,486)
+	var touch: bool = desk.is_touch_mode()
+	var tab_height := 80 if touch else 36
+	var top := (dim.y-486)*0.5-(tab_height*0.5 if touch else 9.0)
+	var p := Rect2((dim.x-width)*0.5,top,width,486)
 	docs.paint(self,p,desk.page,drawn)
 	# Labeled tabs project beyond the paper's bottom edge.
 	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Parts"]]
@@ -275,15 +279,19 @@ func _documents() -> void:
 	if drawn.get("field_available",false):
 		tabs.append(["field","Field book"])
 	var tab_x := p.position.x+8
+	var tab_gap := 6 if touch else 3
+	var stow_width := 94 if touch else 90
+	var touch_tab_width := (p.end.x-stow_width-tab_x)/tabs.size()-tab_gap
 	for tab in tabs:
-		var width_tab := maxf(77,print_face.get_string_size(tab[1],HORIZONTAL_ALIGNMENT_LEFT,-1,16).x+24)
-		var tab_box := Rect2(tab_x,p.end.y,width_tab,36)
+		var width_tab := touch_tab_width if touch else maxf(77,print_face.get_string_size(tab[1],HORIZONTAL_ALIGNMENT_LEFT,-1,16).x+24)
+		var tab_box := Rect2(tab_x,p.end.y,width_tab,tab_height)
 		var active: bool = desk.page == tab[0]
-		draw_rect(tab_box, PAPER if active else Color("#99a69d"))
-		fitted(tab_box,tab[1],subtle,17,INK)
+		draw_rect(tab_box,CREAM if active else Color("#bcb79f"))
+		rule(tab_x+3,tab_box.end.y-4,width_tab-6,OXBLOOD if active else Color("#8a876f"),4 if active else 1)
+		fitted(tab_box.grow(-3),tab[1],subtle,22 if touch else 17,INK)
 		hit(tab[0],tab_box)
-		tab_x+=width_tab+3
-	button("close",Rect2(p.end.x-90,p.end.y,90,36),"Stow",true)
+		tab_x+=width_tab+tab_gap
+	button("close",Rect2(p.end.x-stow_width,p.end.y,stow_width,tab_height),"Stow",true)
 
 func _glance() -> void:
 	var width := minf(353, dim.x*.38)

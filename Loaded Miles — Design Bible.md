@@ -217,7 +217,7 @@ The cast is small and almost everyone works nights. Most contact is by radio, fa
 
 | Name | Role | Where you meet them | What they know | Voice |
 | --- | --- | --- | --- | --- |
-| Arlene Kujawa | Overnight dispatcher, Tamarack County 911 | The radio, every job | That the ban isn't about the weather. She runs plates and VINs and won't say it on the air | Flat, warm, efficient. Calls you "hon" and never hurries |
+| Arlene Kujawa | Overnight dispatcher, Tamarack County 911 | The radio, every job | That the ban isn't about the weather. She runs plates and VINs and won't say it on the air | Flat, warm, efficient. Uses your call sign and never hurries |
 | Deputy Jess Kowalski | Night-shift deputy on her third double | Scenes, holds, the bay | That people are missing and roads are wrong, but not why. She tapes everything | Tired and dry; honest when asked straight |
 | Tou Vang | County surveyor, 20 years setting corners | Absent until Act 4; present through his field book and caps | The most: measurements from the first night | Precise, unbothered, won't speculate |
 | Sheriff Ron Siebert | Keeps the ban in place | Signatures on faxes, one radio call | Everything the county knows | Never more than one sentence at a time |
@@ -254,7 +254,7 @@ Every spoke starts at the yard in Esker. The first new land opens on Kolpack Roa
 - **The plat book** is the map: parcels, owner names, section numbers and fire numbers. Glance at it on the passenger seat while driving, or pull over to study it.
 - **Fire numbers** follow the real grid. The prefix is N on north–south roads and W on east–west roads, and every number is 20 feet, so about 264 to a mile. Experienced players read a sign and know how far along the road they are.
 - **Landmarks** do the rest: the radio tower's red beacon to the east, St. Hedwig's steeples, the dairy's lit barns, the roar of the dam, and the orange skyglow over Esker and Tamarack.
-- **Arlene talks you in** whenever you ask, by landmark: "Past the co-op, left at the Lindquist silo." On new land she can't: "I don't have anything out there, hon."
+- **Arlene talks you in** whenever you ask, by landmark: "Past the co-op, left at the Lindquist silo." On new land she can't: "I don't have anything out there."
 - **The dash compass** gives heading only, as period trucks did.
 - **Your marks.** The plat book inks in the roads you've driven. Roads that aren't printed go in in pencil, with your odometer readings beside them.
 
@@ -270,13 +270,13 @@ The look is PS2-era Silent Hill 2 moved to a county highway at 3 a.m.: low resol
 
 ### Rendering rules
 
-- Internal resolution 640 × 448 at 4:3, upscaled with nearest-neighbor. The 16:9 option widens the view instead of stretching it.
+- The world renders at 288 lines with square pixels and nearest-neighbor upscaling. The width follows the screen aspect ratio, from 384 × 288 at 4:3 to 512 × 288 at 16:9.
 - 30 fps target, with a 60 fps option.
 - Textures 128 to 256 pixels with bilinear filtering. A little shimmer is fine.
 - World lighting is per-vertex. Only the headlights, spot and flashlight light per-pixel, and only the flashlight casts shadows, as in Silent Hill 2.
 - Polygon budgets: the wrecker about 8,000 triangles, cars 1,500 to 3,000, farm buildings 300 to 1,500, people about 2,000.
 - Snow replaces fog. Distance fog is tinted storm blue with 60 to 120 meters of visibility. Streaking snow billboards thicken in the headlights into a tunnel, and drift sprites cross the road.
-- Film grain, a slight vignette and bloom on lights only.
+- Faint CRT scanlines, film grain, a slight vignette and a little horizontal bleed on bright edges.
 - None of the modern extras: no screen-space reflections, simulated volumetric fog, depth of field or motion blur.
 - Side mirrors are low-resolution render textures, so the car on your hook shows in them.
 - Your tire tracks persist as decals. On roads you've driven you can see where you've been; on new land there are no tracks at all.
@@ -341,7 +341,7 @@ Almost all of the UI is paper or truck hardware. A drive opens behind the wrecke
 - One key glances at the clipboard or plat book while you drive: a tilted, low-detail view in your lap. Stop the truck to study either one full-screen.
 - Interaction prompts are short Overpass text under the center of the screen, white with a dark outline.
 - Subtitles are Overpass Semibold with a speaker tag such as DISPATCH or KOWALSKI.
-- UI is drawn at output resolution over the 640 × 448 world, so text stays crisp while the world stays rough. A purist option draws it at native resolution.
+- UI is drawn at output resolution over the 288-line world, so text stays crisp while the world stays rough. A purist option draws it at native resolution.
 - Every color tell has a second channel. Mercury lights hum, and the tape is printed with SHERIFF in black.
 
 ### Fonts
@@ -388,7 +388,7 @@ The slice passes two tests. Does the third run feel better than the first? Does 
 
 ### Technical needs
 
-These hold in any engine: a raycast-suspension vehicle whose weight shifts with load; cable constraints with a readable tension value; roads built from segments, so straight pieces can be inserted; a 640 × 448 render target with point upscaling; and saves that store world changes (cars moved or taped, pencil roads, holds).
+These hold in any engine: a raycast-suspension vehicle whose weight shifts with load; cable constraints with a readable tension value; roads built from segments, so straight pieces can be inserted; a 288-line render target with point upscaling; and saves that store world changes (cars moved or taped, pencil roads, holds).
 
 ### What to cut first, and what never to add
 

@@ -12,6 +12,7 @@ const CABLE_REACH := 37.0
 const WALK_EYES := 1.68
 const MAX_SPEED := 25.6
 const MAX_LOADED := 18.2
+const MAX_STEER_ANGLE := deg_to_rad(36.0)
 const START_ODO := 82146.2
 const CHASE_ELEVATION := 0.25
 var world: Node3D
@@ -20,6 +21,8 @@ var body:Node3D
 var eyes:=Camera3D.new()
 var torch:=SpotLight3D.new()
 var car:Node3D
+var car_lamps:Node3D
+var flash_time:=0.0
 var witness:Node3D
 var flame:Node3D
 var chocks:Node3D
@@ -38,11 +41,13 @@ var chase_heading := 0.0
 var chase_orbit := 0.0
 var chase_elevation := CHASE_ELEVATION
 var chase_look_hold := 0.0
+var chase_scene_weight := 0.0
+var chase_scene_offset := Vector3.ZERO
 var in_cab:=true
 var foot:=Vector3.ZERO
 var speed:=0.0
-var motion:=Vector3.ZERO
-var steering:=0.0
+var motion:=Vector3.ZERO # Velocity at the rear tandem, in world space.
+var steering:=0.0 # Equivalent front road-wheel angle in radians, positive right.
 var heading:=0.0
 var acceleration:=0.0
 var odo:=START_ODO
@@ -64,6 +69,8 @@ var free_line:=0.0
 var reverse_timer:=0.0
 var slip_cooldown:=0.0
 var departure_time:=0.0
+var departure_lane_start:=Vector3.ZERO
+var departure_lane_end:=Vector3.ZERO
 var walked:=0.0
 var storage_point:=Vector3.ZERO
 var ground_period:=0.0
@@ -161,17 +168,18 @@ func _suspension(dt:float) -> void:
 	ground_period-=dt
 	if ground_period<=0:
 		ground_period=.065
-		var fl:=_wheel_ground(-1,-2.85)
-		var fr:=_wheel_ground(1,-2.85)
-		var bl:=_wheel_ground(-1,2.25)
-		var br:=_wheel_ground(1,2.25)
+		var fl:=_wheel_ground(-Truck.HALF_TRACK,Truck.FRONT_AXLE_Z)
+		var fr:=_wheel_ground(Truck.HALF_TRACK,Truck.FRONT_AXLE_Z)
+		var bl:=_wheel_ground(-Truck.HALF_TRACK,Truck.REAR_AXLE_Z)
+		var br:=_wheel_ground(Truck.HALF_TRACK,Truck.REAR_AXLE_Z)
 		var loaded_sag:=.058 if loaded else 0.0
-		ground_targets=Vector3((fl+fr+bl+br)*.25-loaded_sag,atan2((fl+fr-bl-br)*.5,5.1)+loaded_sag*.50,atan2((fr+br-fl-bl)*.5,2.0))
+		ground_targets=Vector3((fl+fr+bl+br)*.25-loaded_sag,atan2((fl+fr-bl-br)*.5,Truck.WHEELBASE)+loaded_sag*.50,atan2((fr+br-fl-bl)*.5,2.0*Truck.HALF_TRACK))
 	ground_spring+=((ground_targets.x-truck.position.y)*60.0-ground_spring*13.0)*dt
 	truck.position.y+=ground_spring*dt
 	var sprung_pitch:=ground_targets.y+clampf(acceleration*.003,-.036,.024)
 	pitch=lerpf(pitch,sprung_pitch,1-exp(-6.8*dt))
-	roll=lerpf(roll,ground_targets.z+steering*clampf(absf(speed)/22,0,1)*.036,1-exp(-6*dt))
+	var lateral_accel := speed * speed * tan(steering) / Truck.WHEELBASE
+	roll=lerpf(roll,ground_targets.z+clampf(lateral_accel*.008,-.06,.06),1-exp(-6*dt))
 	body.rotation=Vector3(pitch,0,roll)
 
 func _obstructed(a:Vector3,displacement:Vector3) -> bool:
@@ -180,18 +188,19 @@ func _obstructed(a:Vector3,displacement:Vector3) -> bool:
 	var hit:=_ray(a,a+displacement)
 	return not hit.is_empty() and absf((hit.normal as Vector3).y)<.72
 
-func _truck_obstacle(step:Vector3) -> bool:
-	if step.length()<.005: return false
-	var sign_z:float=-signf(step.dot(-truck.global_basis.z))
-	for side in [-.91,.91]:
-		var a:Vector3=truck.to_global(Vector3(side,.91,sign_z*4.06))
-		if _obstructed(a,step+step.normalized()*.12):
-			return true
+func _truck_obstacle(step:Vector3, turn:float) -> bool:
+	if step.is_zero_approx(): return false
+	for z in [-4.06,4.22]:
+		for x in [-1.12,1.12]:
+			var corner:Vector3=truck.global_basis*Vector3(x,.91,z)
+			var sweep:=step+corner.rotated(Vector3.UP,turn)-corner
+			if _obstructed(truck.global_position+corner,sweep+sweep.normalized()*.08):
+				return true
 	# Out in a work scene, the bumper stops against the casualty.
 	if car and phase in ["scene","flared","cable","rigged"]:
-		var tip:Vector3=truck.to_global(Vector3(0,0,sign_z*3.95))
-		var at:=car.to_local(tip+step)
-		var old:=car.to_local(tip)
+		var tip_offset:Vector3=truck.global_basis.z*(-signf(speed)*3.95)
+		var at:=car.to_local(truck.global_position+step+tip_offset.rotated(Vector3.UP,turn))
+		var old:=car.to_local(truck.global_position+tip_offset)
 		if absf(at.x)<1.93 and absf(at.z)<2.08 and Vector2(at.x,at.z).length_squared()<Vector2(old.x,old.z).length_squared():
 			return true
 	return false
@@ -201,6 +210,8 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 	dt=minf(dt,.0667)
 	info_timer=maxf(0,info_timer-dt)
 	if in_cab and driving_view == "chase":
+		if not look.is_zero_approx() or absf(speed)>1.0 or chase_scene_weight<1.0:
+			chase_scene_weight=move_toward(chase_scene_weight,0.0,dt*1.5)
 		chase_orbit = wrapf(chase_orbit-look.x,-PI,PI)
 		chase_elevation = clampf(chase_elevation+look.y,-0.08,0.95)
 		if not look.is_zero_approx():
@@ -218,6 +229,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
 		_walk(move,dt)
+		_face_operator(dt)
 		_suspension(dt)
 	_winch(operate,dt)
 	_trail(dt)
@@ -256,31 +268,44 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	else:
 		speed=move_toward(speed,0,(.56+offroad*.78+speed*speed*.0018)*dt)
 	if not pumping and fuel<=0 and info_timer<=0: _note("Fuel gone. Call Arlene for a can.",6.0)
-	var steer_target:=move.x*lerpf(1.0,.56,clampf(absf(speed)/24,0,1))
-	steering=move_toward(steering,steer_target,dt*(2.65 if absf(move.x)>.04 else 3.3))
-	var yaw_rate:float=speed*tan(steering*(.56 if loaded else .64))/5.1
-	heading-=yaw_rate*dt
-	truck.rotation.y=heading
-	forward=-truck.global_basis.z
-	var grip:float=lerpf(3.3,1.36,clampf(absf(speed)/22,0,1))*tire_grip
-	if loaded: grip*=1.17
-	motion=motion.lerp(forward*speed,1.0-exp(-grip*dt))
-	var step:=motion*dt
-	if _truck_obstacle(step):
+	# Digital controls use full steering lock in the yard and finer angles at road speed.
+	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
+	var lock_angle := minf(MAX_STEER_ANGLE, atan2(Truck.WHEELBASE*cornering_grip, speed*speed))
+	var steer_rate := lock_angle * (2.0 if absf(move.x) > .04 else 2.8)
+	steering = move_toward(steering, clampf(move.x,-1,1)*lock_angle, steer_rate*dt)
+
+	# Integrate the rear tandem along its rolling direction. The cab swings around
+	# that axle, and signed travel automatically reverses the arc when backing up.
+	var distance := speed * dt
+	var turn := -distance * tan(steering) / Truck.WHEELBASE
+	var midway := forward.rotated(Vector3.UP, turn*.5)
+	var right := midway.cross(Vector3.UP)
+	var next_forward := forward.rotated(Vector3.UP,turn)
+	# Above yard speed, momentum can push the drive tires sideways on snow.
+	var slip_limit := maxf(0.0,absf(speed)-6.0) * .17
+	var lateral_speed := clampf(motion.dot(right)*exp(-3.1*tire_grip*dt),-slip_limit,slip_limit)
+	motion = midway*speed + right*lateral_speed
+	var step := motion*dt + (next_forward-forward)*Truck.REAR_AXLE_Z
+	if _truck_obstacle(step,turn):
 		wear=minf(1,wear+clampf(absf(speed)-4,0,12)*.0015)
 		if absf(speed)>3: sound_event.emit("air_brake")
 		motion=Vector3.ZERO
 		speed=0
 		step=Vector3.ZERO
+		turn=0.0
 	# The storm boundary softens to a stop; reverse remains available.
 	var p:=truck.position+step
 	if (absf(p.x)>1150 or p.x< -775 or p.z>970 or p.z< -580) and Vector2(p.x,p.z).length_squared()>Vector2(truck.position.x,truck.position.z).length_squared():
 		step=Vector3.ZERO
+		turn=0.0
 		motion=Vector3.ZERO
 		speed=0
 	truck.position+=step
-	odo+=step.length()/GAME_MILE
-	fuel=maxf(0,fuel-step.length()*(.000065 if loaded else .000046))
+	heading=wrapf(heading+turn,-PI,PI)
+	truck.rotation.y=heading
+	var driven := absf(speed)*dt
+	odo+=driven/GAME_MILE
+	fuel=maxf(0,fuel-driven*(.000065 if loaded else .000046))
 	acceleration=clampf((speed-prev)/dt,-11,6)
 	if absf(speed)<.20 and absf(prev)>=.20 and handbrake: sound_event.emit("air_brake")
 	reverse_timer-=dt
@@ -327,6 +352,7 @@ func toggle_driving_view() -> void:
 	camera_yaw = 0.0
 	camera_pitch = -.067
 	_reset_chase()
+	_frame_nearby_car()
 	_update_eyes()
 
 func _reset_chase() -> void:
@@ -334,12 +360,33 @@ func _reset_chase() -> void:
 	chase_orbit = 0.0
 	chase_elevation = CHASE_ELEVATION
 	chase_look_hold = 0.0
+	chase_scene_weight = 0.0
+
+func _frame_nearby_car() -> void:
+	if driving_view!="chase" or absf(speed)>.65 or phase not in ["scene","flared","departing"] or not near_casualty(CABLE_REACH):
+		return
+	# Across the shoulder, both vehicles are visible and the wrecker cannot
+	# hide a car that was just behind it when the operator returned to the cab.
+	chase_scene_offset=car.global_position-truck.global_position
+	var side:=Vector3(-chase_scene_offset.z,0,chase_scene_offset.x).normalized()
+	if side.dot(truck.global_basis.x)>0.0: side=-side
+	var view:Vector3=(side*.85+truck.global_basis.z*.35).normalized()
+	chase_orbit=wrapf(atan2(view.x,view.z)-heading,-PI,PI)
+	chase_scene_weight=1.0
 
 func _update_chase() -> void:
 	# Start the boom above the cab so it can shorten over the roof in tight yards.
 	var pivot := truck.global_position + Vector3.UP*3.7
 	var behind := Vector3.BACK.rotated(Vector3.UP,chase_heading+chase_orbit)
 	var length := 17.0 if loaded else 11.2
+	var focus:Vector3=truck.global_position+Vector3.UP*2.05-behind*(.35 if loaded else 2.6)
+	if chase_scene_weight>0.0 and car:
+		pivot+=chase_scene_offset*.48*chase_scene_weight
+		focus=focus.lerp(truck.global_position+chase_scene_offset*.48+Vector3.UP*1.2,chase_scene_weight)
+		length+=chase_scene_offset.length()*.65*chase_scene_weight
+	elif loaded and car:
+		# Aim over the coupling, keeping the free axle in the lower half of the view.
+		focus=truck.global_position.lerp(car.global_position,.32)+Vector3.UP*1.45
 	var offset := (behind*cos(chase_elevation) + Vector3.UP*sin(chase_elevation))*length
 	var hit := _ray(pivot,pivot+offset)
 	if not hit.is_empty():
@@ -347,8 +394,7 @@ func _update_chase() -> void:
 	var at := pivot + offset
 	at.y = maxf(at.y,_ground(at)+0.55)
 	eyes.global_position = at
-	var look_ahead := 0.35 if loaded else 2.6
-	eyes.look_at(truck.global_position+Vector3.UP*2.05-behind*look_ahead,Vector3.UP)
+	eyes.look_at(focus,Vector3.UP)
 
 func _update_eyes() -> void:
 	eyes.fov = 62.0 if in_cab and driving_view == "chase" else 76.0
@@ -375,8 +421,9 @@ func start_job(job_kind:String,target:Vector3,yaw:float) -> void:
 	car=Scene.car(self,kind,variant)
 	car.position=Vector3(target.x,_ground(target),target.z)
 	car.rotation.y=yaw
+	_set_car_lamps("hazard")
 	if kind in ["ditch","hold"]:
-		witness=Scene.person(self,kind=="hold")
+		witness=Scene.person(self,kind=="hold",variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
 		witness.position=Vector3(point.x,_ground(point),point.z)
 		witness.rotation.y=yaw-1.14
@@ -386,6 +433,8 @@ func end_job() -> void:
 	for n in [car,witness,flame,chocks,dollies]:
 		if is_instance_valid(n): n.queue_free()
 	car=null
+	car_lamps=null
+	flash_time=0
 	witness=null
 	flame=null
 	chocks=null
@@ -397,6 +446,9 @@ func end_job() -> void:
 	tension=0
 	free_line=0
 	departure_time=0
+	if body:
+		body.stinger.position.z=-1.31
+		body.work_light.hide()
 	if cable_mesh: cable_mesh.clear_surfaces()
 	if highlight: highlight.visible=false
 
@@ -407,6 +459,16 @@ func store_vehicle(job_kind:String,point:Vector3,yaw:float) -> Node3D:
 	stored.position=Vector3(point.x,_ground(point),point.z)
 	stored.rotation.y=yaw
 	return stored
+
+func _face_operator(dt: float) -> void:
+	if not witness or not witness.visible or phase == "departing":
+		return
+	var distance := _flat_distance(foot, witness.position)
+	if distance < 0.4 or distance > 4.3:
+		return
+	var toward := foot - witness.position
+	var yaw := atan2(-toward.x, -toward.z)
+	witness.rotation.y = rotate_toward(witness.rotation.y, yaw, dt * 1.8)
 
 func get_witness_position() -> Vector3:
 	return witness.global_position if witness and witness.visible else Vector3.INF
@@ -436,7 +498,7 @@ func _drum() -> Vector3:
 	return body.to_global(Truck.DRUM)
 
 func _hitch() -> Vector3:
-	return body.to_global(Truck.HITCH)
+	return body.stinger.to_global(Truck.HITCH)
 
 func _eyelet(end:int) -> Vector3:
 	return car.to_global(Vector3(0,.56 if kind=="hold" else .39,end*(2.51 if kind=="hold" else 2.13)))
@@ -488,7 +550,7 @@ func context_text() -> String:
 	if action=="winch":
 		if slip_cooldown>0: return "Cable slipped · let the drum settle"
 		return "Hold WINCH · release to ease tension" if OS.has_feature("mobile") else "Hold Space to winch · release to ease tension"
-	var prompts:={"exit":"Step out of cab","enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle","haul":"Take vehicle to the marked yard bay","read_tape":"Read sheriff’s tape"}
+	var prompts:={"enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle","haul":"Take vehicle to the marked yard bay","read_tape":"Read sheriff’s tape"}
 	return prompts.get(action,"")
 
 func _hint() -> String:
@@ -524,9 +586,13 @@ func interact() -> void:
 			if phase in ["cable","rigged","at_lift","dollies"]:
 				_note("Finish or stow the rigging first.",2.5)
 				return
-			camera_yaw=wrapf(camera_yaw-heading,-PI,PI)
+			# Looking down at the exterior door handle should not leave the
+			# seated operator facing their lap or the back wall of the cab.
+			camera_yaw=0.0
+			camera_pitch=-.067
 			in_cab=true
 			_reset_chase()
+			_frame_nearby_car()
 			sound_event.emit("door")
 		"flare":
 			var loc:=foot+(car.position-foot).normalized()*.55
@@ -556,6 +622,9 @@ func interact() -> void:
 		"lift":
 			phase="loaded"
 			loaded=true
+			body.stinger.position.z=0.0
+			_track_underlift()
+			_set_car_lamps("tow")
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("lift")
@@ -630,6 +699,7 @@ func _winch(operate:bool,dt:float) -> void:
 		working=false
 		if kind=="ditch":
 			phase="departing"
+			_note("Ditch pull complete · the driver is taking the car home.",8.0)
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("ratchet")
@@ -638,37 +708,114 @@ func _winch(operate:bool,dt:float) -> void:
 			phase="at_lift"
 			sound_event.emit("ratchet")
 
+func _set_car_lamps(mode:String) -> void:
+	if car_lamps:
+		car_lamps.hide()
+		car_lamps.queue_free()
+	car_lamps=Scene.car_lamps(car,kind,mode,line_end)
+
+func _track_underlift() -> void:
+	var half_wheelbase:float=(2.5 if kind=="hold" else 2.12)*.61
+	var wheel_height:=.43 if kind=="hold" else .355
+	var lifted_axle:=Vector3(0,wheel_height,line_end*half_wheelbase)
+	var rolling_axle:=Vector3(0,wheel_height,-lifted_axle.z)
+	var hitch:=_hitch()+Vector3.UP*.15
+	# The rolling axle keeps its last ground contact as the crossbar moves. This
+	# gives the tow its own turning arc, in both forward and reverse.
+	var tail:=car.to_global(rolling_axle)-hitch
+	var bend:=wrapf(atan2(tail.x,tail.z)-heading,-PI,PI)
+	var trailing_yaw:=heading+clampf(bend,-PI/3,PI/3)
+	var rear_contact:=hitch+Vector3.BACK.rotated(Vector3.UP,trailing_yaw)*2.0*half_wheelbase
+	var rise:=hitch.y-_ground(rear_contact)-wheel_height
+	car.rotation=Vector3(-line_end*asin(clampf(rise/(2.0*half_wheelbase),-.60,.60)),trailing_yaw+(PI if line_end>0 else 0.0),0)
+	car.global_position=hitch-car.global_basis*lifted_axle
+
+func _departure_lane() -> void:
+	var forward:=Vector3.FORWARD.rotated(Vector3.UP,job_yaw)
+	departure_lane_start=job_site-forward*500
+	departure_lane_end=job_site+forward*500
+	if not world.has_method("map_roads"):
+		return
+	var nearest:=INF
+	for road:Dictionary in world.map_roads():
+		var points:PackedVector2Array=road.points
+		for i in range(1,points.size()):
+			var a:Vector3=world.resolve_point(Vector3(points[i-1].x,0,points[i-1].y))
+			var b:Vector3=world.resolve_point(Vector3(points[i].x,0,points[i].y))
+			var distance:=job_site.distance_squared_to(Geometry3D.get_closest_point_to_segment(job_site,a,b))
+			if distance>=nearest: continue
+			nearest=distance
+			if (b-a).dot(forward)<0:
+				var swap:=a
+				a=b
+				b=swap
+			var lane_offset:Vector3=(b-a).normalized().cross(Vector3.UP)*2.15
+			departure_lane_start=a+lane_offset
+			departure_lane_end=b+lane_offset
+
+func _depart(dt:float) -> void:
+	if witness and witness.visible:
+		var door:=car.to_global(Vector3(-1.10,0,-.25))
+		var stride:=door-witness.position
+		stride.y=0
+		if stride.length()>.16:
+			Scene.walk_person(witness)
+			witness.rotation.y=lerp_angle(witness.rotation.y,atan2(-stride.x,-stride.z),1.0-exp(-7.0*dt))
+			witness.position+=stride.limit_length(dt*1.65)
+			witness.position.y=_ground(witness.position)
+			return
+		witness.hide()
+		_set_car_lamps("running")
+		_departure_lane()
+		sound_event.emit("door")
+	departure_time+=dt
+	if departure_time<1.0:
+		return
+	var lane:=departure_lane_end-departure_lane_start
+	var lane_forward:=lane.normalized()
+	var lane_right:=lane_forward.cross(Vector3.UP)
+	var along:=clampf((car.position-departure_lane_start).dot(lane_forward)+8.0,0.0,lane.length())
+	var aim:=departure_lane_start+lane_forward*along
+	# Stay on the near side of the parked wrecker until the car can merge
+	# without cutting across its bed. Account for parking across the road.
+	var to_truck:=truck.position-car.position
+	var truck_ahead:=to_truck.dot(lane_forward)
+	if truck_ahead> -8.0 and truck_ahead<13.0:
+		var clearance:=1.35*absf(truck.global_basis.x.dot(lane_right))+5.1*absf(truck.global_basis.z.dot(lane_right))+1.35
+		var side:float=-1.0 if to_truck.dot(lane_right)>0.0 else 1.0
+		var space:float=(aim-truck.position).dot(lane_right)*side
+		aim+=lane_right*side*maxf(0.0,clearance-space)
+	var direction:=aim-car.position
+	direction.y=0
+	if direction.length()>1.0:
+		var yaw_target:=atan2(-direction.x,-direction.z)
+		var distance:=minf((departure_time-1.0)*1.55,10.5)*dt
+		var yaw:=rotate_toward(car.rotation.y,yaw_target,distance*.32)
+		var step:=Vector3.FORWARD.rotated(Vector3.UP,yaw)*distance
+		# Yield if the parked wrecker is across the lane.
+		var nose:=truck.to_local(car.position+step.normalized()*2.2+step)
+		if absf(nose.x)>1.75 or nose.z< -4.5 or nose.z>5.1:
+			car.rotation.y=yaw
+			car.position+=step
+			car.position.y=_ground(car.position)
+	# Beyond the county's 146 m fog horizon. A player following the car can
+	# keep it in sight all the way to the end of the road.
+	if _flat_distance(car.position,get_player_position())>165.0 and _flat_distance(car.position,job_site)>120.0:
+		car.hide()
+		phase="done"
+
 func _trail(dt:float) -> void:
 	if not car: return
+	body.work_light.visible=loaded or near_casualty(CABLE_REACH)
+	var extending:=kind!="ditch" and phase in ["rigged","at_lift","dollies","loaded"]
+	body.stinger.position.z=move_toward(body.stinger.position.z,0.0 if extending else -1.31,dt*1.5)
 	if phase=="departing":
-		departure_time+=dt
-		# Let the driver walk back before the recovered car rolls off.
-		if witness and witness.visible:
-			witness.position=witness.position.move_toward(car.to_global(Vector3(-1,0,0)),dt*1.8)
-			witness.position.y=_ground(witness.position)
-			if _flat_distance(witness.position,car.position)<1.5 or departure_time>7.0:
-				witness.visible=false
-		if departure_time>6.5:
-			var yaw_target:=0.0 if cos(job_yaw)>0 else PI
-			car.rotation.y=lerp_angle(car.rotation.y,yaw_target,1-exp(-dt*1.1))
-			car.position+=-car.global_basis.z*minf((departure_time-6.5)*1.65,10.5)*dt
-			car.position.y=_ground(car.position)
-			if departure_time>22.5:
-				car.visible=false
-		return
-	if not loaded: return
-	var hitch:=_hitch()
-	var toward:=hitch-car.position
-	toward.y=0
-	if toward.length_squared()<.001: toward=truck.global_basis.z*-1
-	var target_yaw:=atan2(toward.x,toward.z)+(PI if line_end<0 else 0.0)
-	car.rotation.y=lerp_angle(car.rotation.y,target_yaw,1.0-exp(-dt*(1.6+absf(speed)*.32)))
-	var offset:Vector3=car.global_basis.z*line_end*(2.49 if kind=="hold" else 2.10)
-	var pos:Vector3=hitch-offset
-	car.position.x=pos.x
-	car.position.z=pos.z
-	car.position.y=_ground(car.position)+.19
-	car.rotation.x=-line_end*.103
+		_depart(dt)
+	elif loaded:
+		_track_underlift()
+	if phase not in ["loaded","done"] and (phase!="departing" or witness.visible):
+		flash_time=fmod(flash_time+dt,1.0)
+		car_lamps.visible=flash_time<.5
 
 func _cable_curve() -> void:
 	cable_mesh.clear_surfaces()
@@ -744,6 +891,12 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"departed":departure_time,"chains":tire_chains}
 	d["driving_view"] = driving_view
+	if loaded:
+		d["lift_height"]=body.lift.position.y
+	if phase=="departing" and witness:
+		d["driver_boarded"]=not witness.visible
+		d["witness"]=_v(witness.position)
+		d["witness_yaw"]=witness.rotation.y
 	if car:
 		d["car"]=_v(car.position)
 		d["car_rot"]=_v(car.rotation)
@@ -776,11 +929,28 @@ func restore_state(d:Dictionary) -> void:
 	if car:
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
-		if departure_time>22.5: car.visible=false
-		if witness and departure_time>7.0: witness.visible=false
+		if phase=="departing" and witness:
+			witness.visible=not d.get("driver_boarded",departure_time>7.0)
+			witness.position=_unpack(d.get("witness"),witness.position)
+			witness.rotation.y=d.get("witness_yaw",witness.rotation.y)
+			if not d.has("driver_boarded"):
+				departure_time=maxf(0.0,departure_time-6.5) if not witness.visible else 0.0
+			if not witness.visible:
+				_departure_lane()
+				_set_car_lamps("running")
+		elif phase=="done" and kind=="ditch":
+			car.hide()
+			witness.hide()
 		if d.has("flare"): flame=Scene.flare(self,_unpack(d.flare,car.position))
 		if phase in ["cable","rigged","at_lift","dollies"]: _set_chocks()
 		if kind=="hold" and phase in ["dollies","loaded","done"]: _fit_dollies()
+		if loaded:
+			body.stinger.position.z=0.0
+			body.lift.position.y=d.get("lift_height",.39)
+			_set_car_lamps("tow")
+			_track_underlift()
 	speed=0
 	motion=Vector3.ZERO
+	if in_cab:
+		_frame_nearby_car()
 	_update_eyes()

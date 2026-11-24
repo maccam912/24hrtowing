@@ -2,6 +2,12 @@ extends SceneTree
 
 const Desk := preload("res://scripts/desk.gd")
 const CAB_CONTROLS := ["steer_l", "steer_r", "gas", "brake", "reverse", "interact", "radio", "map", "slip", "camera", "pause"]
+const PAPER_TABS := ["radio", "slip", "map", "fax", "parts", "custody", "field"]
+const PAPER_STATE := {
+	"in_cab": true, "field_available": true, "custody_text": "Evidence hold",
+	"slips": [{}], "faxes": ["First fax", "Second fax"], "can_fax": true,
+	"can_order": true, "paid": 1000, "wear": 0.5,
+}
 
 var screen := SubViewport.new()
 var desk := Desk.new()
@@ -54,7 +60,7 @@ func run() -> void:
 	for resolution in [Vector2i(800, 600), Vector2i(2400, 1080)]:
 		screen.size = resolution
 		desk.start_play()
-		desk.update_view({"in_cab": true})
+		desk.update_view(PAPER_STATE)
 		# A screen contact activates the touch interface on headless and desktop builds.
 		touch(0, Vector2(screen.size) / 2, true)
 		touch(0, Vector2(screen.size) / 2, false)
@@ -79,7 +85,17 @@ func run() -> void:
 		check(desk.get_move() == Vector2.ONE, "Reverse and right steering should work together")
 		touch(1, centers.reverse, false)
 		touch(0, centers.steer_r, false)
-		desk.update_view({"in_cab": false, "work_available": true})
+		for tab in PAPER_TABS:
+			touch(0, centers[tab], true)
+			touch(0, centers[tab], false)
+			await process_frame
+			check(desk.page == tab, "Tap did not open " + tab)
+			centers = check_layout(PAPER_TABS + ["close"])
+			if failed:
+				break
+		desk.dismiss()
+		var foot_state := PAPER_STATE.merged({"in_cab": false, "work_available": true}, true)
+		desk.update_view(foot_state)
 		await process_frame
 		centers = check_layout(["stick", "interact", "work", "pause"])
 		check(not centers.has("camera"), "Driving camera switch should be stowed on foot")
@@ -90,5 +106,5 @@ func run() -> void:
 		touch(0, centers.work, false)
 		check(not desk.work_held(), "Releasing winch should stop it")
 	if not failed:
-		print("CHECKS PASSED — landscape touch targets, multitouch driving and winching")
+		print("CHECKS PASSED — landscape touch targets, multitouch driving, winch and paperwork tabs")
 	quit(1 if failed else 0)

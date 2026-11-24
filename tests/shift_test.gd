@@ -22,7 +22,17 @@ func run() -> void:
 	await physics_frame
 	game.set_physics_process(false)
 	rig = game.rig
+	check(game.world_view.get_camera_3d() == game.title_camera, "title opens on the exterior wrecker")
+	check(game.picture.texture == game.world_view.get_texture(), "menu displays the gameplay viewport")
+	var opening_pose: Transform3D = game.title_camera.transform
+	var parked: Transform3D = rig.truck.global_transform
+	var initial_fuel: float = rig.fuel
+	for frame in 30:
+		game._physics_process(DT)
+	check(game.world_view.render_target_update_mode == SubViewport.UPDATE_ALWAYS and not opening_pose.is_equal_approx(game.title_camera.transform), "the yard and camera stay live behind the menu")
+	check(rig.truck.global_transform.is_equal_approx(parked) and rig.fuel == initial_fuel and game.shift_seconds == 0.0, "the title leaves the parked truck and shift clock alone")
 	game._action("play")
+	check(game.world_view.get_camera_3d() == rig.get_camera(), "starting puts the operator in the cab")
 	for i in 5:
 		game._action("radio")
 		check(game.mode == "fieldwork","accepted radio call")
@@ -34,11 +44,19 @@ func run() -> void:
 			drive_to(Vector3(0,0,130))
 			drive_to(Vector3(-2,0,150))
 			stop()
+			check(game._prompt().is_empty(),"stopping at the scene leaves the cab view clear")
 			check(rig.odo-game.dispatch_odo > 0.48,"actual drive from yard to Angie counted empty miles")
 		else:
 			rig.set_spawn(Vector3(site.x+2,0,site.z-13),0)
 		game._action("interact")
 		check(not rig.in_cab,"driver left cab at scene")
+		if i==1:
+			var parked_car:Node3D=rig.car
+			var before:=parked_car.global_transform
+			try_cab_door()
+			check(rig.in_cab and rig.car==parked_car and parked_car.global_transform.is_equal_approx(before),"re-entering at a roadside car preserves it")
+			check(rig.eyes.is_position_in_frustum(parked_car.position+Vector3.UP),"re-entering frames the parked casualty in chase view")
+			game._action("interact")
 		if job.kind == "hold":
 			var officer: Vector3 = rig.get_witness_position()
 			stand(officer + Vector3(0,0,1),officer)
@@ -57,15 +75,30 @@ func run() -> void:
 		stand(panel+outside,panel)
 		game._action("interact")
 		check(rig.phase == "cable","chock and take line")
-		var eye: Vector3 = rig._eyelet(-1)
-		stand(eye-rig.car.global_basis.z*.9,eye)
+		if i==1:
+			try_cab_door()
+			check(not rig.in_cab and rig.car.is_visible_in_tree() and rig.phase=="cable","carrying the hook keeps the truck chocked and the casualty at the scene")
+		var hook_end:=1 if i==3 else -1
+		var eye: Vector3 = rig._eyelet(hook_end)
+		stand(eye+rig.car.global_basis.z*hook_end*.9,eye)
 		game._action("interact")
 		check(rig.phase=="rigged","attached cable")
 		if i == 1:
+			try_cab_door()
+			check(not rig.in_cab and rig.car.is_visible_in_tree() and rig.phase=="rigged","the attached cable and car stay put at the cab door")
 			game._save()
 			var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 			game._restore(snapshot)
 			check(rig.phase=="rigged" and not rig.in_cab,"resume with attached cable and unchanged view")
+			var operator_view: Transform3D = rig.get_camera().global_transform
+			game.desk.toggle_pause()
+			check(game.world_view.get_camera_3d() == rig.get_camera(), "pause keeps the operator view")
+			game.desk._activate("title")
+			game.desk._activate("options")
+			check(game.world_view.get_camera_3d() == game.title_camera, "title settings keep the exterior view")
+			game.desk.dismiss()
+			game.desk._activate("play")
+			check(game.world_view.get_camera_3d() == rig.get_camera() and rig.get_camera().global_transform.is_equal_approx(operator_view),"continuing restores the on-foot camera")
 		stand(panel+outside,panel)
 		for tick in 3600:
 			if rig.phase != "rigged":
@@ -84,13 +117,20 @@ func run() -> void:
 			stand(panel+outside,panel)
 			game._action("interact")
 			check(rig.loaded and game.mode=="haul","lift and sign for tow")
+		var casualty:Node3D=rig.car
 		var handle: Vector3 = rig.truck.to_global(rig.Truck.DOOR)
 		stand(handle + outside,handle)
 		game._action("interact")
 		check(rig.in_cab,"re-enter driving seat")
+		check(rig.car==casualty and casualty.is_visible_in_tree(),"same recovery vehicle after entering the cab")
 		if rig.loaded:
 			for t in 240:
-				rig.set_controls(Vector2(0,-1),Vector2.ZERO,false,false,DT)
+				rig.set_controls(Vector2(.35,-1),Vector2.ZERO,false,false,DT)
+			verify_tow()
+			if i==1:
+				var snapshot:Dictionary=JSON.parse_string(JSON.stringify(rig.save_state()))
+				rig.restore_state(snapshot)
+				verify_tow()
 			stop()
 			rig.set_spawn(rig.storage_point + Vector3(4,0,0),PI/2)
 			rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,DT)
@@ -99,6 +139,8 @@ func run() -> void:
 			stand(panel-rig.truck.global_basis.x,panel)
 			game._action("interact")
 		else:
+			if i==0:
+				verify_departure()
 			rig.set_spawn(game.SPAWN,-PI/2)
 			game._survey()
 			game._action("interact")
@@ -162,3 +204,42 @@ func stand(position: Vector3, face: Vector3) -> void:
 	rig.camera_yaw = atan2(-direction.x,-direction.z)
 	rig.camera_pitch = -.20
 	rig._update_eyes()
+
+func try_cab_door() -> void:
+	var handle:Vector3=rig.body.to_global(rig.Truck.DOOR+Vector3.UP*1.4)
+	stand(handle-rig.truck.global_basis.x,handle)
+	game._action("interact")
+
+func verify_tow() -> void:
+	var wheelbase:float=(2.5 if rig.kind=="hold" else 2.12)*.61
+	var radius:=.43 if rig.kind=="hold" else .355
+	var supported:Vector3=rig.car.to_global(Vector3(0,radius,rig.line_end*wheelbase))
+	var rolling:Vector3=rig.car.to_global(Vector3(0,radius,-rig.line_end*wheelbase))
+	check(supported.distance_to(rig._hitch()+Vector3.UP*.15)<.035,"strapped axle stays in the underlift")
+	check(absf(rolling.y-rig._ground(rolling)-radius)<.20,"the free tires stay on the ground")
+	check(rig.truck.to_local(rolling).z>5.5 and rig.car.is_visible_in_tree(),"the free axle trails behind the wrecker")
+	check(rig.eyes.is_position_in_frustum(rig.car.position+Vector3.UP),"the chase camera includes the attached vehicle")
+
+func verify_departure() -> void:
+	var original:Vector3=rig.car.position
+	var driver:Vector3=rig.witness.position
+	rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,DT)
+	check(rig.witness.position.distance_to(driver)>0.0 and rig.car.position.is_equal_approx(original),"the driver walks back before the ditch car moves")
+	var snapshot:Dictionary=JSON.parse_string(JSON.stringify(rig.save_state()))
+	driver=rig.witness.position
+	rig.restore_state(snapshot)
+	check(rig.witness.position.is_equal_approx(driver),"continue preserves the driver's walk back to the car")
+	for i in 1800:
+		# Watch the merge, then follow beyond the old despawn timer.
+		if i==720:
+			check(rig.car.position.distance_to(original)>12.0,"ditch driver merges past the parked wrecker")
+		if i>=720:
+			rig.truck.position=rig.car.position+Vector3(8,0,8)
+		rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,DT)
+	check(not rig.witness.visible and rig.car.position.distance_to(original)>80.0,"the boarded driver takes the car away down the road")
+	check(rig.car.is_visible_in_tree(),"a nearby customer never vanishes on a timer")
+	rig.restore_state(JSON.parse_string(JSON.stringify(rig.save_state())))
+	check(not rig.witness.visible and rig.car.is_visible_in_tree(),"continue preserves a visible departing car after the driver boards")
+	rig.set_spawn(original)
+	rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,DT)
+	check(rig.phase=="done" and not rig.car.visible,"the departing car clears the scene beyond the storm horizon")

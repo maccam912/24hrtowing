@@ -7,7 +7,9 @@ const Audio := preload("res://scripts/radio_audio.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const Ledger := preload("res://scripts/ledger.gd")
 
+const WORLD_RASTER_HEIGHT := 288
 const SPAWN := Vector3(-27,0,-64)
+const TITLE_CAMERA_OFFSET := Vector3(-10.5,2.65,-7.0)
 const STORAGE := Vector3(-44,0,-77)
 const BAY := Vector3(-48,0,-47)
 const FAX := Vector3(-40,0,-39)
@@ -19,6 +21,10 @@ var rig
 var desk
 var audio
 var world_view := SubViewport.new()
+var title_camera := Camera3D.new()
+var title_light := SpotLight3D.new()
+var title_offset := TITLE_CAMERA_OFFSET
+var title_time := 0.0
 var picture := TextureRect.new()
 var world := Node3D.new()
 var active := false
@@ -65,7 +71,7 @@ var shutting_down := false
 func _ready() -> void:
 	test_session = "--test-mode" in OS.get_cmdline_user_args()
 	world_view.name = "Storm"
-	world_view.render_target_update_mode = SubViewport.UPDATE_ONCE
+	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	world_view.own_world_3d = true
 	world_view.audio_listener_enable_3d = true
 	add_child(world_view)
@@ -76,6 +82,7 @@ func _ready() -> void:
 	world.add_child(rig)
 	rig.setup(county)
 	rig.set_spawn(SPAWN,-PI/2)
+	_stage_title()
 	rig.storage_point = STORAGE
 	rig.recovered.connect(_recovered)
 	rig.dropped.connect(_dropped)
@@ -102,9 +109,58 @@ func _ready() -> void:
 	_refresh()
 	print("24 HR Towing | dispatch ready")
 
+func _stage_title() -> void:
+	rig.truck.add_child(title_camera)
+	title_camera.keep_aspect = Camera3D.KEEP_WIDTH
+	_frame_truck(TITLE_CAMERA_OFFSET)
+	rig.truck.add_child(title_light)
+	title_light.global_position = rig.truck.to_global(Vector3(-5.1,7.2,-4.6))
+	title_light.look_at(rig.truck.to_global(Vector3(0,1.2,0)),Vector3.UP)
+	title_light.light_color = Color("#ffd6a3")
+	title_light.light_energy = 3.0
+	title_light.spot_range = 23.0
+	title_light.spot_angle = 54.0
+	title_light.shadow_enabled = true
+	title_camera.make_current()
+
+func _frame_truck(offset: Vector3, field_of_view := 73.0) -> void:
+	title_camera.fov = field_of_view
+	title_camera.position = offset
+	title_camera.look_at(rig.truck.to_global(Vector3(0,1.62,0)),Vector3.UP)
+	title_camera.translate_object_local(Vector3(-4.35,0,0))
+
+func _frame_parked_truck() -> void:
+	if not title_camera.current:
+		return
+	title_time = 0.0
+	var focus: Vector3 = rig.truck.to_global(Vector3(0,1.62,0))
+	var space: PhysicsDirectSpaceState3D = rig.get_world_3d().direct_space_state
+	for angle: float in [0.0, PI * 0.5, -PI * 0.5, PI]:
+		title_offset = TITLE_CAMERA_OFFSET.rotated(Vector3.UP,angle)
+		_frame_truck(title_offset,73.0 if angle == 0.0 else 78.0)
+		var sightline := PhysicsRayQueryParameters3D.create(focus,title_camera.global_position,1)
+		if space.intersect_ray(sightline).is_empty():
+			return
+	title_offset = Vector3(-5.0,11.0,-4.0)
+	_frame_truck(title_offset)
+
+func _animate_title(dt: float) -> void:
+	title_time += dt
+	var angle := 0.29 * sin(title_time * 0.19)
+	var previous := title_camera.transform
+	_frame_truck(title_offset.rotated(Vector3.UP,angle),title_camera.fov)
+	# A resumed truck can be parked next to a wall or inside the hold bay.
+	if active:
+		var focus: Vector3 = rig.truck.to_global(Vector3(0,1.62,0))
+		var ray := PhysicsRayQueryParameters3D.create(focus,title_camera.global_position,1)
+		if not title_camera.get_world_3d().direct_space_state.intersect_ray(ray).is_empty():
+			title_camera.transform = previous
+	rig.body.animate_weather(dt,true)
+
 func _resize() -> void:
 	var bounds := get_viewport().get_visible_rect().size
-	world_view.size = Vector2i(roundi(640.0 * maxf(1.0, bounds.aspect()/(4.0/3.0))),448)
+	if bounds.y > 0:
+		world_view.size = Vector2i(maxi(2, roundi(WORLD_RASTER_HEIGHT * bounds.aspect())), WORLD_RASTER_HEIGHT)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and desk:
@@ -119,7 +175,9 @@ func _physics_process(dt: float) -> void:
 	if not rig or not desk or shutting_down:
 		return
 	var playing: bool = active and not desk.is_blocking()
-	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing else SubViewport.UPDATE_DISABLED
+	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or desk.is_title() else SubViewport.UPDATE_DISABLED
+	if desk.is_title():
+		_animate_title(dt)
 	if playing:
 		var move: Vector2 = desk.get_move()
 		move.x += _axis(KEY_A,KEY_D) + _axis(KEY_LEFT,KEY_RIGHT)
@@ -140,13 +198,13 @@ func _physics_process(dt: float) -> void:
 			_survey()
 	mouse_motion = Vector2.ZERO
 	county.follow_camera(world_view.get_camera_3d().global_position)
-	if active and desk.page != "pause":
+	if active and not desk.is_title() and desk.page != "pause":
 		sub_time = maxf(0.0,sub_time-dt)
 	ui_timer += dt
 	if ui_timer >= 0.10:
 		ui_timer = 0.0
 		_refresh()
-	audio.mix_truck(rig.get_status(),active,dt)
+	audio.mix_truck(rig.get_status(),active and not desk.is_title(),dt)
 	if not desk.is_touch_mode() and DisplayServer.get_name() != "headless":
 		var capture := Input.MOUSE_MODE_CAPTURED if playing else Input.MOUSE_MODE_VISIBLE
 		if Input.mouse_mode != capture:
@@ -182,6 +240,8 @@ func _input(event: InputEvent) -> void:
 func _action(id: String) -> void:
 	match id:
 		"play":
+			rig.get_camera().make_current()
+			title_light.visible = false
 			if not active:
 				active = true
 				if not saved_data.is_empty():
@@ -189,6 +249,11 @@ func _action(id: String) -> void:
 				else:
 					_say("hail")
 			desk.start_play()
+		"title":
+			_save()
+			title_camera.make_current()
+			title_light.visible = true
+			get_tree().physics_frame.connect(_frame_parked_truck,CONNECT_ONE_SHOT)
 		"radio":
 			if rig.get_status().in_cab:
 				if mode == "available":
@@ -538,7 +603,14 @@ func _restore(s: Dictionary) -> void:
 	completed = int(s.completed)
 	mode = s.mode
 	slips = s.slips
-	calls = s.calls
+	calls = s.calls.duplicate()
+	# Older saves kept the full dispatch transcript, including superseded dialogue.
+	for id in ["angie_call", "clerk"]:
+		var line: Array = audio.voices[id]
+		var current := "%s   %s" % line
+		for i in calls.size():
+			if str(calls[i]).begins_with(current + " "):
+				calls[i] = current
 	roads_driven = s.roads
 	stored = s.stored
 	held = s.held

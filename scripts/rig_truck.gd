@@ -17,7 +17,15 @@ const EYE := Vector3(-0.55,2.56,-0.42)
 const DOOR := Vector3(-1.55,0.0,-0.55)
 const PANEL := Vector3(-1.43,1.05,2.38)
 const DRUM := Vector3(0,1.38,4.0)
-const HITCH := Vector3(0,0.48,4.5)
+# Crossbar center with the underlift extended, before its vertical travel.
+const HITCH := Vector3(0,0.47,5.85)
+const FRONT_AXLE_Z := -2.85
+const FIRST_DRIVE_Z := 1.64
+const LAST_DRIVE_Z := 2.87
+const REAR_AXLE_Z := (FIRST_DRIVE_Z + LAST_DRIVE_Z) * 0.5 # Tandem midpoint.
+const WHEELBASE := REAR_AXLE_Z - FRONT_AXLE_Z
+const HALF_TRACK := 1.02
+const TIRE_RADIUS := 0.59
 var wheels: Array[Node3D]=[]
 var needles: Array[Node3D]=[]
 var wipers: Array[Node3D]=[]
@@ -25,6 +33,8 @@ var mirrors: Array[SubViewport]=[]
 var steer_wheel: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
+var stinger: Node3D
+var work_light:=SpotLight3D.new()
 var odo_label: Label3D
 var heading_label: Label3D
 var radio_label: Label3D
@@ -79,10 +89,14 @@ func build() -> void:
 		k.beam(Vector3(s*1.02,2.04,-1.76),Vector3(s*.96,3.22,-1.49),.07,.075,CREAM)
 		k.beam(Vector3(s*1.0,1.99,-.04),Vector3(s*.94,3.22,-.04),.11,.12,CREAM)
 		k.box(Vector3(s*.98,2.61,-.32),Vector3(.075,1.19,.04),IRON)
-		for z in [-2.85,1.64,2.87]:
-			var w := Kit.joint(self,Vector3(s*1.02,.60,z),"Wheel")
+		for z in [FRONT_AXLE_Z, FIRST_DRIVE_Z, LAST_DRIVE_Z]:
+			var w := Kit.joint(self,Vector3(s*HALF_TRACK,.60,z),"Wheel")
 			var wkit = Kit.new(w)
-			wkit.tube(Vector3(-.19,0,0),Vector3(.19,0,0),.59,RUBBER,20,"paint")
+			wkit.tube(Vector3(-.19,0,0),Vector3(.19,0,0),TIRE_RADIUS,RUBBER,20,"paint")
+			for tread in 20:
+				var angle := TAU * (tread + .5) / 20.0
+				var crown := Vector3(0,cos(angle),sin(angle)) * (TIRE_RADIUS - .007)
+				wkit.box(crown,Vector3(.38,.016,.075),TREAD,Vector3(angle,0,0))
 			wkit.tube(Vector3(s*.19,0,0),Vector3(s*.22,0,0),.46,TREAD,20,"paint")
 			wkit.tube(Vector3(s*.225,0,0),Vector3(s*.237,0,0),.324,STEEL,16)
 			wkit.tube(Vector3(s*.237,0,0),Vector3(s*.28,0,0),.124,IRON,12)
@@ -90,8 +104,7 @@ func build() -> void:
 				var a := j*TAU/8.0
 				var p := Vector3(s*.241,.215*sin(a),.215*cos(a))
 				wkit.tube(p,p+Vector3(s*.017,0,0),.031,CHROME,6)
-			wkit.finish()
-			wheels.append(w)
+			wheels.append(wkit.finish())
 	k.box(Vector3(0,1.24,-.81),Vector3(1.99,.18,1.82),DASH)
 	k.box(Vector3(0,3.24,-.76),Vector3(2.11,.15,1.73),MAROON)
 	k.box(Vector3(0,3.149,-.72),Vector3(1.95,.035,1.52),Color("#68635a"))
@@ -150,6 +163,17 @@ func _bed(k) -> void:
 		k.tube(Vector3(s*.54,2.03,1.76),Vector3(s*.54,2.52,1.07),.07,CHROME)
 	k.beam(Vector3(0,2.28,.84),Vector3(0,2.89,3.45),.50,.40,MAROON)
 	k.beam(Vector3(0,2.86,3.37),Vector3(0,3.05,4.08),.33,.25,STEEL)
+	var lamp_at:=Vector3(0,3.15,4.03)
+	k.box(lamp_at,Vector3(.29,.15,.17),IRON)
+	k.box(lamp_at+Vector3(0,0,.092),Vector3(.24,.10,.02),CREAM)
+	add_child(work_light)
+	work_light.position=lamp_at+Vector3(0,0,.12)
+	work_light.rotation=Vector3(-.38,PI,0)
+	work_light.light_color=Color("#fff0ca")
+	work_light.light_energy=2.7
+	work_light.spot_angle=43.0
+	work_light.spot_range=18.0
+	work_light.visible=false
 	for s in [-.12,.12]:
 		k.tube(Vector3(s,2.21,1.08),Vector3(s,3.03,4.09),.021,IRON)
 		k.tube(Vector3(s,3.03,4.08),Vector3(s,1.83,4.0),.017,IRON)
@@ -161,10 +185,14 @@ func _bed(k) -> void:
 	lift=Kit.joint(self,Vector3(0,.03,0),"Underlift")
 	var u=Kit.new(lift)
 	u.box(Vector3(0,.47,4.02),Vector3(.40,.22,1.19),IRON)
-	u.box(Vector3(0,.47,4.54),Vector3(1.82,.18,.21),STEEL)
-	for s in [-1.0,1.0]:
-		u.box(Vector3(s*.77,.49,4.76),Vector3(.12,.145,.65),IRON)
 	u.finish()
+	stinger=Kit.joint(lift,Vector3(0,0,-1.31),"TelescopingCrossbar")
+	var forks=Kit.new(stinger)
+	forks.box(Vector3(0,.47,5.14),Vector3(.27,.16,1.47),STEEL)
+	forks.box(HITCH,Vector3(1.96,.18,.21),IRON)
+	for s in [-1.0,1.0]:
+		forks.box(HITCH+Vector3(s*.79,.02,0),Vector3(.12,.145,.64),IRON)
+	forks.finish()
 
 func _cabin(k) -> void:
 	k.box(Vector3(0,1.74,-.37),Vector3(1.88,.18,.50),Color("#54534a"))
@@ -180,7 +208,7 @@ func _cabin(k) -> void:
 	for spec in [[184,160,.098],[492,160,.098],[720,114,.046],[913,114,.046]]:
 		var pos:=Vector3((float(spec[0])/1024-.5)*.92,(.5-float(spec[1])/320)*.2875,.0025)
 		needles.append(_needle(face,pos,spec[2]))
-	odo_label=Kit.label(face,"082146.2",Vector3(.27,-.10,.004),.027,Color("#d7bb83"),Vector3.ZERO,"dseg7")
+	odo_label=Kit.label(face,"082146.2",Vector3(.27,-.10,.004),.037,Color("#efcf90"),Vector3.ZERO,"dseg7")
 	# Compact magnetic dash compass on an adhesive pad.
 	k.box(Vector3(.13,2.299,-1.48),Vector3(.23,.12,.12),RUBBER)
 	heading_label=Kit.label(self,"N",Vector3(.13,2.303,-1.413),.050,CREAM)
@@ -257,15 +285,15 @@ func _panel_detail() -> void:
 	Kit.label(panel,"PTO   IN   OUT",Vector3(.12,.109,.039),.032,CREAM)
 
 func _mirror(s:float) -> void:
-	var at:=Vector3(s*1.39,2.49,-1.65)
+	var at:=Vector3(s*1.91,2.79,-1.68)
 	var m=Kit.new(self)
 	m.beam(Vector3(s*1.02,2.09,-1.67),at+Vector3(0,-.22,0),.035,.032,STEEL)
 	m.beam(Vector3(s*1.01,2.74,-1.49),at+Vector3(0,.20,0),.022,.024,STEEL)
 	m.finish()
 	var frame=Kit.joint(self,at)
-	frame.rotation.y=-s*(.34 if s<0 else .59)
+	frame.rotation.y=-s*(.46 if s<0 else .62)
 	var f=Kit.new(frame)
-	f.box(Vector3.ZERO,Vector3(.276,.482,.072),RUBBER)
+	f.box(Vector3.ZERO,Vector3(.33,.54,.072),RUBBER)
 	f.finish()
 	var viewport:=SubViewport.new()
 	viewport.size=Vector2i(80,112)
@@ -276,14 +304,14 @@ func _mirror(s:float) -> void:
 	add_child(viewport)
 	var camera:=Camera3D.new()
 	viewport.add_child(camera)
-	camera.fov=59
+	camera.fov=38
 	camera.far=110
 	camera.cull_mask=1
 	var loc=Kit.joint(self,at+Vector3(s*.08,0,.015),"MirrorEye")
-	loc.rotation=Vector3(-.12,PI+s*.075,0)
+	loc.rotation=Vector3(-.16,PI-s*.13,0)
 	camera.set_meta("mount",loc)
 	var quad:=QuadMesh.new()
-	quad.size=Vector2(.241,.439)
+	quad.size=Vector2(.296,.503)
 	var mat:=StandardMaterial3D.new()
 	mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.albedo_texture=viewport.get_texture()
@@ -298,22 +326,24 @@ func _mirror(s:float) -> void:
 	mirrors.append(viewport)
 
 func animate(dt:float, speed:float, steering:float, acceleration:float, load_on:bool, tension:float, fuel:float, odo:float, heading:float, cab:bool, has_job:bool) -> void:
-	elapsed+=dt
-	for i in wheels.size():
-		var wheel:=wheels[i]
-		wheel.rotation.x=fmod(wheel.rotation.x-speed*dt/.59,TAU)
-		if i%3==0:
-			wheel.rotation.y=-steering*.49
-	steer_wheel.rotation.z=-steering*2.2
+	animate_weather(dt,has_job)
+	var steer_tangent := tan(steering)
+	var curvature := steer_tangent / WHEELBASE
+	for wheel in wheels:
+		var hub := wheel.get_parent_node_3d()
+		var path_scale := 1.0 - hub.position.x * curvature
+		if is_equal_approx(hub.position.z, FRONT_AXLE_Z):
+			# Ackermann steering: both front wheels point around the same turn center.
+			hub.rotation.y = -atan2(steer_tangent, path_scale)
+			path_scale = Vector2(path_scale, steer_tangent).length()
+		# The tire spins about the steered hub's local axle.
+		wheel.rotate_x(-speed * dt * path_scale / TIRE_RADIUS)
+	steer_wheel.rotation.z = -steering * 14.0
 	var readings := [absf(speed)*2.237/80.0,clampf(.22+absf(speed)*.013+maxf(acceleration,0.0)*.065,0,1),fuel,.76]
 	for i in needles.size():
 		needles[i].rotation.z=deg_to_rad(132-264*clampf(readings[i],0,1))
 	pressure_needle.rotation.z=deg_to_rad(132-264*tension)
 	lift.position.y=move_toward(lift.position.y,.39 if load_on else .03,dt*.65)
-	for w in wipers:
-		w.rotation.z=-pow(sin(fmod(elapsed,3.6)*PI/.96),2)*1.44 if fmod(elapsed,3.6)<.96 else 0.0
-	for i in beacons.size():
-		beacons[i].visible=has_job and fmod(elapsed*2.2+i*.5,1)<.25
 	digital_timer-=dt
 	if digital_timer<=0:
 		digital_timer=.19
@@ -328,3 +358,11 @@ func animate(dt:float, speed:float, steering:float, acceleration:float, load_on:
 		var mount:Node3D=cam.get_meta("mount")
 		cam.global_transform=mount.global_transform
 		v.render_target_update_mode=SubViewport.UPDATE_ONCE
+
+func animate_weather(dt: float, beacons_on: bool) -> void:
+	elapsed += dt
+	var sweep := fmod(elapsed,3.6)
+	for w in wipers:
+		w.rotation.z = -pow(sin(sweep*PI/.96),2)*1.44 if sweep < .96 else 0.0
+	for i in beacons.size():
+		beacons[i].visible = beacons_on and fmod(elapsed*2.2+i*.5,1) < .25
