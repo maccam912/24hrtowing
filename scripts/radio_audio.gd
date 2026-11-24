@@ -1,18 +1,20 @@
 extends Node
 
+const Chatter := preload("res://scripts/dialogue_chatter.gd")
 const FOLDER := "res://assets/audio/"
 const EFFECT_LEVELS_DB := {"footstep": -24.0, "air_brake": -25.0, "reverse": -21.0}
-var voices := {}
+var lines := {}
+var chatter_streams := {}
 var engines := {}
 var samples := {}
-var speech := AudioStreamPlayer.new()
+var chatter := AudioStreamPlayer.new()
 var effects: Array[AudioStreamPlayer] = []
 var cursor := 0
 var radio_tail := false
 var audible := DisplayServer.get_name() != "headless"
 
 func _ready() -> void:
-	voices = JSON.parse_string(FileAccess.get_file_as_string(FOLDER + "lines.json"))
+	lines = JSON.parse_string(FileAccess.get_file_as_string(FOLDER + "lines.json"))
 	var radio_bus := AudioServer.get_bus_index("County radio")
 	if radio_bus < 0:
 		AudioServer.add_bus()
@@ -24,8 +26,8 @@ func _ready() -> void:
 		hi.cutoff_hz = 3000.0
 		AudioServer.add_bus_effect(radio_bus, lo)
 		AudioServer.add_bus_effect(radio_bus, hi)
-	add_child(speech)
-	speech.finished.connect(_speech_finished)
+	add_child(chatter)
+	chatter.finished.connect(_chatter_finished)
 	for i in 7:
 		var player := AudioStreamPlayer.new()
 		add_child(player)
@@ -46,19 +48,18 @@ func _sample(id: String) -> AudioStream:
 		samples[id] = load(FOLDER + id + ".mp3")
 	return samples[id]
 
-func say(id: String) -> float:
-	if not voices.has(id):
-		return 0.0
-	var stream := _sample(id)
-	radio_tail = voices[id][0] in ["DISPATCH","COUNTY PLOW"]
-	speech.bus = &"County radio" if radio_tail else &"Master"
-	speech.volume_db = -1.5 if radio_tail else -3.0
-	speech.stream = stream
+func say(id: String) -> void:
+	var line: Array = lines[id]
+	if not chatter_streams.has(id):
+		chatter_streams[id] = Chatter.render(line[0], line[1])
+	radio_tail = line[0] in ["DISPATCH","COUNTY PLOW"]
+	chatter.bus = &"County radio" if radio_tail else &"Master"
+	chatter.volume_db = -10.0 if radio_tail else -13.0
+	chatter.stream = chatter_streams[id]
 	if audible:
-		speech.play()
-	return stream.get_length()
+		chatter.play()
 
-func _speech_finished() -> void:
+func _chatter_finished() -> void:
 	if radio_tail:
 		effect("radio")
 

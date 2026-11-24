@@ -300,7 +300,7 @@ func _order_part(id: String) -> void:
 	_save()
 
 func _accept() -> void:
-	job = Dispatch.ticket(completed,audio.voices)
+	job = Dispatch.ticket(completed,audio.lines)
 	mode = "fieldwork"
 	dispatch_odo = rig.get_status().odo
 	pickup_odo = dispatch_odo
@@ -520,10 +520,9 @@ func _file_invoice() -> void:
 	_save()
 
 func _say(id: String) -> void:
-	var line: Array = audio.voices[id]
-	speaker = line[0]
-	subtitle = line[1]
-	sub_time = maxf(4.0, audio.say(id) + 0.55)
+	var line: Array = audio.lines[id]
+	_message(line[0], line[1])
+	audio.say(id)
 	if speaker in ["DISPATCH","COUNTY PLOW"]:
 		calls.append(speaker + "   " + subtitle)
 		if calls.size() > 3:
@@ -651,7 +650,7 @@ func _restore(s: Dictionary) -> void:
 	calls = s.calls.duplicate()
 	# Older saves kept the full dispatch transcript, including superseded dialogue.
 	for id in ["angie_call", "clerk"]:
-		var line: Array = audio.voices[id]
+		var line: Array = audio.lines[id]
 		var current := "%s   %s" % line
 		for i in calls.size():
 			if str(calls[i]).begins_with(current + " "):
@@ -681,7 +680,7 @@ func _restore(s: Dictionary) -> void:
 	plow_heard = s.plow
 	county.set_lengthened(s.longer)
 	if mode != "available":
-		job = Dispatch.ticket(completed,audio.voices)
+		job = Dispatch.ticket(completed,audio.lines)
 		rig.storage_point = BAY if job.kind == "hold" else STORAGE
 		county.set_hold_scene(job.kind=="hold" and mode=="fieldwork")
 		county.set_tripod_collected(packed_tripod)

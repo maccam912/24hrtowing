@@ -8,9 +8,20 @@ func check(ok: bool, note: String) -> void:
 		printerr(note)
 
 func _initialize() -> void:
-	var lines: Dictionary = JSON.parse_string(FileAccess.get_file_as_string("res://assets/audio/lines.json"))
+	run.call_deferred()
+
+func run() -> void:
+	var game = load("res://game.tscn").instantiate()
+	root.add_child(game)
+	var lines: Dictionary = game.audio.lines
 	for id in lines:
-		check(ResourceLoader.exists("res://assets/audio/"+id+".mp3"),"Missing voiced line: "+str(id))
+		game._say(id)
+		var stream := game.audio.chatter.stream as AudioStreamWAV
+		check(stream != null and stream.get_length() > 0, "Missing chatter for " + id)
+		check(game.speaker == lines[id][0] and game.subtitle == lines[id][1], "Subtitle for " + id)
+		check(stream != null and game.sub_time > stream.get_length(), "Reading time for " + id)
+		var radio: bool = game.speaker in ["DISPATCH", "COUNTY PLOW"]
+		check(game.audio.chatter.bus == (&"County radio" if radio else &"Master"), "Audio routing for " + id)
 	var previous := ""
 	for i in 100:
 		var ticket := Dispatch.ticket(i,lines)
@@ -27,5 +38,5 @@ func _initialize() -> void:
 	var pull := Dispatch.issue_slip(Dispatch.ticket(0,lines),19240,19240.8,19242,23,"03:28")
 	check(pull.loaded==0 and pull.storage==0,"A self-departing car must not be billed loaded miles or storage")
 	if not failed:
-		print("CHECKS PASSED — invoices, radio recordings and repeat dispatch")
+		print("CHECKS PASSED — invoices, dialogue chatter, subtitles and repeat dispatch")
 	quit(1 if failed else 0)

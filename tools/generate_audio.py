@@ -1,4 +1,4 @@
-"""Generate missing offline ElevenLabs effects and radio lines. Credentials stay on the build host."""
+"""Generate missing offline sound effects. Credentials stay on the build host."""
 import argparse
 import json
 import math
@@ -28,10 +28,6 @@ EFFECTS = {
     "footstep": (0.65, False, "Single heavy insulated boot crunching packed cold snow. Quiet short squeak at the end."),
     "lift": (1.4, False, "A tow truck underlift hydraulic cylinder moving a short distance then a mechanical clunk at its stop.")
 }
-LINES = json.loads((AUDIO / "lines.json").read_text())
-VOICES = {"DISPATCH": "EXAVITQu4vr4xnSDxMaL", "ANGIE": "XrExE9yKIg1WjnnlVkGX",
-          "KOWALSKI": "Xb7hH8MSUJpSbSDYk0k2", "COUNTY PLOW": "onwK4e9ZLuTAKqWW03F9",
-          "GARY": "nPczCjzI2devNBz1zQrb", "DRIVER": "TX3LPaxmHKxFdv7VOQHJ"}
 
 def read_key():
     if os.getenv("ELEVENLABS_API_KEY"):
@@ -73,15 +69,9 @@ def generate(name):
         print("Generated", name, flush=True)
         return
     key = read_key()
-    if name in EFFECTS:
-        seconds, loop, prompt = EFFECTS[name]
-        endpoint = "sound-generation"
-        body = dict(text=prompt, duration_seconds=seconds, loop=loop, model_id="eleven_text_to_sound_v2")
-    else:
-        speaker, line = LINES[name]
-        endpoint = "text-to-speech/" + VOICES[speaker]
-        body = dict(text=line, model_id="eleven_multilingual_v2", voice_settings={"stability": 0.65, "similarity_boost": 0.75})
-    url = "https://api.elevenlabs.io/v1/" + endpoint + "?output_format=mp3_44100_128"
+    seconds, loop, prompt = EFFECTS[name]
+    body = dict(text=prompt, duration_seconds=seconds, loop=loop, model_id="eleven_text_to_sound_v2")
+    url = "https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128"
     req = urllib.request.Request(url, data=json.dumps(body).encode(), headers={
         "xi-api-key": key, "Content-Type": "application/json", "Accept": "audio/mpeg"})
     with urllib.request.build_opener(NoRedirect()).open(req, timeout=120) as reply:
@@ -95,7 +85,11 @@ def generate(name):
 if __name__ == "__main__":
     args = argparse.ArgumentParser(description=__doc__)
     args.add_argument("names", nargs="*")
-    names = args.parse_args().names or [*EFFECTS, "reverse", *LINES]
+    effects = [*EFFECTS, "reverse"]
+    names = args.parse_args().names or effects
+    for name in names:
+        if name not in effects:
+            args.error("unknown sound effect: " + name)
     for name in names:
         try:
             generate(name)

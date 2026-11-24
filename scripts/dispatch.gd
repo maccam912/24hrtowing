@@ -16,7 +16,7 @@ const ORDINARY := {
 	"milk":{"base":"dairy","vehicle":"Checked station wagon"},
 }
 
-static func ticket(completed: int, voices: Dictionary) -> Dictionary:
+static func ticket(completed: int, lines: Dictionary) -> Dictionary:
 	var id: String
 	var base: String
 	var job: Dictionary
@@ -40,8 +40,8 @@ static func ticket(completed: int, voices: Dictionary) -> Dictionary:
 	job.route = base
 	job.reply = job.get("reply","angie" if base == "angie" else "gary")
 	job.number = 1001 + completed
-	job.dispatch = voices[id + "_call"][1]
-	job.directions = voices[base + "_dir"][1]
+	job.dispatch = lines[id + "_call"][1]
+	job.directions = lines[base + "_dir"][1]
 	return job
 
 static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float, seconds: float, clock: String) -> Dictionary:
