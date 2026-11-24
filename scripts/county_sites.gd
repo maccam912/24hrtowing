@@ -1,0 +1,511 @@
+extends RefCounted
+## County architecture is built in site-local coordinates, then baked in culling cells.
+var world
+var draw
+var origin := Vector3.ZERO
+var rng := RandomNumberGenerator.new()
+
+func _init(county, geometry) -> void:
+	world = county
+	draw = geometry
+	rng.seed = 83193
+
+func site(x: float,z: float, ground := 0.0) -> void:
+	origin = world.resolve_point(Vector3(x,ground,z))
+
+func p(x: float,y: float,z: float) -> Vector3:
+	return origin+Vector3(x,y,z)
+
+func b(x: float,y: float,z: float,w: float,h: float,d: float,mat: String,solid := false) -> void:
+	draw.box(p(x,y,z),Vector3(w,h,d),mat,solid)
+
+func cyl(x: float,y: float,z: float,w: float,h: float,mat: String,solid := false) -> void:
+	draw.add("cylinder",p(x,y,z),Vector3(w,h,w),mat)
+	if solid:
+		draw.solid_box(p(x,y,z),Vector3(w*.83,h,w*.83))
+
+func beam(a: Vector3,bb: Vector3,w: float,d: float,mat: String) -> void:
+	draw.beam(origin+a,origin+bb,w,d,mat)
+
+func label(at: Vector3, words: String, height: float, yaw: float, ink: Color, align := HORIZONTAL_ALIGNMENT_CENTER) -> void:
+	var type := Label3D.new()
+	type.text = words
+	if world.county_font:
+		type.font = world.county_font
+	type.font_size = 64
+	type.pixel_size = height/74.
+	type.modulate = ink
+	type.outline_size = 0
+	type.shaded = false
+	type.double_sided = false
+	type.horizontal_alignment = align
+	type.position = origin+at
+	type.rotation.y = yaw
+	type.visibility_range_end = minf(155.,45.+height*65.)
+	type.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	draw.parent.add_child(type)
+
+func placard(at: Vector3, words: String, width: float, height: float, yaw: float, panel := "green", both := false) -> void:
+	var front := Basis(Vector3.UP,yaw)*Vector3.BACK
+	draw.box(origin+at,Vector3(width,height,.095),panel,false,Vector3(0,yaw,0))
+	var font_height := minf(height*.82,width/maxi(1,words.length())*1.75)
+	label(at+front*.053,words,font_height,yaw,Color("#ece9d5"))
+	if both:
+		label(at-front*.054,words,font_height,yaw+PI,Color("#ece9d5"))
+
+func lamp(x: float,z: float, height := 6.0, is_cold := false, actual := true) -> void:
+	world.lamp_locations["mercury" if is_cold else "sodium"].append(p(x+.88,height-.07,z))
+	var lightmat := "mercury" if is_cold else "lamp"
+	var halomat := "cold_halo" if is_cold else "sodium"
+	cyl(x,height*.5,z,.18,height,"wood")
+	beam(Vector3(x,height-.2,z),Vector3(x+.85,height+.08,z),.09,.09,"post")
+	b(x+.88,height+.06,z,.9,.18,.46,"dark")
+	b(x+.88,height-.07,z,.64,.13,.36,lightmat)
+	for yaw: float in [0.,PI*.5]:
+		draw.add("quad",p(x+.88,height-.08,z),Vector3(6.0,6.0,1),halomat,Vector3(0,yaw,0))
+	if actual:
+		var light := OmniLight3D.new()
+		light.position=p(x+.88,height-.35,z)
+		light.light_color=Color("#b7d9cf") if is_cold else Color("#ffa65c")
+		light.light_energy=3.6
+		light.omni_range=height*2.6
+		light.omni_attenuation=.88
+		light.distance_fade_enabled=true
+		light.distance_fade_begin=43
+		light.distance_fade_length=18
+		draw.parent.add_child(light)
+
+func street_sign(x: float,z: float, first: String, second: String) -> void:
+	site(x,z,world.ground_height(x,world.resolve_point(Vector3(0,0,z)).z))
+	cyl(0,1.8,0,.12,3.6,"post")
+	placard(Vector3(0,3.35,0),first,3.1,.44,0.0,"green",true)
+	placard(Vector3(0,2.84,0),second,3.1,.44,PI*.5,"green",true)
+
+func address(x: float,z:float, text: String, yaw: float) -> void:
+	site(x,z,world.ground_height(x,world.resolve_point(Vector3(0,0,z)).z))
+	b(0,.69,0,.11,1.38,.13,"wood")
+	placard(Vector3(0,1.3,0),text,1.24,.43,yaw,"green",true)
+
+func roof(x: float,y: float,z: float,w: float,h: float,d: float,mat := "snow") -> void:
+	for s: float in [-1.,1.]:
+		var angle := -s*atan2(h,w*.5)
+		draw.box(p(x+s*w*.25,y+h*.5,z),Vector3(Vector2(w*.5,h).length()+.25,.22,d+.48),mat,false,Vector3(0,0,angle))
+	# Gable end triangles are filled with siding behind the eaves.
+	for s: float in [-1.,1.]:
+		var face := z+s*d*.5
+		draw.quad(p(x-w*.5,y,face),p(x,y+h,face),p(x+w*.5,y,face),p(x,y+.01,face),"silver")
+
+func window(at: Vector3,w: float,h: float,yaw := 0.,lit := true) -> void:
+	var basis := Basis(Vector3.UP,yaw)
+	var front := basis*Vector3.BACK
+	draw.box(origin+at,Vector3(w+.14,h+.15,.08),"cream",false,Vector3(0,yaw,0))
+	draw.box(origin+at+front*.05,Vector3(w,h,.065),"window" if lit else "glass",false,Vector3(0,yaw,0))
+	draw.box(origin+at+front*.095,Vector3(.055,h,.04),"dark",false,Vector3(0,yaw,0))
+	draw.box(origin+at+front*.095,Vector3(w,.055,.04),"dark",false,Vector3(0,yaw,0))
+
+func house(x: float,z: float) -> void:
+	site(x,z)
+	b(0,2.1,0,8.5,4.2,10,"cream",true)
+	roof(0,4.2,0,9.3,2.7,10.7)
+	b(-2.6,6.0,-2.0,.8,3.0,.78,"brick")
+	b(1.0,1.2,5.1,1.14,2.4,.14,"green")
+	b(.8,.2,5.8,3.8,.4,1.55,"wood")
+	for xx: float in [-2.4,2.9]:
+		window(Vector3(xx,2.0,5.05),1.5,1.45,0,xx<0)
+	for zz: float in [-2.8,1.8]:
+		window(Vector3(-4.28,2.05,zz),1.5,1.43,-PI*.5,true)
+	lamp(-7,5,5.2)
+
+func barn(x: float,z: float, large: bool) -> void:
+	site(x,z)
+	var w := 15. if large else 10.
+	var d := 36. if large else 18.
+	b(0,3.35,0,w,6.7,d,"siding",true)
+	# Two pitches per side give the old dairy barn its gambrel silhouette.
+	var break_x := w*.33
+	var bottom := 6.65
+	var break_h := 9.5
+	var ridge := 10.85
+	for s: float in [-1.,1.]:
+		for shape: Array in [[w*.5,bottom,break_x,break_h],[break_x,break_h,0.,ridge]]:
+			var a := Vector3(float(shape[0])*s,shape[1],0)
+			var bb := Vector3(float(shape[2])*s,shape[3],0)
+			draw.box(origin+(a+bb)*.5,Vector3((bb-a).length()+.27,.24,d+.62),"snow",false,Vector3(0,0,atan2(bb.y-a.y,bb.x-a.x)))
+	for side: float in [-1.,1.]:
+		var zz := side*d*.5
+		draw.quad(p(-w*.5,bottom,zz),p(-break_x,break_h,zz),p(break_x,break_h,zz),p(w*.5,bottom,zz),"siding")
+		draw.quad(p(-break_x,break_h,zz),p(0,ridge,zz),p(break_x,break_h,zz),p(0,break_h,zz),"siding")
+		b(0,2.4,zz+side*.07,4.4,4.8,.16,"cream")
+		b(0,2.3,zz+side*.17,4.15,4.6,.15,"oxide")
+		for flip: float in [-1.,1.]:
+			beam(Vector3(-2,2.3+flip*2.15,zz+side*.28),Vector3(2,2.3-flip*2.15,zz+side*.28),.12,.12,"cream")
+	for i in range(-2,3):
+		window(Vector3(-w*.5-.04,3.4,d*.15*i),1.7,1.,-PI*.5,large)
+	var silo_x := w*.5+4.
+	cyl(silo_x,6.8,d*.2,5.4,13.6,"silver",true)
+	draw.add("cone",p(silo_x,14.45,d*.2),Vector3(5.7,1.9,5.7),"snow")
+	for i in 7:
+		cyl(silo_x,i*1.84+.6,d*.2,5.48,.10,"dark")
+	b(silo_x-2.7,7,d*.2,.22,14,.25,"silver")
+	lamp(-w*.5-1,-d*.5-2,6.6)
+
+func fence(a: Vector3, end: Vector3, height: float, mesh_fence := true, solid := false) -> void:
+	var length := a.distance_to(end)
+	var bays := ceili(length/(4.3 if mesh_fence else 7.9))
+	for i in bays+1:
+		var pt := a.lerp(end,float(i)/bays)
+		draw.box(origin+pt+Vector3.UP*(height*.52), Vector3(.11,height*1.04,.11), "post" if mesh_fence else "wood")
+	beam(a+Vector3.UP*height,end+Vector3.UP*height,.06,.06,"post")
+	if mesh_fence:
+		var up := Vector3.UP*height
+		draw.quad(origin+a,origin+a+up,origin+end+up,origin+end,"wire",PackedVector2Array([Vector2.ZERO,Vector2(0,height),Vector2(length,height),Vector2(length,0)]))
+	else:
+		beam(a+Vector3.UP*.5,end+Vector3.UP*.5,.035,.035,"post")
+	if solid:
+		var middle := origin+(a+end)*.5+Vector3.UP*height*.44
+		draw.solid_box(middle,Vector3(length,height*.90,.16),Vector3(0,-atan2(end.z-a.z,end.x-a.x),0))
+
+func yard() -> void:
+	site(0,0)
+	for edge: Array in [
+		[Vector3(-61,0,-86),Vector3(-4,0,-86)], [Vector3(-61,0,-86),Vector3(-61,0,-34)],
+		[Vector3(-61,0,-34),Vector3(-4,0,-34)], [Vector3(-4,0,-86),Vector3(-4,0,-74)],
+		[Vector3(-4,0,-54),Vector3(-4,0,-34)]
+	]:
+		fence(edge[0],edge[1],2.3,true,true)
+	for xx: float in [-58.,-21.]:
+		lamp(xx,-84,6.)
+	lamp(-7.5,-52.5,5.7)
+	# Plow windrows stack against the fence, leaving the gate and storage stalls clear.
+	for i in 18:
+		var xx := -59.+i*3.12
+		var span := rng.randf_range(4.1,7.)
+		draw.add("mound",p(xx,.06,-85.4+rng.randf_range(-.2,.3)),Vector3(span,rng.randf_range(.8,1.8),2.9),"snow",Vector3(0,rng.randf_range(-.1,.1),0))
+	for i in 6:
+		draw.add("mound",p(-60.2,.04,-78.+i*5.4),Vector3(2.2,rng.randf_range(.7,1.48),7.8),"snow")
+	for zz: float in [-77.,-82.,-50.4,-42.5]:
+		draw.add("mound",p(-5.2,.07,zz),Vector3(2.1,1.38,6.5),"snow")
+	# Heated shop and evidence bay. The north and east sides of the bay are open.
+	b(-51.0,4.9,-44.8,18,.42,13,"silver")
+	b(-51.0,5.19,-44.8,18.4,.22,13.4,"snow")
+	b(-59.6,2.4,-45.1,.45,4.8,12.8,"silver",true)
+	b(-51.0,2.4,-38.6,17.7,4.8,.44,"silver",true)
+	for xx: float in [-59.4,-42.4]:
+		for zz: float in [-50.8,-38.8]:
+			b(xx,2.47,zz,.23,4.94,.23,"oxide",true)
+	b(-50.8,4.7,-50.9,17.55,.52,.24,"oxide")
+	b(-50.6,4.44,-46.8,7.0,.13,.32,"fluoro")
+	placard(Vector3(-50.7,4.60,-51.05),"EVIDENCE  •  HOLD",7.4,.67,PI,"black")
+	placard(Vector3(-57.2,1.45,-84.9),"STORAGE",4.2,.67,0,"dark")
+	# Office window and weatherproof fax desk face the yard. The fax interaction
+	# stands in open ground at (-40,-39), with no wall between player and machine.
+	b(-38,1.82,-35.45,8,3.64,4.4,"silver",true)
+	b(-38,3.77,-35.45,8.5,.26,4.85,"snow")
+	window(Vector3(-38.8,2.08,-37.72),2.5,1.30,PI)
+	b(-40.5,.81,-38.16,1.42,.18,.72,"wood")
+	for xx: float in [-41.05,-40.0]:
+		b(xx,.40,-38.1,.12,.80,.12,"dark")
+	b(-40.5,1.02,-38.14,.83,.27,.53,"cream")
+	b(-40.5,1.19,-37.97,.59,.28,.12,"white")
+	b(-40.5,1.17,-38.17,.54,.024,.045,"black")
+	b(-40.46,1.08,-38.45,.37,.018,.24,"white")
+	b(-40.78,1.19,-38.14,.105,.065,.36,"dark")
+	for zz:float in [-38.30,-38.01]:
+		b(-40.78,1.19,zz,.15,.10,.13,"black")
+	b(-40.39,1.18,-38.08,.20,.033,.080,"green")
+	for row in 3:
+		for col in 3:
+			b(-40.55+col*.070,1.17,-38.22-row*.04,.046,.021,.025,"dark")
+	b(-35.8,1.25,-37.74,1.2,2.5,.1,"green")
+	b(-35.4,.96,-37.82,.17,.053,.07,"post")
+	placard(Vector3(-38.1,3.03,-37.79),"OFFICE   /   FAX",4.2,.52,PI,"black")
+	# Shop equipment sits just inside the fence outside the drop and parking lanes.
+	for i in 5:
+		var cx := -11.3-i*.77
+		b(cx,.28,-36.4,.42,.55,.42,"wood")
+		draw.add("cylinder",p(cx,.83,-36.4),Vector3(1.12,.43,1.12),"black",Vector3(0,0,PI*.5))
+		draw.add("cylinder",p(cx,.83,-36.4),Vector3(.66,.46,.66),"post",Vector3(0,0,PI*.5))
+		draw.add("cylinder",p(cx,.83,-36.4),Vector3(.27,.48,.27),"dark",Vector3(0,0,PI*.5))
+	b(-10.5,.49,-81.5,.36,.85,.60,"wood")
+	b(-8.8,.49,-81.5,.36,.85,.60,"wood")
+	draw.add("cylinder",p(-9.7,1.04,-81.5),Vector3(1.28,2.64,1.28),"cream",Vector3(0,0,PI*.5))
+	for xx:float in [-11.02,-8.38]:
+		draw.add("mound",p(xx,1.04,-81.5),Vector3(.52,1.27,1.27),"cream")
+	b(-9.0,1.73,-81.5,.38,.18,.33,"oxide")
+	# Weathered porcelain yard sign, backs visible from either approach.
+	for zz: float in [-52.,-47.0]:
+		b(-4.9,2.12,zz,.18,4.24,.18,"wood")
+	var sign_at := p(-4.9,3.8,-49.5)
+	draw.box(sign_at,Vector3(6.5,2.17,.17),"oxide",false,Vector3(0,PI*.5,0))
+	for direction: float in [-1.,1.]:
+		draw.add("quad",sign_at+Vector3.RIGHT*.093*direction,Vector3(6.5,2.17,1),"sign",Vector3(0,PI*.5*direction,0))
+	# Yard air compressor and a stack of salt-stained tires near the office.
+	cyl(-31.1,.82,-37,.97,1.64,"oxide",true)
+	for j in 3:
+		cyl(-30,.22+j*.31,-36.6,.89,.29,"black")
+
+func fuel() -> void:
+	site(-71,18)
+	b(-4,2.10,8.0,18.,4.2,7.5,"brick",true)
+	b(-4,4.25,8.0,18.5,.24,8.0,"snow")
+	for xx: float in [-10,-6,-1.8,2.2]:
+		window(Vector3(xx,2.12,4.18),2.8,1.86,PI,true)
+	placard(Vector3(-4,3.81,4.08),"ESKER  FUEL & FOOD",13,.81,PI,"oxide")
+	b(0,4.20,-2,11,.47,6.8,"oxide")
+	b(0,4.49,-2,11.19,.14,6.95,"snow")
+	for xx: float in [-3.7,3.7]:
+		b(xx,2.15,-2,.19,4.3,.2,"silver",true)
+		b(xx,.12,-2,2.1,.24,1.02,"cream")
+		b(xx,1.03,-2,1.07,1.85,.6,"oxide",true)
+		b(xx,1.43,-2,1.12,.89,.68,"cream")
+		b(xx,1.54,-2.36,.8,.34,.05,"glass")
+		label(Vector3(xx,1.55,-2.39),"0.00",.18,PI,Color("#dbe2ca"))
+		label(Vector3(xx,1.22,-2.36),"REGULAR",.125,PI,Color("#282b28"))
+		beam(Vector3(xx+.48,1.54,-2.1),Vector3(xx+.80,1.17,-2.1),.050,.05,"black")
+		beam(Vector3(xx+.80,1.17,-2.1),Vector3(xx+.85,.49,-2.1),.05,.05,"black")
+		beam(Vector3(xx+.85,.49,-2.1),Vector3(xx+.75,.32,-2.1),.05,.05,"black")
+		beam(Vector3(xx+.75,.32,-2.1),Vector3(xx+.63,.40,-2.1),.05,.05,"black")
+		b(xx+.68,.91,-2.07,.09,1.1,.1,"black")
+		b(xx,3.88,-2,1.3,.12,.3,"fluoro")
+	beam(Vector3(2.4,1.40,-2),Vector3(2.4,.34,-2),.10,.10,"black")
+	b(-12.8,3.4,-8.4,.34,6.8,.38,"silver")
+	placard(Vector3(-12.8,5.9,-8.4),"FUEL  •  24 HR",5.6,1.45,PI,"oxide",true)
+	lamp(-6.5,-5,4.1)
+
+func esker() -> void:
+	# Paired bell towers of St. Hedwig's read before its sign.
+	site(22,80)
+	b(0,3.8,4.,12.6,7.6,18,"cream",true)
+	roof(0,7.6,4,13.2,4.8,18.4)
+	for xx: float in [-5.0,5.0]:
+		b(xx,5.40,-5,3.45,10.8,3.45,"brick",true)
+		b(xx,10.52,-5,3.79,.34,3.79,"cream")
+		b(xx,11.9,-5,2.85,2.8,2.85,"cream")
+		b(xx,11.94,-6.46,1.66,1.86,.1,"dark")
+		draw.add("cone",p(xx,16.8,-5),Vector3(4.1,7.4,4.1),"dark")
+		b(xx,20.8,-5,.09,1.4,.09,"post")
+		b(xx,21.1,-5,.82,.095,.09,"post")
+	b(0,1.6,-5.1,2.55,3.2,.18,"oxide")
+	for zz: float in [-2,2,6,10]:
+		window(Vector3(-6.36,4.36,zz),1.1,2.85,-PI*.5,true)
+	lamp(-6,-10,4.4)
+	placard(Vector3(-8,1.7,-8),"ST. HEDWIG",3.55,.61,-PI*.5,"dark",true)
+	site(37,-23)
+	b(0,3.2,0,15,6.4,13,"siding",true)
+	roof(0,6.4,0,15.2,3,13.2)
+	placard(Vector3(-7.56,4.5,0),"ESKER CO-OP",9.2,1.28,-PI*.5,"oxide")
+	for xx:float in [11.5,17.4]:
+		cyl(xx,6.4,-1,5.5,12.8,"silver",true)
+		draw.add("cone",p(xx,13.9,-1),Vector3(5.8,2.3,5.8),"silver")
+	lamp(-8,6,5.1)
+	# Esker water tower on crossed legs.
+	site(44,-68)
+	for x:float in [-3.1,3.1]:
+		for z:float in [-3.1,3.1]:
+			beam(Vector3(x,0,z),Vector3(x*.69,16,z*.69),.27,.28,"post")
+		beam(Vector3(x,2,-3.1),Vector3(x*.83,10,2.65),.12,.12,"post")
+		beam(Vector3(x,2,3.1),Vector3(x*.83,10,-2.65),.12,.12,"post")
+	cyl(0,17.1,0,8.7,5.0,"silver")
+	draw.add("cone",p(0,20.15,0),Vector3(9.5,1.9,9.5),"snow")
+	label(Vector3(-4.4,17.3,0),"ESKER",1.07,-PI*.5,Color("#eadac7"))
+	site(-30,14)
+	b(0,2.35,7,11.5,4.7,9,"oxide",true)
+	b(0,4.85,7,12,.30,9.5,"snow")
+	placard(Vector3(0,3.8,2.42),"ESKER TAP",7.8,.91,PI,"black")
+	for xx:float in [-3.4,3.4]:
+		window(Vector3(xx,2.0,2.44),2.1,1.3,PI,false)
+	b(0,1.35,2.42,1.5,2.70,.16,"dark")
+	for xx:float in [-134.,-98.,62.,105.]:
+		house(xx, 32 if xx<0 else -50)
+	site(0,0)
+	for x:float in [-118,-38,25,94]:
+		lamp(x,7.4 if x<0 else -7.4,6.3)
+
+func river_and_seat() -> void:
+	site(0,0)
+	b(-475,-2.12,0,43,.18,1510,"river")
+	for side: float in [-1.,1.]:
+		b(-475,1.15,side*6.15,61,.26,.28,"post")
+		b(-475,.67,side*6.15,61,.12,.20,"post")
+		for xx in range(-504,-442,5):
+			b(xx,.66,side*6.15,.19,1.34,.24,"post",true)
+		b(-475,.29,side*6.15,61,.58,.4,"slush",true)
+	site(-539,-13)
+	for zz:float in [-5.5,5.5]:
+		b(0,2.85,zz, .28,5.7,.28,"wood")
+	placard(Vector3(0,4.8,0),"TAMARACK RIVER",12.3,1.68,PI*.5,"green",true)
+	site(-580,27)
+	b(0,2.7,0,17,5.4,10,"silver",true)
+	roof(0,5.4,0,17.4,2.3,10.3)
+	placard(Vector3(0,3.7,-5.1),"RIVER LANES  /  TRUCK STOP",14.9,1.1,PI,"black")
+	lamp(-6,-7,7.1)
+	site(-472,-99)
+	b(0,0,0,51,4.6,6.4,"slush",true)
+	for i in range(-18,20,6):
+		b(i,.2,0,1.05,6,7.8,"silver")
+	b(-17,4.8,0,8,4.2,5.8,"brick")
+	roof(-17,6.9,0,8.3,1.7,6.1)
+	site(889,-25)
+	b(0,4.7,0,30,9.4,13,"brick",true)
+	for x:float in [-11.,-7.,-3.,1.,5.,9.]:
+		window(Vector3(x,3.4,6.6),1.65,1.9)
+		window(Vector3(x,7.05,6.6),1.65,1.9)
+	b(0,9.7,0,30.5,.55,13.6,"snow")
+	placard(Vector3(0,5.5,6.7),"TAMARACK COUNTY",15,1.15,0,"black")
+	lamp(-12,9,6.3)
+	site(905,44)
+	for i in 3:
+		var a := Vector3(cos(i*TAU/3.)*3.5,0,sin(i*TAU/3.)*3.5)
+		beam(a,Vector3.UP*61,.23,.23,"oxide")
+		beam(a*3.8,Vector3.UP*39,.045,.045,"post")
+	for y in range(5,57,4):
+		var width := 5.8*(1.-float(y)/61.)
+		for i in 3:
+			var ray := Vector3(cos(i*TAU/3.),0,sin(i*TAU/3.))
+			var other := Vector3(cos((i+1)*TAU/3.),0,sin((i+1)*TAU/3.))
+			beam(ray*width*.5+Vector3.UP*y,other*width*.47+Vector3.UP*(y+3.3),.09,.09,"post")
+	cyl(0,61,0,1.2,.9,"red")
+
+func grove_at(x: float,z: float,number: int,radius: float) -> void:
+	for i in number:
+		var xx := x+rng.randf_range(-radius,radius)
+		var zz := z+rng.randf_range(-radius,radius)
+		var real_z: float = world.resolve_point(Vector3(0,0,zz)).z
+		if world.road_distance(xx,real_z) < 15 or Rect2(-142,-98,200,199).has_point(Vector2(xx,zz)):
+			continue
+		site(xx,zz,world.ground_height(xx,real_z))
+		var h := rng.randf_range(5.3,15.3)
+		var yaw := rng.randf_range(-PI,PI)
+		for side:float in [0.,PI*.5]:
+			draw.add("quad",p(0,h*.5,0),Vector3(h*.48,h,1.),"spruce",Vector3(0,yaw+side,0))
+		if world.road_distance(xx,real_z) < 55 and i%2 == 0:
+			draw.solid_box(p(0,1.5,0),Vector3(.34,3,.34))
+
+func rural_grid() -> void:
+	house(431,246)
+	barn(465,262,false)
+	house(132,431)
+	barn(93,435,true)
+	barn(74,462,false)
+	site(98,420)
+	placard(Vector3(0,2.5,0),"BRZEZINSKI DAIRY",7,.94,PI,"oxide",true)
+	for xx:float in [-2.9,2.9]:
+		b(xx,1.37,0,.15,2.74,.15,"wood")
+	house(771,339)
+	barn(753,344,true)
+	barn(382,650,false)
+	house(366,620)
+	house(43,734)
+	site(0,0)
+	# A narrow field access with a culvert crosses the ditch at each dairy.
+	for lane:Array in [[406,246,430,246],[94,405,94,425]]:
+		var a:Vector3 = world.resolve_point(Vector3(lane[0],.01,lane[1]))
+		var bb:Vector3 = world.resolve_point(Vector3(lane[2],.01,lane[3]))
+		draw.box((a+bb)*.5,Vector3(absf(bb.x-a.x)+3,.13,absf(bb.z-a.z)+3),"slush",true)
+	for row:Array in [[13,185,152],[13,490,230],[414,267,92],[789,438,155],[-13,-378,189],[413,490,117]]:
+		site(row[0],row[1])
+		fence(Vector3.ZERO,Vector3(0,0,row[2]),1.17,false)
+	for index in 6:
+		var xx := 18+index*6
+		site(xx,-251)
+		for i in 15:
+			b(0,1.55,i*5,.13,3.1,.13,"wood")
+		beam(Vector3(0,2.91,0),Vector3(0,2.91,70),.045,.045,"post")
+	for index in 8:
+		site(25,-248+index*9)
+		beam(Vector3(-7,2.97,0),Vector3(24,2.97,0),.052,.052,"post")
+	for spec:Array in [[-62,152,21,33],[82,180,27,44],[-100,334,55,70],[270,122,42,56],[243,360,24,31],[473,85,27,43],[452,345,31,39],[865,450,32,71],[241,480,55,53],[310,720,34,62],[-54,-268,34,44],[63,-337,44,37],[45,-456,95,55],[225,-454,84,48],[408,-475,65,50],[-210,-416,36,44],[-350,42,40,34],[-215,-71,49,41],[180,57,34,29],[610,-42,38,41],[676,751,43,53]]:
+		grove_at(spec[0],spec[1],spec[2],spec[3])
+
+func road_furniture() -> void:
+	for r:Array in world.ROADS:
+		var start: Vector3 = world.resolve_point(Vector3(r[1],0,r[2]))
+		var end: Vector3 = world.resolve_point(Vector3(r[3],0,r[4]))
+		var dir := start.direction_to(end)
+		var side := dir.cross(Vector3.UP)
+		var length := start.distance_to(end)
+		var highway: bool = r[0] == "Highway 64" or r[0] == "US 59"
+		var previous := Vector3.ZERO
+		for i in range(0,int(length+1),48):
+			var point := start+dir*i
+			# Utility poles are sited on the field side of the roadside ditch.
+			var here := point+side*12.9
+			var skip := (here.x > -507 and here.x < -442) or (Rect2(-102,-96,208,140).has_point(Vector2(here.x,here.z))) or here.distance_to(Vector3(318,0,-412)) < 20
+			if not skip and (highway or r[0] in ["County K","Kolpack Rd","Hendricks Rd","Swamp Rd"]):
+				origin=here
+				cyl(0,3.55,0,.22,7.65,"wood")
+				draw.beam(here-side*1.34+Vector3.UP*7.1,here+side*1.34+Vector3.UP*7.1,.11,.11,"wood")
+				for arm:float in [-1.,1.]:
+					var ins := here+side*arm+Vector3.UP*7.27
+					draw.box(ins,Vector3(.12,.27,.12),"glass")
+					if previous != Vector3.ZERO:
+						var start_line := previous + side*arm+Vector3.UP*7.4
+						var end_line := ins+Vector3.UP*.13
+						var mid := (start_line+end_line)*.5-Vector3.UP*.63
+						draw.beam(start_line,mid,.038,.038,"black")
+						draw.beam(mid,end_line,.038,.038,"black")
+				previous = here
+			else:
+				previous = Vector3.ZERO
+			# Low reflective snow stakes parallel the road without covering the lane.
+			if i%96==0 and not skip:
+				for s:float in [-1.,1.]:
+					var foot := point+side*6.5*s
+					foot.y = world.ground_height(foot.x,foot.z)
+					draw.box(foot+Vector3.UP*.49,Vector3(.07,.98,.08),"wood")
+					draw.box(foot+Vector3.UP*.91,Vector3(.084,.14,.095),"white")
+		for i in range(6,int(length-4),12 if highway else 18):
+			var pt := start+dir*i
+			if (absf(pt.x) < 9 or absf(pt.x-400)<9 or absf(pt.x-800)<9) and (absf(pt.z)<9 or absf(pt.z+400)<9 or absf(pt.z-world._mapped_z(400))<9 or absf(pt.z-world._mapped_z(800))<9):
+				continue
+			var stripe_size := Vector3(3.5,.02,.105) if absf(dir.x)>.5 else Vector3(.105,.02,3.5)
+			draw.box(pt+Vector3.UP*.022,stripe_size,"stripe")
+	for sign:Array in [[-6.7,-7.3,"HWY 64","COUNTY K"],[6.8,-393.2,"SWAMP RD","COUNTY K"],[393.,7.2,"HWY 64","KOLPACK RD"],[7.2,393.,"HENDRICKS RD","COUNTY K"],[393.,393.,"HENDRICKS RD","KOLPACK RD"],[793.,7.3,"HWY 64","COUNTY FF"],[7.,793.,"ZIELINSKI RD","COUNTY K"],[393.,793.,"ZIELINSKI RD","KOLPACK RD"],[793.,393.,"HENDRICKS RD","COUNTY FF"]]:
+		street_sign(sign[0],sign[1],sign[2],sign[3])
+	for entry:Array in [[-7.2,131,"N 4928",PI],[407.,234,"N 5016",PI],[105.,407.,"W 1124",PI*.5],[-423.,7.3,"W 0784",PI*.5],[304.,-406.8,"SEC. 3",PI*.5],[7.,65,"N 4886",0.]]:
+		address(entry[0],entry[1],entry[2],entry[3])
+	site(11,-49)
+	placard(Vector3(0,1.8,0),"ESKER  •  POP 402",4.6,.76,0.0,"green",true)
+	for x:float in [-1.68,1.68]:
+		b(x,.91,0,.14,1.82,.14,"wood")
+	# County closures at the outer survey roads. The yard gate always stays open.
+	for end_point:Array in [[-635,0,PI*.5],[930,0,PI*.5],[455,-400,PI*.5],[-180,-400,PI*.5],[0,-420,0.],[-608,-280,0.],[-608,350,0.]]:
+		site(end_point[0],end_point[1])
+		placard(Vector3(0,1.4,0),"ROAD CLOSED",5.6,.7,end_point[2],"oxide",true)
+		for s:float in [-1.,1.]:
+			var offset := Basis(Vector3.UP,end_point[2])*Vector3(2.15*s,0,0)
+			b(offset.x,.74,offset.z,.19,1.49,.19,"wood")
+	site(0,0)
+
+func hold_site() -> void:
+	var q:Vector3 = world.hold_tripod_point()
+	origin = q
+	cyl(0,.06,0,.74,.12,"slush")
+	cyl(0,.123,0,.19,.013,"cream")
+	# Measured footprints turn north into state swamp and vanish in settled snow.
+	for i in range(1,29):
+		var x := q.x+i*.105+sin(i*.85)*.13
+		var z := q.z-i*.59
+		draw.box(Vector3(x,world.ground_height(x,z)+.027,z),Vector3(.14,.024,.27),"slush",false,Vector3(0,-.1+sin(i*3.1)*.23,0))
+	site(331,-483)
+	lamp(0,0,6.4,true,true)
+
+func survey_tripod() -> void:
+	origin = world.hold_tripod_point()
+	for leg in 3:
+		var angle := leg*TAU/3.
+		var foot := Vector3(cos(angle)*.74,0,sin(angle)*.74)
+		beam(foot,Vector3(foot.x*.14,1.65,foot.z*.14),.088,.085,"wood")
+		beam(foot*.6+Vector3.UP*.65,Vector3(foot.x*.1,1.65,foot.z*.1),.1,.1,"post")
+	cyl(0,1.64,0,.43,.13,"post")
+	b(0,1.89,0,.38,.44,.33,"green")
+	b(0,2.08,0,.49,.12,.43,"snow")
+	b(0,1.92,-.22,.22,.18,.28,"black")
+
+func build() -> void:
+	yard()
+	fuel()
+	esker()
+	river_and_seat()
+	rural_grid()
+	road_furniture()

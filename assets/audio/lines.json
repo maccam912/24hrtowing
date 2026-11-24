@@ -1,0 +1,106 @@
+{
+  "hail": [
+    "DISPATCH",
+    "Brandt, you on? Got a nurse waiting on County K."
+  ],
+  "angie_call": [
+    "DISPATCH",
+    "Angie Kraemer slid off County K. West ditch, just south of Saint Hedwig's. She needs a pull, hon."
+  ],
+  "bridge_call": [
+    "DISPATCH",
+    "Taped sedan on Highway sixty-four, at the east end of the river bridge. Take it to storage."
+  ],
+  "farm_call": [
+    "DISPATCH",
+    "Lindquist place on Kolpack. Gary went to check heifers and put two wheels in the ditch. Again."
+  ],
+  "dairy_call": [
+    "DISPATCH",
+    "Hazard on Hendricks Road, east of County K. Taped and checked. Bring it to your yard."
+  ],
+  "hold_call": [
+    "DISPATCH",
+    "Need you on Swamp Road at the Section Three corner. County vehicle. Kowalski's out there."
+  ],
+  "angie_dir": [
+    "DISPATCH",
+    "Out your gate, right on K. Cross Main. Look for the twin steeples, then the car in the west ditch."
+  ],
+  "bridge_dir": [
+    "DISPATCH",
+    "Take K south to Main. Turn right on sixty-four and stay on it to the river bridge."
+  ],
+  "farm_dir": [
+    "DISPATCH",
+    "East on sixty-four to Kolpack, then south. Look for the Lindquist silo on the east side."
+  ],
+  "dairy_dir": [
+    "DISPATCH",
+    "County K south past the church. Left at Hendricks. The car's on the north shoulder."
+  ],
+  "hold_dir": [
+    "DISPATCH",
+    "North on County K to the ginseng frames. Right on Swamp Road. Kowalski is at the section corner."
+  ],
+  "yard_dir": [
+    "DISPATCH",
+    "Brandt yard, west side of K, just north of Main. Bring the truck through the east gate."
+  ],
+  "clerk": [
+    "DISPATCH",
+    "Clerk says to take four tenths off that bridge ticket. Just fix it, hon."
+  ],
+  "angie": [
+    "ANGIE",
+    "My tires were on the white line. I could see the steeples the whole time. Thank you for coming."
+  ],
+  "gary": [
+    "GARY",
+    "Bev said the heifers could wait till morning. You can tell her I was already on my way back."
+  ],
+  "deputy": [
+    "KOWALSKI",
+    "Hold for investigation. Tripod goes with it. Lock it up. Don't go through it."
+  ],
+  "light": [
+    "KOWALSKI",
+    "That's not anything."
+  ],
+  "plow": [
+    "COUNTY PLOW",
+    "Kolpack got longer. I'm putting that extra pass on my time sheet."
+  ],
+  "clear": [
+    "DISPATCH",
+    "Copy that, Brandt. I'll be on the air."
+  ],
+  "can": [
+    "DISPATCH",
+    "County plow's bringing a can. You owe Duane a coffee."
+  ],
+  "student_call": [
+    "DISPATCH",
+    "A student slid off County K near the twin steeples. West side again. There's room for a pull."
+  ],
+  "student": [
+    "DRIVER",
+    "I thought the headlights behind me were another car. Turned out it was the church windows."
+  ],
+  "rural_call": [
+    "DISPATCH",
+    "Got a driver stuck off Kolpack by the Lindquist place. Easy to find the silo. Harder to find the pavement."
+  ],
+  "rural": [
+    "DRIVER",
+    "I counted fence posts waiting for you. Must have lost count somewhere. Appreciate the pull."
+  ],
+  "river_call": [
+    "DISPATCH",
+    "There's another checked car at the Highway sixty-four bridge. East shoulder. Standard storage."
+  ],
+  "milk_call": [
+    "DISPATCH",
+    "Dairy called in a car sticking into Hendricks. Deputy checked it. Haul it in when you're ready."
+  ]
+}
