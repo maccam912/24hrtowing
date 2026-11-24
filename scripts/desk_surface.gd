@@ -115,7 +115,7 @@ func button(id: String, r: Rect2, caption: String, dark: bool = false) -> void:
 		rule(r.position.x,r.end.y-1,r.size.x,ink)
 		fitted(r.grow_individual(-23,0,-44,0),caption,scaled,type_size,ink,HORIZONTAL_ALIGNMENT_LEFT)
 		_arrow(Vector2(r.end.x-24,r.get_center().y),10,ink,true)
-	elif id in ["respond","directions","settings_30","settings_60"]:
+	elif desk.page == "radio" or id in ["settings_30","settings_60"]:
 		# The radio's push keys and the settings selectors sit in recessed sockets.
 		switch_face(r,Color("#313732"),true)
 		var cap := r.grow(-4)
@@ -309,22 +309,50 @@ func _glance() -> void:
 func _contract_hint() -> float:
 	var title := str(drawn.get("hint_title",""))
 	var instruction := str(drawn.get("hint_action",""))
+	var road_note: Dictionary = drawn.get("road_note", {})
+	if not road_note.is_empty():
+		title = road_note.title
+		instruction = road_note.instruction
 	if desk.glance or title.is_empty() or instruction.is_empty():
 		return 0.0
 	var touch: bool = desk.is_touch_mode()
 	# The top row belongs to the touch controls and the desktop camera switch.
 	var max_width := minf(640,dim.x - (2*HUD_MARGIN if touch else 325))
 	var type_size := 21
+	var maneuver: String = road_note.get("maneuver","")
+	var inset := 57 if not maneuver.is_empty() else 15
 	var width := minf(max_width, maxf(MONO.get_string_size(title.to_upper(),HORIZONTAL_ALIGNMENT_LEFT,-1,15).x,
-		subtle.get_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,-1,type_size).x)+32)
-	var lines := subtle.get_multiline_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,width-28,type_size)
+		subtle.get_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,-1,type_size).x)+inset+17)
+	var lines := subtle.get_multiline_string_size(instruction,HORIZONTAL_ALIGNMENT_LEFT,width-inset-13,type_size)
 	var box := Rect2(HUD_MARGIN,TOP_ROW_Y+TOP_ROW_HEIGHT+10 if touch else 16,width,lines.y+36)
 	draw_rect(Rect2(box.position+Vector2(2,3),box.size),Color(0,0,0,0.36))
 	draw_rect(box,PAPER)
 	draw_rect(Rect2(box.position,Vector2(4,box.size.y)),OXBLOOD)
-	text(box.position+Vector2(15,20),title.to_upper(),MONO,15,OXBLOOD)
-	multiline(box.position+Vector2(15,25+subtle.get_ascent(type_size)),instruction,subtle,type_size,INK,width-28)
+	if not maneuver.is_empty():
+		_pencil_arrow(Vector2(box.position.x+28,box.get_center().y),maneuver)
+		draw_line(box.position+Vector2(inset-8,7),Vector2(box.position.x+inset-8,box.end.y-7),Color("#babba8"))
+	text(box.position+Vector2(inset,20),title.to_upper(),MONO,15,OXBLOOD)
+	multiline(box.position+Vector2(inset,25+subtle.get_ascent(type_size)),instruction,subtle,type_size,BLUE if not road_note.is_empty() else INK,width-inset-13)
 	return box.end.y
+
+func _pencil_arrow(center: Vector2, maneuver: String) -> void:
+	var stem := PackedVector2Array()
+	var head := PackedVector2Array()
+	match maneuver:
+		"left", "right":
+			var side := 1 if maneuver == "right" else -1
+			stem = PackedVector2Array([Vector2(-8*side,14),Vector2(-8*side,-1),Vector2(-5*side,-6),Vector2(13*side,-7)])
+			head = PackedVector2Array([Vector2(5*side,-14),Vector2(14*side,-7),Vector2(6*side,1)])
+		"around":
+			stem = PackedVector2Array([Vector2(10,14),Vector2(10,-5),Vector2(7,-12),Vector2(1,-15),Vector2(-6,-13),Vector2(-10,-7),Vector2(-10,6)])
+			head = PackedVector2Array([Vector2(-16,-1),Vector2(-10,8),Vector2(-3,0)])
+		"ahead":
+			stem = PackedVector2Array([Vector2(-1,15),Vector2(0,-13)])
+			head = PackedVector2Array([Vector2(-9,-5),Vector2(0,-15),Vector2(8,-6)])
+	for stroke: PackedVector2Array in [stem,head]:
+		for i in stroke.size():
+			stroke[i] += center
+		draw_polyline(stroke,BLUE,3.6,true)
 
 func _hud() -> void:
 	var hint_bottom := _contract_hint()
@@ -375,12 +403,29 @@ func _driving_view() -> void:
 		switch_face(key,CREAM)
 		fitted(key,"C",scaled,18,DARK)
 		fitted(camera_box.grow_individual(-37,-2,-6,-2), "Switch to cab" if chase else "Switch to chase",subtle,17,WHITE)
+	var compass := Rect2(camera_box.position.x-101,maxf(6, camera_box.get_center().y-(36 if chase else 20)),92,41)
+	_dash_compass(compass)
 	if chase:
-		var meter := Rect2(camera_box.position.x-101,camera_box.get_center().y-18,92,36)
+		var meter := Rect2(compass.position.x,compass.end.y+1,92,33)
 		switch_face(meter,Color("#292d29"),true)
 		draw_rect(meter.grow(-4),Color("#151b18"))
-		fitted(Rect2(meter.position+Vector2(7,2),Vector2(42,31)),"%d" % roundi(absf(float(drawn.get("speed_mph",0)))),LCD,24,AMBER,HORIZONTAL_ALIGNMENT_RIGHT)
-		fitted(Rect2(meter.position+Vector2(53,3),Vector2(32,29)),"MPH",MONO,13,CREAM)
+		fitted(Rect2(meter.position+Vector2(7,1),Vector2(42,29)),"%d" % roundi(absf(float(drawn.get("speed_mph",0)))),LCD,23,AMBER,HORIZONTAL_ALIGNMENT_RIGHT)
+		fitted(Rect2(meter.position+Vector2(53,2),Vector2(32,27)),"MPH",MONO,13,CREAM)
+
+func _dash_compass(box: Rect2) -> void:
+	switch_face(box,Color("#42443d"))
+	draw_rect(box.grow(-4),Color("#171e1b"))
+	var center := box.get_center()
+	var degrees := fposmod(float(drawn.get("heading_degrees", 0.0)), 360.0)
+	fitted(Rect2(box.position+Vector2(6,1),Vector2(38,25)),str(drawn.get("heading","N")),scaled,21,CREAM)
+	fitted(Rect2(box.position+Vector2(44,1),Vector2(42,25)),"%03d°" % posmod(roundi(degrees),360),MONO,14,CREAM)
+	# Marks travel past the fixed orange lubber line as the truck turns.
+	for i in range(floori(degrees/5.0)-5, ceili(degrees/5.0)+6):
+		var x := center.x + (i*5.0 - degrees)*1.65
+		if absf(x-center.x) > 35:
+			continue
+		draw_line(Vector2(x,box.end.y-8),Vector2(x,box.end.y-(15 if posmod(i,3)==0 else 12)),CREAM,1.0)
+	draw_colored_polygon(PackedVector2Array([Vector2(center.x-4,box.end.y-4),Vector2(center.x,box.end.y-11),Vector2(center.x+4,box.end.y-4)]),AMBER)
 
 func _mobile() -> void:
 	var left := HUD_MARGIN

@@ -31,6 +31,8 @@ func run() -> void:
 		game._physics_process(DT)
 	check(game.world_view.render_target_update_mode == SubViewport.UPDATE_ALWAYS and not opening_pose.is_equal_approx(game.title_camera.transform), "the yard and camera stay live behind the menu")
 	check(rig.truck.global_transform.is_equal_approx(parked) and rig.fuel == initial_fuel and game.shift_seconds == 0.0, "the title leaves the parked truck and shift clock alone")
+	# This seed opens at the steeples and sends a separate hazard past the turnout.
+	game.dispatch_seed = 84
 	game._action("play")
 	check(game.world_view.get_camera_3d() == rig.get_camera(), "starting puts the operator in the cab")
 	check(game.mode == "available" and game.job.is_empty(), "the first contract waits for the operator")
@@ -47,6 +49,22 @@ func run() -> void:
 			await tap_control("radio")
 			check(game.mode == "available" and game.desk.page == "radio", "opening the transceiver leaves the offer pending")
 			await tap_control("respond")
+		elif i == 2:
+			visit_survey_turnout()
+			resume_shift()
+			check(game.survey.notes.has("unit") and game.survey.notes.has("rod") and not game.survey.unit_reported,"observations survive a cold resume without opening a case")
+			press_key(KEY_R)
+			await tap_control("respond")
+			press_key(KEY_R)
+			await tap_control("report_unit")
+			check(game.survey.hold_order == "offered" and game.mode == "fieldwork" and game.county.survey_pickup.visible, "a voluntary report opens one order and preserves the paying job")
+		elif i >= 3:
+			press_key(KEY_R)
+			await tap_control("respond" if i == 3 else "take_case")
+			if i == 3:
+				check(game.survey.hold_order == "deferred" and game.job.kind == "hazard","keep me on rotation answers an ordinary dispatch immediately")
+			else:
+				check(game.survey.hold_order == "accepted" and game.job.kind == "hold" and not game.county.survey_pickup.visible, "Kowalski meets the operator at the original unit")
 		else:
 			press_key(KEY_R)
 		check(game.mode == "fieldwork","accepted radio call")
@@ -56,11 +74,11 @@ func run() -> void:
 		if i == 0:
 			drive_to(Vector3(-7,0,-64))
 			drive_to(Vector3(0,0,-54))
-			drive_to(Vector3(0,0,130))
-			drive_to(Vector3(-2,0,150))
+			drive_to(Vector3(0,0,site.z-16))
+			drive_to(Vector3(site.x*.36,0,site.z-12))
 			stop()
 			check(game._prompt().is_empty(),"stopping at the scene leaves the cab view clear")
-			check(rig.odo-game.dispatch_odo > 0.48,"actual drive from yard to Angie counted empty miles")
+			check(rig.odo-game.dispatch_odo > 0.45,"actual drive to a generated County K pull counted empty miles")
 		else:
 			rig.set_spawn(Vector3(site.x+2,0,site.z-13),0)
 		game._action("interact")
@@ -86,6 +104,8 @@ func run() -> void:
 			game._action("interact")
 			check(game.packed_tripod,"stowed survey gear")
 		stand(site+Vector3(2.5,0,0),site)
+		if game._site_action() == "driver":
+			game._action("interact")
 		game._action("interact")
 		check(rig.phase=="flared" and is_instance_valid(rig.flame),"flare at scene "+str(i))
 		var panel: Vector3 = rig._panel()
@@ -153,7 +173,7 @@ func run() -> void:
 		check(rig.in_cab,"re-enter driving seat")
 		check(rig.car==casualty and casualty.is_visible_in_tree(),"same recovery vehicle after entering the cab")
 		if rig.loaded:
-			for t in 240:
+			for t in (440 if i == 1 else 240):
 				rig.set_controls(Vector2(.35,-1),Vector2.ZERO,false,false,DT)
 			verify_tow()
 			if i == 1 or job.kind == "hold":
@@ -212,11 +232,11 @@ func run() -> void:
 			check(str(job.number) in receipt and "filed" in receipt, "the HUD confirms the numbered slip after stowing the fax and resuming")
 			check("cab" in str(game.state.get("hint_action","")).to_lower(), "the next-contract directions lead the operator back to the cab")
 		if i == 3:
-			check("disput" in hint_text(), "the county's disputed invoice is identified on the HUD")
+			check("filed" in hint_text(), "the fourth invoice is payable like every other slip")
 		if i == 2:
 			game._survey()
 			var printed := Vector3(409,0,246)
-			check(is_equal_approx(game.county.resolve_point(printed).z-printed.z,40.0),"offscreen section adds one odometer tenth")
+			check(game.county.kolpack_open and game.county.resolve_point(printed).is_equal_approx(printed),"unprinted farm opens while the original Kolpack haul is still measurable")
 			var balance: float = game.paid
 			game._action("buy_chains")
 			game._action("buy_chains")
@@ -236,6 +256,8 @@ func run() -> void:
 		stand(game.BAY+Vector3(0,0,-1.3),game.BAY)
 		game._action("interact")
 		check(game.book_read and game.desk.page == "field","optional field book inspection")
+		await tap_control("mark_sketch")
+		check(game.desk.page == "map" and game.survey.notes.has("sketch"),"copying Tou’s sketch marks the plat")
 		game.desk.dismiss()
 		game._save()
 		var against_wall: Dictionary = game.saved_data.duplicate(true)
@@ -249,10 +271,63 @@ func run() -> void:
 		game._action("interact")
 		check(not game.bay_locked and not rig.in_cab and rig.truck.to_local(rig.foot).x > 1.4, "a rig saved against the bay wall opens the chains and lets the operator exit on the yard side")
 		walk_to(Vector3(-55,0,-54))
-	check(game.faxes.size()==5 and "0.4" in str(game.faxes[3]) if game.faxes.size()>3 else false,"dispute archived")
+	check(game.faxes.size()==5,"all five jobs keep their receipts")
+	var query_found := false
+	for receipt: String in game.faxes:
+		if "calibrated" in receipt:
+			query_found = str(game.survey.queried_slip) in receipt and "loaded mi" in receipt
+	check(query_found, "Doreen references an actual loaded slip and leaves the amount payable")
 	if failures == 0:
-		print("CHECKS PASSED — drove County K, five complete recoveries, resume, custody and optional field book")
+		await investigate_kolpack()
+	if failures == 0:
+		print("CHECKS PASSED — generated recoveries, optional Unit 38 case, deferral, custody, Kolpack look-see and paid work afterward")
 	quit(1 if failures else 0)
+
+func visit_survey_turnout() -> void:
+	rig.set_spawn(Vector3(314,0,-398),0)
+	game._action("interact")
+	var door: Vector3 = game.county.survey_door_point()
+	stand(door+Vector3(0,0,1),door)
+	game._action("interact")
+	check(game.survey.notes.has("unit") and not game.survey.can_report_unit(),"door lettering alone does not locate the surveyor’s gear")
+	var rod: Vector3 = game.county.rod_case_point()
+	stand(rod+Vector3(0,0,1),rod)
+	game._action("interact")
+	stand_at_cab_door(-1)
+	game._action("interact")
+
+func investigate_kolpack() -> void:
+	stand_at_cab_door(-1)
+	game._action("interact")
+	press_key(KEY_R)
+	await tap_control("ask_farm")
+	press_key(KEY_R)
+	await tap_control("take_case")
+	check(game.job.get("kind") == "looksee" and rig.car == null,"the requested look-see has no recovery on the hook")
+	rig.set_spawn(game.county.resolve_point(Vector3(416,0,336)),0)
+	game._action("interact")
+	for item: String in ["house","vin","cap"]:
+		var point: Vector3 = game.county.story_point(item)
+		stand(point+Vector3(0,0,1),point)
+		game._action("interact")
+		check(game.survey.notes.has(item), "copied " + item + " on site")
+	resume_shift()
+	stand_at_cab_door(-1)
+	game._action("interact")
+	press_key(KEY_R)
+	await tap_control("report_farm")
+	check(game.mode == "return" and game.survey.farm_reported,"operator calls in the VIN from the cab")
+	rig.set_spawn(game.SPAWN,-PI/2)
+	game._action("interact")
+	stand(game.FAX+Vector3.FORWARD,game.FAX)
+	game._action("interact")
+	var filed: Dictionary = game.slips.back()
+	check(filed.kind == "looksee" and filed.pay == 38 and filed.loaded == 0 and filed.vin == game.county.KOLPACK_SEDAN.vin, "the address report pays only the call-out and files the observed VIN")
+	game.desk.dismiss()
+	stand_at_cab_door(-1)
+	game._action("interact")
+	press_key(KEY_R)
+	check(game.mode == "fieldwork" and game.job.kind in ["ditch","hazard"],"dispatch returns to ordinary rotation")
 
 func hint_text() -> String:
 	return ("%s %s" % [game.state.get("hint_title",""), game.state.get("hint_action","")]).to_lower()

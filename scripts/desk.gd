@@ -11,6 +11,7 @@ var started := false
 var glance := false
 var slip_index := -1
 var fax_index := -1
+var atlas_notes := false
 var fps := 30
 var _touch_mode := false
 var _touches: Dictionary = {}
@@ -231,7 +232,18 @@ func _activate(id: String) -> void:
 			show_document(id, state)
 		"respond", "directions", "send_fax":
 			_change_page("")
-			action.emit({"respond":"radio", "directions":"talk_in", "send_fax":"fax"}[id])
+			action.emit({"respond":"rotation", "directions":"talk_in", "send_fax":"fax"}[id])
+		"report_unit", "take_case", "ask_farm", "report_farm":
+			_change_page("")
+			action.emit(id)
+		"mark_sketch":
+			atlas_notes = true
+			action.emit(id)
+		"clip_slip":
+			action.emit(id)
+		"atlas_notes":
+			atlas_notes = not atlas_notes
+			surface.queue_redraw()
 		"prev_slip", "next_slip":
 			var count: int = state.get("slips", []).size()
 			var order := -1 if id == "prev_slip" else 1

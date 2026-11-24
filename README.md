@@ -6,7 +6,9 @@ You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow 
 
 ## Your first call
 
-Start the engine. Arlene has a contract waiting on the cab radio. Tap **RADIO**, then **Take contract**, or press **R** on desktop. Angie Kraemer is in the west ditch on County K, just past St. Hedwig’s. Turn right out of the yard, cross Main, and watch for the twin steeples. Arlene can repeat the directions. The plat book and clipboard are available from the cab.
+Start the engine. Tap **RADIO**, then **Take contract**, or press **R** on desktop. Arlene starts you with a nearby ditch pull. Listen for the road, the landmark and the side the car went off. Your first call might take you past St. Hedwig’s, the co-op or the ginseng frames.
+
+The dash compass reads the direction the truck faces in both driving views. The paper route slip names the next turn and the road to take. If you pass a turn, it updates from the road you’re on. Tap **RADIO → Ask for directions** or press **T** to hear Arlene’s talk-in. Past the edge of her map, use the plat, fire numbers and your own pencil marks.
 
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
 
@@ -26,15 +28,26 @@ To turn in either job, walk to the fax under the **OFFICE / FAX** sign and tap *
 | Walk | Left thumb pad | WASD or arrows |
 | Step out, enter, or handle equipment | EXIT CAB appears at a full stop. On foot, tap ENTER CAB or USE. | E |
 | Operate the winch at its panel | Hold WINCH | Hold Space or F |
-| Accept a call or ask directions | RADIO, then Take contract or Ask for directions | R to accept, T for directions |
+| Accept a call, contact dispatch, or ask directions | RADIO, then choose a response | R to answer or choose a case contact, T for directions |
 | Plat book and current slip | PLAT or SLIP | M or J |
 | Set down paper or pause | Stow or pause button, Android Back | Escape |
 
 The first drive starts in chase view. Your chosen view returns when you get back in the truck or continue a saved route. Pull over for the full-size plat. Opening it while moving gives a small lap view. The truck and operator save automatically, including a line that's already attached. The operator guide and 30/60 fps setting are in the truck log.
 
-## This release
+## The county rotation
 
-The opening covers four ordinary recoveries and the first Act I evidence hold. The county includes the Brandt yard, Highway 64 and the bridge, the dairy grid, and the Swamp Road section corner. Survey evidence and older faxes can be inspected at your own pace. Ordinary calls continue after the hold. The account settles in batches. Tire chains and winch service can be ordered from the yard office.
+Arlene draws ditch pulls and checked hazards from seven sites. Every third slip settles the outstanding balance. Old slips and county faxes stay on the clipboard. The yard office sells tire chains and winch service.
+
+There’s a white county pickup in the Section 3 turnout on Swamp Road. It stays there between calls. If something catches your eye, park, walk over and use **E** or **USE** to examine it. Your observations go in the plat book’s pencil notes. When you have something to report, the cab radio offers a response. **Keep me on rotation** accepts a paying job and leaves the case contact available.
+
+<details>
+<summary>Following the survey case</summary>
+
+Read Unit 38’s door and follow the boot prints to the rod case inside the gate. Report both to Arlene. You can finish your current call, work other slips, or take Kowalski’s hold the next time you’re free. Sign her card and stow the tripod before rigging. Fit the dollies, tow the pickup to the evidence bay, and lock the chain before filing.
+
+After custody is filed, unlock the bay, read Tou’s field book and copy his sketch to the plat. You can also leaf through the filed slips and choose **Clip for radio** on two carbon copies from the same Kolpack shoulder with different loaded mileage. Ask about the junction to arrange a look-see at N5104. Read the house number and the sedan’s windshield VIN, radio them in, then file the report at the yard. There’s a brass survey cap beyond the house. Ordinary work continues after the look-see.
+
+</details>
 
 ## Build
 

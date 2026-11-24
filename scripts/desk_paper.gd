@@ -27,7 +27,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"radio": _radio(c,p,s)
 		"fax": _fax(c,p,s)
 		"custody": _custody(c,p,s)
-		"field": _field(c,p)
+		"field": _field(c,p,s)
 		"parts": _parts(c,p,s)
 		_: _slip(c,p,s)
 
@@ -74,6 +74,12 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var note := ""
 	if archived:
 		note = "County schedule    $%.2f" % float(active_job.get("pay",0))
+		var shoulder: String = str(active_job.get("run","")).get_slice("/",1)
+		if not shoulder.is_empty():
+			note += "    /    %s shoulder" % shoulder.capitalize()
+		var clipped: Array = s.get("clipped_slips",[])
+		if not clipped.is_empty():
+			note += "\nPaper clip    " + "  /  ".join(clipped.map(func(n): return str(int(n))))
 	else:
 		note = str(s.get("progress",""))
 		if note.is_empty():
@@ -92,6 +98,9 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		c.text(Vector2(x,p.end.y-29),"COPY  2    /    OPERATOR",c.MONO,14,FADED)
 	if s.get("can_fax",false) and not archived:
 		c.button("send_fax",Rect2(p.end.x-185,p.end.y-(87 if touch else 56),154,80 if touch else 41),"Fax invoice",true)
+	if archived and active_job.get("loaded",0) > 0:
+		var attached: bool = int(active_job.number) in s.get("clipped_slips",[])
+		c.button("clip_slip",Rect2(p.end.x-214,footer_top,182,archive_button.y),"Unclip carbon" if attached else "Clip for radio")
 
 func _entry(c, r: Rect2, title: String, value: String) -> void:
 	c.text(r.position+Vector2(0,12),title,c.MONO,12,FADED)
@@ -122,8 +131,13 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		c.rule(grille_x,grille_y+2,p.end.x-35-grille_x,Color("#596054"))
 	var records: Array = s.get("calls",[])
 	var ry := y+116
-	c.text(Vector2(x,ry),"LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
-	var lines: Array = records.slice(maxi(0,records.size()-3))
+	var offer: Dictionary = s.get("offer",{})
+	var available: bool = s.get("mode","") == "available"
+	c.text(Vector2(x,ry),"ON ROTATION    /    SLIP %d" % int(offer.get("number",1001)) if available else "LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
+	var lines: Array = records.duplicate()
+	if available and not offer.is_empty():
+		lines.append(offer.dispatch)
+	lines = lines.slice(maxi(0,lines.size()-3))
 	if lines.is_empty():
 		lines = [str((s.get("job",{}) as Dictionary).get("dispatch","County channel open."))]
 	for i in lines.size():
@@ -137,10 +151,15 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
 	if not s.get("can_radio",s.get("in_cab",true)):
 		c.fitted(key,"Get in the cab to use the radio.",c.subtle,23,c.CREAM)
-	elif s.get("mode","") == "available":
-		c.button("respond",key,"Take contract",true)
 	else:
-		c.button("directions",key,"Ask for directions",true)
+		var contact: Dictionary = s.get("radio_contact",{})
+		if not contact.is_empty():
+			key.size.x = (w-10)*.48
+			c.button(contact.id,Rect2(key.end.x+10,key.position.y,w-key.size.x-10,key.size.y),contact.label,true)
+		if available:
+			c.button("respond",key,"Keep me on rotation" if s.get("pending_case",false) else "Take contract",true)
+		else:
+			c.button("directions",key,"Ask for directions",true)
 
 func _fax(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#e4e4d8"))
@@ -199,7 +218,7 @@ func _custody(c, p: Rect2, s: Dictionary) -> void:
 	c.text(Vector2(x,p.end.y-44),"RECEIVED BY",c.MONO,13,FADED)
 	c.text(Vector2(x+124,p.end.y-41),"Brandt",c.HAND,30,FORM_BLUE)
 
-func _field(c, p: Rect2) -> void:
+func _field(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d3d7b9"))
 	c.draw_rect(Rect2(p.position,Vector2(17,p.size.y)),Color("#6b7663"))
 	var x := p.position.x+39
@@ -222,6 +241,8 @@ func _field(c, p: Rect2) -> void:
 	c.text(Vector2(nx+52,y+223),"no road on plat",c.FIELD,17,FORM_BLUE)
 	c.text(Vector2(x+7,y+331),"S3/S4 line 5,402.6 — again.",c.FIELD,26,FORM_BLUE)
 	c.text(Vector2(x,p.end.y-33),"T. Vang",c.FIELD,24,FORM_BLUE)
+	if s.get("can_mark_sketch",false):
+		c.button("mark_sketch",Rect2(p.end.x-292,p.end.y-90,260,80),"Copy sketch to plat")
 
 func _atlas(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,ORIGINAL)
@@ -237,9 +258,17 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 	var column_w := p.end.x-cx-25
 	c.text(Vector2(cx,cy),"ESKER TOWNSHIP",c.scaled,17,GREEN)
 	c.rule(cx,cy+8,column_w,LINE)
+	var entries: Array = s.get("pencil_notes",[])
+	if not entries.is_empty():
+		var button_box := Rect2(cx,p.end.y-89,column_w,80)
+		c.button("atlas_notes",button_box,"Parcel index" if c.desk.atlas_notes else "Pencil notes")
+		if c.desk.atlas_notes:
+			for i in entries.size():
+				c.fitted(Rect2(cx,cy+14+i*39,column_w,35),entries[i],c.HAND,20,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+			return
 	var notes := ["County K, north of 64","W0784 · Highway 64","N5016 · Kolpack Rd","W1124 · Hendricks Rd","Swamp Rd · state land","Esker, south of Main","N4886 · County K"]
 	for i in KEY_PLACES.size():
-		var row_y := cy+32+i*39
+		var row_y := cy+29+i*(35 if not entries.is_empty() else 39)
 		c.draw_circle(Vector2(cx+8,row_y-5),8,GREEN)
 		c.fitted(Rect2(cx-1,row_y-15,18,19),KEY_PLACES[i][0],c.scaled,12,c.WHITE)
 		c.text(Vector2(cx+24,row_y),KEY_PLACES[i][1],c.print_face,16,PAPER_INK)
@@ -306,6 +335,13 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 			c.draw_circle(v,2.2,GREEN)
 	c.draw_rect(box,Color("#87917a"),false,1)
 	if detailed:
+		var observed: Dictionary = s.get("observations",{})
+		for mark in [["rod",Vector2(331,-460),"gate / 38"],["sketch",Vector2(400,336),"T.V. ?"],["house",Vector2(446,332),"5104"]]:
+			if observed.has(mark[0]):
+				var note_at: Vector2 = project.call(mark[1])
+				c.draw_arc(note_at,6.3,0,TAU,15,FORM_BLUE,1.3,true)
+				var offset := Vector2(-49,12) if mark[0]=="sketch" else Vector2(8,-5 if mark[0]=="house" else 12)
+				c.text(note_at+offset,mark[2],c.HAND,15,FORM_BLUE)
 		var n := box.position+Vector2(16,23)
 		c.text(n,"N",c.scaled,15,GREEN)
 		c.draw_colored_polygon(PackedVector2Array([n+Vector2(4,4),n+Vector2(0,16),n+Vector2(4,13),n+Vector2(8,16)]),GREEN)

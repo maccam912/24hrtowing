@@ -73,11 +73,13 @@ var working:=false
 var tension:=0.0
 var job_site:=Vector3.ZERO
 var job_yaw:=0.0
+var vehicle_identity := {}
 var line_end:=-1
 var free_line:=0.0
 var reverse_timer:=0.0
 var slip_cooldown:=0.0
 var departure_time:=0.0
+var backing_distance:=0.0
 var departure_lane_start:=Vector3.ZERO
 var departure_lane_end:=Vector3.ZERO
 var walked:=0.0
@@ -444,21 +446,25 @@ func _update_eyes() -> void:
 func _heading_degrees() -> float:
 	return fposmod(-rad_to_deg(heading),360)
 
-func start_job(job_kind:String,target:Vector3,yaw:float) -> void:
+func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {}) -> void:
 	end_job()
 	kind=job_kind
 	phase="scene"
 	job_site=target
 	job_yaw=yaw
-	var variant: int = (2 if target.x>0 else 3) if kind=="hazard" else (0 if target.x<100 else 1)
-	car=Scene.car(self,kind,variant)
+	# Saves made before dispatch recorded a model used the site to choose one.
+	var old_variant: int = (2 if target.x>0 else 3) if kind=="hazard" else (0 if target.x<100 else 1)
+	var variant := int(ticket.get("variant",old_variant))
+	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
+		"plate":ticket.get("plate",""),"vin":ticket.get("vin","")}
+	car=Scene.car(self,kind,variant,vehicle_identity)
 	car.position=Vector3(target.x,_ground(target),target.z)
 	car.rotation.y=yaw
 	if kind == "hazard":
 		VehicleDrifts.place(car, _ground)
 	_set_car_lamps("hazard")
 	if kind in ["ditch","hold"]:
-		witness=Scene.person(self,kind=="hold",variant)
+		witness=Scene.person(self,kind=="hold",vehicle_identity.driver_variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
 		witness.position=Vector3(point.x,_ground(point),point.z)
 		witness.rotation.y=yaw-1.14
@@ -476,21 +482,23 @@ func end_job() -> void:
 	dollies=null
 	phase="idle"
 	kind=""
+	vehicle_identity={}
 	loaded=false
 	working=false
 	tension=0
 	free_line=0
 	departure_time=0
+	backing_distance=0
 	if body:
 		body.stinger.position.z=-1.31
 		body.work_light.hide()
 	if cable_mesh: cable_mesh.clear_surfaces()
 	if highlight: highlight.visible=false
 
-func store_vehicle(job_kind:String,point:Vector3,yaw:float) -> Node3D:
-	var variant:=3 if job_kind in ["bridge","river"] else 2
+func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node3D:
+	var variant:=int(ticket.get("variant",3 if job_kind in ["bridge","river"] else 2))
 	var model_kind:="hold" if job_kind=="hold" else "hazard"
-	var stored:=Scene.car(self,model_kind,variant)
+	var stored:=Scene.car(self,model_kind,variant,ticket)
 	stored.position=Vector3(point.x,_ground(point),point.z)
 	stored.rotation.y=yaw
 	if model_kind == "hazard":
@@ -868,9 +876,16 @@ func _depart(dt:float) -> void:
 		var distance:=minf((departure_time-1.0)*1.55,10.5)*dt
 		var yaw:=rotate_toward(car.rotation.y,yaw_target,distance*.32)
 		var step:=Vector3.FORWARD.rotated(Vector3.UP,yaw)*distance
-		# Yield if the parked wrecker is across the lane.
-		var nose:=truck.to_local(car.position+step.normalized()*2.2+step)
-		if absf(nose.x)>1.75 or nose.z< -4.5 or nose.z>5.1:
+		# A close pull can leave the bumper pointed at the wrecker. Back up to
+		# make enough room to swing around its bed before trying forward again.
+		if backing_distance<=0 and _in_wrecker(car.position+step.normalized()*2.2+step):
+			backing_distance=3.2
+		if backing_distance>0:
+			distance=minf(backing_distance,dt*2.6)
+			yaw=rotate_toward(car.rotation.y,yaw_target,distance*.38)
+			step=Vector3.BACK.rotated(Vector3.UP,yaw)*distance
+			backing_distance=maxf(0.0,backing_distance-distance)
+		if not _in_wrecker(car.position+step.normalized()*2.2+step):
 			car.rotation.y=yaw
 			car.position+=step
 			car.position.y=_ground(car.position)
@@ -879,6 +894,10 @@ func _depart(dt:float) -> void:
 	if _flat_distance(car.position,get_player_position())>165.0 and _flat_distance(car.position,job_site)>120.0:
 		car.hide()
 		phase="done"
+
+func _in_wrecker(point:Vector3) -> bool:
+	var local:=truck.to_local(point)
+	return absf(local.x)<1.75 and local.z> -4.5 and local.z<5.1
 
 func _trail(dt:float) -> void:
 	if not car: return
@@ -967,9 +986,12 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"departed":departure_time,"chains":tire_chains}
 	d["driving_view"] = driving_view
+	if not vehicle_identity.is_empty():
+		d["identity"] = vehicle_identity.duplicate()
 	if loaded:
 		d["lift_height"]=body.lift.position.y
 	if phase=="departing" and witness:
+		d["backing_distance"]=backing_distance
 		d["driver_boarded"]=not witness.visible
 		d["witness"]=_v(witness.position)
 		d["witness_yaw"]=witness.rotation.y
@@ -984,7 +1006,7 @@ func restore_state(d:Dictionary) -> void:
 	set_spawn(_unpack(d.get("truck"),truck.position),float(d.get("heading",heading)))
 	var active:String=d.get("kind","")
 	if active in ["ditch","hazard","hold"]:
-		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)))
+		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)),d.get("identity",{}))
 	else: end_job()
 	in_cab=d.get("cab",true)
 	driving_view = "cab" if d.get("driving_view") == "cab" else "chase"
@@ -1000,6 +1022,7 @@ func restore_state(d:Dictionary) -> void:
 	phase=d.get("phase","idle")
 	loaded=d.get("loaded",false)
 	departure_time=d.get("departed",0)
+	backing_distance=d.get("backing_distance",0)
 	line_end=d.get("line_end",-1)
 	free_line=d.get("free_line",0)
 	if car:

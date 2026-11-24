@@ -3,6 +3,12 @@ extends Node3D
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
 const Bay = preload("res://scripts/county_bay.gd")
+const Scene = preload("res://scripts/rig_scene.gd")
+const SURVEY_PICKUP := Vector3(314,0,-409)
+const SURVEY_YAW := .38
+const KOLPACK_SEDAN := {"plate":"WLP 504","vin":"1BTAL52C8TJ510428"}
+const KOLPACK_CAR_POINT := Vector3(427,0,330)
+const KOLPACK_CROSSING := Vector2(463,336)
 const TERRAIN_X := Vector2i(-795, 1100)
 const TERRAIN_Z := Vector2i(-610, 1000)
 const YARD := Rect2(-65,-90,68,61)
@@ -18,9 +24,17 @@ const PLACES := [
 	["River bridge",-435,0], ["Esker Co-op",40,-22], ["Tamarack",895,0],
 ]
 var lengthened := false
+var kolpack_open := false
+var rebuild_queued := false
 var county_model: Node3D
 var hold: Node3D
 var tripod: Node3D
+var survey_pickup: Node3D
+var survey_point := SURVEY_PICKUP
+var survey_yaw := SURVEY_YAW
+var rod_case: Node3D
+var rod_case_read := false
+var rod_turn: Tween
 var storm_environment: Environment
 var storm_time := 0.0
 var storm_gust := 0.0
@@ -36,7 +50,7 @@ var materials := {}
 var bay: Node3D
 var drop_guide := Node3D.new()
 var bay_locked := false
-var hold_shown := false
+var survey_pickup_parked := true
 var tripod_taken := false
 var rng := RandomNumberGenerator.new()
 var county_font: Font
@@ -94,8 +108,21 @@ func try_lengthen(player_position: Vector3) -> bool:
 func set_lengthened(value: bool) -> void:
 	if lengthened != value:
 		lengthened = value
-		if county_model:
-			call_deferred("_build")
+		if value:
+			kolpack_open = true
+		_queue_build()
+
+func set_kolpack_open(value: bool) -> void:
+	if lengthened:
+		value = true
+	if kolpack_open != value:
+		kolpack_open = value
+		_queue_build()
+
+func _queue_build() -> void:
+	if county_model and not rebuild_queued:
+		rebuild_queued = true
+		_build.call_deferred()
 
 func bay_latch_point() -> Vector3:
 	return Bay.LATCH
@@ -108,15 +135,55 @@ func set_bay_locked(value: bool) -> void:
 func hold_tripod_point() -> Vector3:
 	return Vector3(318.5, ground_height(318.5,-413), -413)
 
+func survey_door_point() -> Vector3:
+	var point := resolve_point(survey_point)
+	point.y = ground_height(point.x,point.z)
+	return point + Vector3(-1.03,.94,-.46).rotated(Vector3.UP,survey_yaw)
+
+func set_survey_anchor(point: Vector3, yaw: float) -> void:
+	survey_point = point
+	survey_yaw = yaw
+	if is_instance_valid(survey_pickup):
+		survey_pickup.position = resolve_point(point)
+		survey_pickup.position.y = ground_height(survey_pickup.position.x,survey_pickup.position.z)
+		survey_pickup.rotation.y = yaw
+
+func rod_case_point() -> Vector3:
+	return Vector3(331,ground_height(331,-483)+.63,-483)
+
+func set_rod_case_read(value: bool) -> void:
+	if value == rod_case_read:
+		return
+	rod_case_read = value
+	if not is_instance_valid(rod_case):
+		return
+	if rod_turn and rod_turn.is_valid():
+		rod_turn.kill()
+	rod_turn = rod_case.create_tween()
+	rod_turn.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	rod_turn.tween_property(rod_case,"rotation:x",PI if value else 0.0,.45)
+
+func story_point(id: String) -> Vector3:
+	var point: Vector3
+	match id:
+		"house": point = Vector3(446,1.22,331.2)
+		"vin": point = KOLPACK_CAR_POINT + Vector3(-.38,1.05,-.93)
+		"cap": point = Vector3(457,0.16,330)
+		_: return Vector3.INF
+	point = resolve_point(point)
+	point.y += ground_height(point.x,point.z)
+	return point
+
 func set_tripod_collected(value: bool) -> void:
 	tripod_taken = value
 	if tripod:
 		tripod.visible = not value
 
-func set_hold_scene(value: bool) -> void:
-	hold_shown = value
-	if hold:
-		hold.visible = value
+func set_survey_pickup_parked(value: bool) -> void:
+	survey_pickup_parked = value
+	if is_instance_valid(survey_pickup):
+		survey_pickup.visible = value
+		survey_pickup.process_mode = Node.PROCESS_MODE_INHERIT if value else Node.PROCESS_MODE_DISABLED
 
 func advance_storm(dt: float) -> void:
 	storm_time += dt
@@ -150,12 +217,11 @@ func follow_camera(pos: Vector3) -> void:
 			var speaker: AudioStreamPlayer3D = ballasts[light_type]
 			var nearest := Vector3.INF
 			var farthest := 27.0*27.0
-			if light_type=="sodium" or hold_shown:
-				for source: Vector3 in lamp_locations[light_type]:
-					var sq := pos.distance_squared_to(source)
-					if sq < farthest:
-						farthest=sq
-						nearest=source
+			for source: Vector3 in lamp_locations[light_type]:
+				var sq := pos.distance_squared_to(source)
+				if sq < farthest:
+					farthest=sq
+					nearest=source
 			if nearest.is_finite():
 				speaker.position=nearest
 				if not speaker.playing: speaker.play()
@@ -181,6 +247,13 @@ func _fixture_audio() -> void:
 
 func road_distance(x: float, z: float) -> float:
 	var distance := INF
+	if kolpack_open:
+		var cross_z := _mapped_z(KOLPACK_CROSSING.y)
+		var lane_dx := x-clampf(x,400,515)
+		var lane_dz := z-cross_z
+		var cross_dx := x-KOLPACK_CROSSING.x
+		var cross_dz := z-clampf(z,cross_z-38,cross_z+45)
+		distance = minf(lane_dx*lane_dx+lane_dz*lane_dz, cross_dx*cross_dx+cross_dz*cross_dz)
 	for r: Array in ROADS:
 		var x0 := float(r[1])
 		var x1 := float(r[3])
@@ -193,7 +266,9 @@ func road_distance(x: float, z: float) -> float:
 
 func _distance_from_lot(x: float, z: float) -> float:
 	var nearest := INF
-	for lot: Rect2 in [YARD,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43)]:
+	if kolpack_open and Rect2(422,317,34,18).has_point(Vector2(x,z)):
+		return 0.0
+	for lot: Rect2 in [YARD,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
 		var dz := maxf(0,maxf(lot.position.y-z, z-lot.end.y))
 		nearest = minf(nearest, maxf(dx,dz))
@@ -240,6 +315,7 @@ func _make_materials() -> void:
 		["lamp","ffac64","",0.82],["window","e6a46a","",0.43],["fluoro","dbe0db","",0.65],
 		["white","dfded1","",0.05],["mercury","b7d9cf","",.85],["red","be343c","",.80],
 		["safety_yellow","f6b83e","",.40],["amber_lens","ffb62a","",1.7],
+		["brass","b89d61"],
 		["sign","ffffff","brandt_enamel"],
 	]:
 		materials[item[0]] = _paint(item[1],item[2] if item.size()>2 else "",item[3] if item.size()>3 else 0.0)
@@ -273,6 +349,12 @@ func _make_materials() -> void:
 		halo.shader = preload("res://assets/county/light_halo.gdshader")
 		halo.set_shader_parameter("tint",Color("#ffb579") if role=="sodium" else Color("#b7d9cf"))
 		materials[role] = halo
+	var beacon := ShaderMaterial.new()
+	beacon.shader = preload("res://assets/county/survey_lamp.gdshader")
+	materials["survey_beacon"] = beacon
+	var bootprint := ShaderMaterial.new()
+	bootprint.shader = preload("res://assets/county/bootprint.gdshader")
+	materials["bootprint"] = bootprint
 
 func _weather() -> void:
 	var env := Environment.new()
@@ -381,6 +463,7 @@ func _airborne_snow(material: ShaderMaterial, count: int) -> MultiMeshInstance3D
 	return cloud
 
 func _build() -> void:
+	rebuild_queued = false
 	if is_instance_valid(county_model):
 		remove_child(county_model)
 		county_model.queue_free()
@@ -406,11 +489,37 @@ func _build() -> void:
 	var investigation = Sites.new(self,Batch.new(hold,materials))
 	investigation.hold_site()
 	investigation.draw.finish()
+	rod_case = Node3D.new()
+	rod_case.name = "SurveyRodCase"
+	hold.add_child(rod_case)
+	rod_case.position = rod_case_point()-Vector3.UP*.15
+	var gear = Sites.new(self,Batch.new(rod_case,materials))
+	gear.survey_rod_case()
+	gear.draw.finish()
+	rod_case.rotation.x = PI if rod_case_read else 0.0
+	survey_pickup = _parked_car(hold,"hold",0,survey_point,survey_yaw,{})
+	if kolpack_open:
+		_parked_car(county_model,"unattended",0,KOLPACK_CAR_POINT,0,KOLPACK_SEDAN)
 	var instrument = Sites.new(self,Batch.new(tripod,materials))
 	instrument.survey_tripod()
 	instrument.draw.finish()
-	set_hold_scene(hold_shown)
+	set_survey_pickup_parked(survey_pickup_parked)
 	set_tripod_collected(tripod_taken)
+
+func _parked_car(parent: Node3D, kind: String, variant: int, point: Vector3, yaw: float, identity: Dictionary) -> Node3D:
+	var vehicle := Scene.car(parent,kind,variant,identity)
+	vehicle.position = resolve_point(point)
+	vehicle.position.y = ground_height(vehicle.position.x,vehicle.position.z)
+	vehicle.rotation.y = yaw
+	var body := StaticBody3D.new()
+	var collision := CollisionShape3D.new()
+	var shape := BoxShape3D.new()
+	shape.size = Vector3(1.93,1.25,4.8) if kind == "hold" else Vector3(1.75,1.10,4.15)
+	collision.shape = shape
+	collision.position.y = shape.size.y*.5
+	body.add_child(collision)
+	vehicle.add_child(body)
+	return vehicle
 
 func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	var values := {}
@@ -426,8 +535,8 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800],[-501,-493,-458,-449,-98,-65,-52,-2,67,138])
-	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,425,448])
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323]+([458,463,468,515] if kolpack_open else []))
+	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[-412,-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,425,448]+([298,331,336,341,381] if kolpack_open else []))
 	var ground := {}
 	var h_rows := []
 	for z: float in zs:
@@ -461,6 +570,10 @@ func _build_ground(draw) -> void:
 					if absf(center.x-axis)<absf(center.x-xline): xline=axis
 				for axis: float in [-400.,_mapped_z(400),_mapped_z(800)]:
 					if absf(center.z-axis)<absf(center.z-zline): zline=axis
+				if kolpack_open and center.x>405 and center.x<521 and natural_z>292 and natural_z<387:
+					highway = absf(natural_z-KOLPACK_CROSSING.y) < 5.1
+					xline = KOLPACK_CROSSING.x
+					zline = _mapped_z(KOLPACK_CROSSING.y)
 			for p: Vector3 in [a,b,c,d]:
 				if road:
 					uv.append(Vector2(p.z-zline,p.x) if highway else Vector2(p.x-xline,p.z))

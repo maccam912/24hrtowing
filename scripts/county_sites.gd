@@ -413,6 +413,13 @@ func river_and_seat() -> void:
 	cyl(0,61,0,1.2,.9,"red")
 
 func spruce_at(x: float, z: float, solid: bool) -> void:
+	# Leave the surveyor's foot trail, the driveway and the new road passable.
+	if z >= -489 and z <= -408 and absf(x-lerpf(318.5,331.0,clampf((-413.0-z)/70.0,0,1))) < 2.6:
+		return
+	if world.kolpack_open and Rect2(405,286,120,104).has_point(Vector2(x,z)):
+		# Only remove trees around the added land. Existing windbreaks are landmarks.
+		if Rect2(420,314,37,25).has_point(Vector2(x,z)) or world.road_distance(x,world.resolve_point(Vector3(0,0,z)).z)<9.5:
+			return
 	var real_z: float = world.resolve_point(Vector3(0,0,z)).z
 	site(x,z,world.ground_height(x,real_z))
 	var height := rng.randf_range(5.3,15.3)
@@ -475,7 +482,11 @@ func rural_grid() -> void:
 		draw.box((a+bb)*.5,Vector3(absf(bb.x-a.x)+3,.13,absf(bb.z-a.z)+3),"slush",true)
 	for row:Array in [[13,185,152],[13,490,230],[414,267,92],[789,438,155],[-13,-378,189],[413,490,117]]:
 		site(row[0],row[1])
-		fence(Vector3.ZERO,Vector3(0,0,row[2]),1.17,false)
+		if world.kolpack_open and row[0]==414:
+			fence(Vector3.ZERO,Vector3(0,0,63),1.17,false)
+			fence(Vector3(0,0,75),Vector3(0,0,row[2]),1.17,false)
+		else:
+			fence(Vector3.ZERO,Vector3(0,0,row[2]),1.17,false)
 	for index in 6:
 		var xx := 18+index*6
 		site(xx,-251)
@@ -573,13 +584,110 @@ func hold_site() -> void:
 	origin = q
 	cyl(0,.06,0,.74,.12,"slush")
 	cyl(0,.123,0,.19,.013,"cream")
-	# Measured footprints turn north into state swamp and vanish in settled snow.
-	for i in range(1,29):
-		var x := q.x+i*.105+sin(i*.85)*.13
-		var z := q.z-i*.59
-		draw.box(Vector3(x,world.ground_height(x,z)+.027,z),Vector3(.14,.024,.27),"slush",false,Vector3(0,-.1+sin(i*3.1)*.23,0))
-	site(331,-483)
-	lamp(0,0,6.4,true,true)
+	# Alternating heel and sole prints lead from the brass corner through the gate.
+	var rod: Vector3 = world.rod_case_point()
+	for i in range(1,120):
+		var t := float(i)/119
+		var x := lerpf(q.x,rod.x,t)+sin(t*TAU)*.73+(.13 if i%2==0 else -.13)
+		var z := lerpf(q.z,rod.z+1.0,t)
+		var at := Vector3(x,world.ground_height(x,z)+.045,z)
+		var direction := -.16+(.10 if i%2 else -.10)
+		var side := Vector3.RIGHT.rotated(Vector3.UP,direction)*.109
+		var step := Vector3.FORWARD.rotated(Vector3.UP,direction)*.193
+		draw.quad(at-side-step,at-side+step,at+side+step,at+side-step,"bootprint")
+	origin = Vector3(rod.x,world.ground_height(rod.x,rod.z),rod.z)
+	# An old field gate sits open with its leaf pulled against the fence line.
+	fence(Vector3(-13,0,4),Vector3(-1.9,0,4),1.03,false)
+	fence(Vector3(2.4,0,4),Vector3(12,0,4),1.03,false)
+	for post_x: float in [-1.9,2.4]:
+		b(post_x,.66,4,.19,1.32,.19,"wood")
+	for y: float in [.4,.94]:
+		beam(Vector3(2.35,y,4),Vector3(2.9,y,-.3),.062,.074,"oxide")
+	beam(Vector3(2.35,.4,4),Vector3(2.9,.94,-.3),.064,.062,"oxide")
+	b(2.9,.66,-.3,.073,.57,.07,"oxide")
+	lamp(-2.7,-1.7,6.4,true)
+	draw.add("quad",p(-1.82,6.33,-1.7),Vector3(6.2,6.2,1.0),"survey_beacon")
+	# The battered transit case sits on a pair of timbers with its tag toward the gate.
+	for xx: float in [-.67,.67]:
+		b(xx,.16,0,.18,.32,.56,"wood")
+
+func survey_rod_case() -> void:
+	# A riveted field case. Turning it on its skids exposes the underside tag.
+	b(0,0,0,1.87,.30,.38,"green",true)
+	b(0,.16,0,1.90,.035,.40,"silver")
+	b(-.18,.181,-.015,1.30,.013,.29,"snow")
+	for xx: float in [-.85,.85]:
+		b(xx,0,0,.064,.318,.392,"post")
+		b(xx,.173,0,.068,.025,.403,"post")
+	for xx: float in [-.59,.59]:
+		b(xx,.075,.203,.10,.12,.032,"brass")
+		b(xx,.08,.224,.055,.058,.016,"black")
+	for xx: float in [-.17,.17]:
+		b(xx,-.014,.228,.034,.043,.090,"wood")
+	b(0,-.014,.284,.371,.046,.037,"black")
+	b(0,-.155,0,1.36,.018,.32,"cream")
+	var stencil := label(Vector3(0,-.167,-.061),"TAMARACK COUNTY SURVEY",.077,0,Color("#273b2d"))
+	stencil.rotation.x=PI*.5
+	var number := label(Vector3(0,-.167,.066),"UNIT 38",.105,0,Color("#273b2d"))
+	number.rotation.x=PI*.5
+
+func kolpack_farm() -> void:
+	# A short unprinted road with an older house facing it. The porch door is ajar.
+	site(445,326)
+	b(0,.04,0,8.55,.08,10.35,"wood")
+	b(0,1.96,-5,8.45,3.92,.24,"siding",true)
+	for x:float in [-4.17,4.17]:
+		b(x,1.96,0,.24,3.92,10.2,"siding",true)
+	b(-2.03,1.96,5,4.28,3.92,.24,"siding",true)
+	b(3.09,1.96,5,2.17,3.92,.24,"siding",true)
+	b(1.04,3.08,5,1.93,1.68,.24,"siding",true)
+	roof(0,3.92,0,9.0,2.3,10.7)
+	b(-2.65,5.0,-.9,.8,2.75,.77,"brick")
+	b(.15,1.11,4.18,.12,2.22,1.66,"green",true)
+	b(1,.08,5.72,3.2,.14,1.32,"wood")
+	for xx: float in [-.53,2.53]:
+		b(xx,1.30,6.31,.14,2.48,.14,"wood",true)
+		b(xx,.29,6.31,.24,.31,.24,"cream")
+	draw.box(p(1,2.65,5.90),Vector3(3.64,.15,2.08),"snow",false,Vector3(.13,0,0))
+	b(1,2.46,6.78,3.67,.16,.10,"wood")
+	window(Vector3(-2.03,2.00,5.14),1.62,1.24)
+	window(Vector3(4.31,2.0,1.6),1.51,1.30,PI*.5)
+	placard(Vector3(2.77,1.82,5.16),"N 5104",1.06,.32,0,"green")
+	# An envelope on the sill and a landscape print are visible from the doorway.
+	b(1.2,.73,2.70,2.12,.11,.72,"wood")
+	for xx:float in [.25,2.15]:
+		b(xx,.34,2.70,.09,.69,.48,"wood")
+	b(1.12,.81,2.70,.51,.029,.26,"cream")
+	var addressee:=label(Vector3(1.12,.833,2.7),"CURRENT RESIDENT",.032,0,Color("#313930"))
+	addressee.rotation.x=-PI*.5
+	b(.97,1.95,-4.84,2.07,1.20,.10,"wood")
+	b(.97,1.95,-4.78,1.91,1.04,.03,"glass")
+	b(.97,1.74,-4.75,1.91,.60,.03,"green")
+	window(Vector3(-4.31,1.98,-2.35),1.39,1.32,-PI*.5)
+	window(Vector3(-4.31,1.98,1.34),1.39,1.32,-PI*.5)
+	var inside:=OmniLight3D.new()
+	inside.position=p(1.0,2.8,2.0)
+	inside.light_color=Color("#ffcd94")
+	inside.light_energy=2.4
+	inside.omni_range=6.7
+	inside.distance_fade_enabled=true
+	inside.distance_fade_begin=25
+	inside.distance_fade_length=12
+	draw.parent.add_child(inside)
+	lamp(-10,3,5.7,true)
+	address(407,330,"N 5104",PI*.5)
+	# Two witness posts put the crossroad's brass cap within reach in fresh snow.
+	origin=world.story_point("cap")-Vector3.UP*.16
+	b(-.56,.58,0,.082,1.16,.086,"wood")
+	b(-.56,1.07,0,.093,.17,.095,"white")
+	cyl(0,.06,0,.62,.12,"slush")
+	cyl(0,.135,0,.31,.045,"brass")
+	for ray:float in [0,PI*.5]:
+		draw.box(p(0,.16,0),Vector3(.12,.006,.008),"dark",false,Vector3(0,ray,0))
+	var stamp:=label(Vector3(0,.162,.067),"S4  NE",.033,0,Color("#352e25"))
+	stamp.rotation.x=-PI*.5
+	var range_stamp:=label(Vector3(0,.162,-.071),"T28N  R7E",.025,0,Color("#352e25"))
+	range_stamp.rotation.x=-PI*.5
 
 func survey_tripod() -> void:
 	origin = world.hold_tripod_point()
@@ -601,3 +709,5 @@ func build() -> void:
 	river_and_seat()
 	rural_grid()
 	road_furniture()
+	if world.kolpack_open:
+		kolpack_farm()

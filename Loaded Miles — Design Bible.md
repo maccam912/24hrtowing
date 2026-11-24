@@ -1,6 +1,6 @@
 # Loaded Miles — Design Bible
 
-Nov 23, 2026 · @Matthew Koski
+Nov 23, 2026 · @Matthew Koski · Revised Nov 24, 2026
 
 ## Pitch and pillars
 
@@ -10,7 +10,7 @@ Working title: *Loaded Miles*. In towing, those are the miles you drive with a v
 
 - **The job is the game.** Driving, rigging and hauling are skills that feel better on the tenth run than the first. The jobs never run out and never depend on the story.
 - **Realism is the baseline.** Tow bans, police tape, evidence holds, fire numbers and plat books work the way they do in rural Wisconsin. The strange stands out because everything around it is procedure.
-- **The mystery is pulled, not pushed.** The story moves when you choose to look: read the field book, take the road that isn't printed, ask the deputy a second question. Ignore it and the jobs keep coming.
+- **The player decides when to investigate.** Walk to a light, read the unit number on what you find there, tell Arlene where you found it. Drive past and Arlene still has work for you.
 - **Nothing happens on camera.** No ghosts, voices, visions or creatures. Every anomaly is found already done, and every one can be measured or written down.
 - **Unsettling, not scary.** No jump scares, no chase, no threat. The dread is numbers that don't add up and a drive home that is longer than the drive out.
 - **Pressure, not punishment.** Cold and fuel push you along. There is no game over and no failed job.
@@ -26,7 +26,7 @@ You are Brandt Towing & Recovery of Esker, Wisconsin: one owner, one heavy wreck
 1. **The ban has an exception.** A tow ban suspends every tow unless emergency personnel request it, so owner and motor-club calls stop and police calls continue ([Outagamie County](https://news.yahoo.com/outagamie-county-suspends-towing-41-110330581.html)).
 2. **Heavy work skips the rotation.** Sheriffs rotate ordinary tows through a list of approved companies, except for scenes that need heavy-duty equipment or expertise ([Sheboygan County ordinance](https://sheboygancounty.com/home/showpublisheddocument/6894/635895660988700000)). You own the only heavy wrecker for forty miles.
 3. **Video-game stretch: everyone else quit.** The other outfits parked their trucks when the ban started. The light-duty shop in Tamarack shut after one of its drivers spent a night lost on Kolpack Road. Deputies now call nearly anything a hazard so it can be moved: "Everything's a hazard if I say it is."
-4. **The late reveal.** The county surveyor asked for you by name after the clerk flagged your mileage. Your odometer was the only steady measurement anyone had (Act 3).
+4. **The late reveal.** Before Tou went missing, the clerk showed him some of your earlier invoices. He asked for you by name. Your odometer gave him a second set of measurements (Act 3).
 
 ### The setting
 
@@ -41,11 +41,11 @@ It is always night and always snowing, but snow-glow keeps the world readable. T
 | Tow ban | Ditch cars stay put until the ban lifts unless they're a hazard | The premise. Ditch cars pile up and become landmarks |
 | Rotation list | Light tows rotate between companies; heavy goes to whoever has the gear | Why every call comes to you |
 | Checked-vehicle tape | Tape on a mirror or antenna means checked, nobody inside ([Livingston County](https://whmi.com/news/article/35483)) | The language of noticing. Later you carry your own roll |
-| Evidence hold | The tow yard keeps a vehicle secured until the investigating unit releases it ([Austin PD policy](https://www.AustinTexas.gov/sites/default/files/files/350%20Vehicle%20Towing%20and%20Impound.pdf)) | A locked bay of cars that never leave |
+| Evidence hold | The tow yard keeps a vehicle secured until the investigating unit releases it ([Austin PD policy](https://www.AustinTexas.gov/sites/default/files/files/350%20Vehicle%20Towing%20and%20Impound.pdf)) | A locked bay and a signed record of who has the keys |
 | Fire numbers | Rural addresses encode distance from a county origin ([Fond du Lac County](https://www.fdlco.wi.gov/departments/departments-f-m/land-information/rural-address-numbering-system)); in Dane County each number is 20 feet ([Dane County](https://department8-test.countyofdane.com/documents/pdf/Zoning-Forms/Rural-Address-Assignment-and-Supplies-Application.pdf)) | A navigation skill, and a ruler frozen at the county's old size |
 | Plat book | A printed county atlas of parcels and owner names | Your map. You pencil in whatever isn't printed |
 | Survey grid | Six-mile townships, 36 one-mile sections, monumented corners | The surveyor's evidence. A section line should be 5,280 feet |
-| Loaded miles | Towing is billed per mile with a vehicle on the hook | The odometer on every slip, and the clerk's first complaint |
+| Loaded miles | Towing is billed per mile with a vehicle on the hook | The odometer on every slip, and the clerk's request for a calibration date |
 
 ## Core loop
 
@@ -59,8 +59,8 @@ Most of the time you just run the loop. The story moves only when you step off i
 2. **Plan.** Open the plat book on the passenger seat, find the parcel, count section lines, pick a route. If you're unsure, ask Arlene to talk you in. That's always free.
 3. **Drive out, empty.** The wrecker is quick and loose with nothing on the hook, and the rear steps out on ice.
 4. **The scene.** Leave the cab. Set flares, read the tape, talk to whoever is there, then rig it: anchor, winch line, snatch block, wheel-lift or dollies.
-5. **Drive back, loaded.** Heavy and slow, with long braking. A wheel-lift takes weight off your front axle, so steering goes light. Whoever you pulled out rides in the cab and talks.
-6. **The yard.** Drop the car in storage or the hold bay. The slip prints the odometer reading. Fax the invoice to the county.
+5. **Drive back.** After a ditch pull, the driver takes their car and you go back empty. With a car on the wheel-lift, braking takes longer and steering goes light. When someone needs a ride, you have company in the cab.
+6. **The yard.** Deliver any car on the hook to storage or the hold bay. The slip prints the odometer reading. Fax the invoice to the county.
 7. **Between calls.** Fuel, coffee at Esker Fuel & Food, upgrades from the parts catalog, or a drive to look at something you noticed.
 
 ### Pressure
@@ -90,31 +90,34 @@ Every slip pays by the county schedule: call-out, hookup, winch time, loaded mil
 | Yard: fence extension, second hold bay, fuel tank, coffee maker | More storage, more holds, warmth and fuel at home | Steady through the game |
 | Rollback (second truck) | Car jobs are faster and cleaner; it can't do heavy work | Mid-game |
 
-The plat book grows too. Roads you've driven get inked in, and roads that aren't printed get your pencil. Your standing with the sheriff opens call types in order: cars, semis, plows, emergency vehicles, holds, then retrievals from unmapped land. The loop has no end. After the story's last beat, the calls keep coming and the map keeps growing.
+The plat book grows too. Roads you've driven get inked in, and roads that aren't printed get your pencil. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and the map keeps growing.
 
 ## Job catalog
 
-There are ten job types, all from dispatch and all repeatable. Early jobs are short and easy to read. Later ones are rigging puzzles. Any job can carry a story beat, but no job needs one.
+The full game calls for ten job types. Early jobs are short and easy to read. Later ones are rigging puzzles. Dispatch can reuse a kind of recovery many times. A named driver, a case number and a particular truck each have one history.
 
 | Job | Who's there | What you do | Skill | Story use |
 | --- | --- | --- | --- | --- |
 | Ditch pull | A stranded driver, cold and chatty | Winch the car back onto the road; they drive off | Anchor and angle | Drivers say where they went off, and they're often wrong by a mile |
 | Hazard tow | Nobody; a taped car | Hook it out of a lane or off a shoulder and haul it to storage | Wheel-lift in tight spaces | Taped cars become landmarks, so any change to one is a clue |
-| Jackknifed semi | The driver, sometimes a deputy | Straighten or upright it with two lines and snatch blocks, then tow it to the truck stop | Heavy rigging | Out-of-state drivers don't know the roads, so they report oddities plainly |
-| Stuck plow | A county plow driver | Pull the plow out of a drift or ditch | Short, heavy pull | Plow drivers know every road by feel and notice the extra length first |
+| Jackknifed semi | The driver, sometimes a deputy | Straighten or upright it with two lines and snatch blocks, then tow it to the truck stop | Heavy rigging | An out-of-state driver can tell you which sign they passed while looking for the truck stop |
+| Stuck plow | A county plow driver | Pull the plow out of a drift or ditch | Short, heavy pull | Duane has driven the same route for years. He notices when he's late for coffee |
 | Emergency vehicle | A deputy or EMTs | Pull an ambulance or squad car out, fast | Speed over finesse | The only job with a clock, and the clock only affects a pay bonus |
 | Milk tanker | A driver from the 24-hour dairy | Recover a loaded tanker on a farm lane while the slosh shifts its weight | Load management | The dairy is the busiest place left, and its workers talk |
-| Evidence hold | Deputy Kowalski | Move the car without disturbing it: dollies, never drive it, sign the custody card, lock it in the bay | Careful handling | The main story carrier. Holds are never released |
+| Evidence hold | Deputy Kowalski | Sign the custody card, move the car on dollies and lock it in the bay | Careful handling | Kowalski can order a hold on a specific vehicle once she has grounds. It stays until release or auction |
 | Look-see | Nobody | No deputy is free, so Arlene asks you to drive past an address or a car and report back | Observation | Sends you places without a tow |
 | Survey assist | The surveyor's notes | Optional: stop at a section corner, read the brass cap with your spot, log it | Reading | Optional evidence that turns any drive into measuring |
 | Unmapped retrieval | Nobody, or someone sheltering | Bring a car back from land that isn't in the plat book | Long haul, fuel planning | Act 2 onward: the farthest, loneliest jobs |
 
-### How jobs are generated
+### How Arlene finds the next job
 
-- Each district has its own mix of job types, limited to what you've unlocked. The same type never comes up twice in a row.
-- Story beats ride on generated jobs. A beat waits for a suitable job and dresses it; the first hold, for example, replaces a hazard tow.
-- Pushed beats (the ones dispatch starts) come at most one per four jobs. Pulled beats, the ones you start by looking, can happen any time.
-- The storm leaves taped cars at plausible spots as you play. They persist. You can tow them for hazard pay or leave them where they are.
+Generate ordinary work from the first radio call. For the first pull, pick a nearby ditch with room to park, a straightforward cable angle and a landmark visible from the road. Teach the driver how to take the call, work the winch and file the slip on whichever pull comes up. Angie can be the nurse in that ditch or in a later one.
+
+- Draw a recovery type and a compatible site from the open districts. Vary the shoulder or ditch, approach angle, vehicle, occupant and reason the sheriff needs it moved. Favor underused sites and types. If only one type is workable, vary its site and setup. Keep a reachable local pull in the pool even when a story offer is waiting.
+- Build the radio call, directions, scene and paperwork from the same facts. A wagon blocking the dairy lane needs a clear place to set the wrecker, checked tape, directions that get you to that lane and a storage space back at Brandt's. On another run that lane might have a driver bound for the dairy with two wheels off the pavement. They drive away after the pull. You go back to file a slip with zero loaded miles.
+- Reserve the few jobs that need a particular person, object or place. Ordinary work can take you past the survey pickup. Once Arlene relays your report, Kowalski can offer a separate hold for that truck. The offer waits until your current slip is filed. On the radio you can take it or say “Keep me on rotation” and get a regular call immediately.
+- Leave at least three ordinary jobs between unsolicited story offers. Job count controls the spacing. The next story call still needs its own evidence. A follow-up you explicitly request can come sooner. After a “later,” keep the contact available on the radio and let the clue stand in the world. A missed turn, a quiet radio or another twenty paid jobs can leave the case exactly where you put it.
+- The storm leaves taped cars at plausible spots. An occupied shoulder stays occupied until the car is removed. Keep named vehicles and evidence out of the ordinary vehicle pool.
 
 ### Rigging on foot
 
@@ -151,6 +154,18 @@ Tamarack County is getting bigger. Since the storm began, distance keeps appeari
 - No ghosts, voices, figures in the snow, time loops or dream sequences. Nobody is possessed or changed. People who stay are calm, ordinary and still themselves.
 - The tells are physical. Yard lights on new land are blue-green mercury vapor instead of sodium orange. There's no skyglow over new land, the radio fades to static sooner, and nobody has taped the cars.
 
+### What people will actually say
+
+Early on, give each speaker a reason for getting on the radio or sending paper. Duane wants the garage to look at his plow. Doreen needs a date for her file. They can both be right about their day without either of them figuring out the county.
+
+| Where you hear it | Example | What the player can check |
+| --- | --- | --- |
+| Duane to the county garage, after a plow run | “Can you check my speedometer when I'm in? Held forty from the silo to the dairy. Coffee was already put away.” | You can time that same stretch on the dash clock |
+| Doreen, on a fax about an actual loaded haul | “Brandt, when was the truck odometer last calibrated? Pencil the date on our copy when you have it. — D. Pfaff” | Two slips can have the same pickup and drop, with different readings. Use the miles the wrecker actually drove |
+| A dairy driver waiting at the lane | “I called from the bridge. Figured I'd beat the milk truck here.” | The bridge, the lane and the milk truck make sense even if this is your first call |
+
+Use these lines sparingly. Give Duane ordinary shop talk on other passes. Keep the work prompt on the recovery and leave the two numbers on the slips for Brandt to compare. Tou's columns should be legible for anyone who opens his book. Save his plain answer about distance for a question you choose to ask on the ride home.
+
 ### What the player can answer by the end
 
 - What is happening, and that it started with this storm.
@@ -164,25 +179,24 @@ What stays open: why it happens, where the land comes from, whether the storm ca
 
 ### Acts
 
-Every act opens from something the player does, except the first hold. Jobs keep coming through all of it.
+Each act builds on the last. An observation made early stays in the plat or clipboard until you can use it. Every important step needs a player action that uses something learned in the world. Each can wait while Brandt takes ordinary calls.
 
-| Act | Opens when | What happens | Key evidence |
+| Act | What Brandt does | What that makes possible | Key evidence |
 | --- | --- | --- | --- |
-| 0. Normal | Start | You learn the job and pull Angie Kraemer, a night nurse, out of a ditch. The clerk faxes back invoice 1004: your loaded miles from the Highway 64 bridge are "padded" by 0.4. Arlene says to just fix it | The disputed invoice |
-| 1. Off by a tenth | First hold, pushed around job 5 | The surveyor's pickup is taped in a ditch on Swamp Road (beat list below). Mileage keeps creeping. A plow driver jokes that Kolpack Road got longer | Field book, your slips, plow gossip |
-| 2. Not in the plat book | You read the field book, or log three mileage mismatches | Dispatch sends you to fire number N5104 Kolpack Rd. It sits between two farms that used to be neighbors: a blue-green light, a warm empty house, a car with no tape. Then a crossroad that isn't printed. Brass caps with Tou's license number line it | Pencil roads, the caps, a VIN Arlene runs that comes back with no record |
-| 3. Recruited | You show Kowalski your slips or the caps | Kowalski tells you what she knows, and Arlene admits the ban isn't about the weather. The clerk's complaint went to Tou, who asked for you. You get your own tape roll. Hold cars now come from new land | Custody cards, your tape, a filling bay |
-| 4. The ride | You follow the caps to the end of the newest road | Dispatch sends you to a pickup past the last cap. It's Tou: alive, cold, calm. The drive home is the game's longest conversation | His last field book |
-| 5. Adopted | You drop Tou at the yard | The county adopts the new land on paper (ending below) | The new plat book and the last slip |
+| 0. Normal | Take a local recovery on the radio | Work and payment continue here indefinitely. A later loaded haul can draw a calibration query. A Swamp Road call can put the section corner in your headlights | Your own slips, the clerk's fax, the printed plat |
+| 1. Off by a tenth | Follow the prints from Unit 38, read the equipment tag under the lamp and tell Arlene where you found it | Kowalski opens the survey pickup case. You can take her hold order when you're ready | Unit 38, its tagged gear, the custody card and Tou's field book |
+| 2. Not in the plat book | Once Unit 38 is in the bay and its card filed, ask Arlene about the junction you marked from Tou's sketch, or show her two slips where you found a difference on the same Kolpack run | Arlene can give you a look-see at N5104 Kolpack. Between the old farms stand a warm empty house and an untaped car. Beyond them are a crossroad and brass survey caps | Your pencil mark or paired slips, the house number, a VIN Arlene can run |
+| 3. Recruited | Copy the number from a cap at that crossroad and show Kowalski where it sits on the printed plat | She brings you into the missing-driver inquiry. Arlene tells you why the ban stays on. Tou had already asked for your slips after the clerk queried his office. You get your own tape roll | Cap rubbing and plat, custody cards, checked cars |
+| 4. The ride | Follow Tou's line, read the last cap and radio its stamp to request a pickup beyond it | Arlene can place you. Tou is there, alive, cold and calm. You can offer him a ride to the yard | The cap stamps and his last field book |
+| 5. Adopted | At the yard, match Tou's unit to its custody card and witness his release of the pickup after Kowalski clears it | With the resurvey back in county hands, the board can adopt it. The resolution reaches you by fax | The signed release, the new plat book and the next slip |
 
-### The first hold, beat by beat
+### The survey pickup, from roadside sighting to evidence hold
 
-1. Arlene: "Need you on Swamp Road at the Section 3 corner. County vehicle. Kowalski's out there."
-2. A white county pickup with an amber light bar is nosed into the ditch and taped. Twenty feet away, a tripod stands over a corner monument with the instrument still mounted, switched off and capped with snow.
-3. Kowalski wants the tripod too. "Hold for investigation. Lock it up. Don't go through it." She signs the custody card and you sign under her.
-4. Footprints lead from the tripod north, toward a far blue-green light. The plat book shows only state swamp north of Swamp Road. Ask Kowalski and she says, "That's not anything."
-5. At the yard the pickup sits in the bay, and you can open it. On the seat is Tou's field book: neat columns of the same section line, dated, a little longer each time. The last line reads "S3/S4 line 5,402.6 — again," over a sketch of a road that isn't printed anywhere.
-6. Nothing else happens until you decide to do something about it.
+1. An ordinary job takes you along Swamp Road. Its customer has their own car and their own slip. At the Section 3 turnout sits a white county pickup, clear of the lane. A strip of checked tape hangs from its mirror. You can read **Survey Unit 38** on the door. Twenty feet away a tripod stands over the corner, capped with snow. You can finish the paying job and leave.
+2. Boot prints head north from the tripod. A blue-green lamp shows through the trees where the plat says state swamp. Walk out on your own, on this call or on a later visit. Under the lamp, inside a gate, is a survey rod case. Turn it over with your glove to read the stenciled unit number. The pickup, prints, lamp and case stay there between calls. Arlene still knows only what you've told her.
+3. Back at the cab you can tell Arlene, “Found Thirty-eight's rod case inside the gate north of the Section Three corner. Anybody heard from the surveyor?” That radio choice becomes available when you've read the tag and identified the pickup. The report can wait. Mark the spot in the plat to find it again.
+4. Arlene tries Tou on the county channel. When he doesn't answer, Kowalski asks for the location, opens a case and offers to meet you at the pickup. If you have a car on the hook, finish that job first. If you'd like to work other calls, the authorized pickup stays in the turnout until you take the order.
+5. Now there is a deputy, a case number and a reason to use the hold bay. Sign with Kowalski, stow the tripod, fit the dollies, bring that same pickup in and lock the chain before faxing. Tou's field book rides on the seat. His dated S3/S4 measurements end at 5,402.6 feet, with a small road sketched in the margin. You can close the cover and go back to work.
 
 ### The ride home
 
@@ -197,16 +211,16 @@ You drive and pick questions. Tou answers short and dry.
 - **Is it stopping?** "It isn't speeding up. It isn't slowing down."
 - **Why go back out?** "Somebody has to keep the corners."
 
-He asks to be dropped at your yard, not at home. Kowalski radios the release, he signs his own truck out of your bay and drives north.
+He asks to be dropped at your yard. He leaves his resurvey for the county. Kowalski radios the release. Pull the card for Unit 38 and countersign when Tou signs for his truck. He drives north.
 
 ### The ending
 
 1. A fax from the county board's emergency session: a resolution adopting the surveyor's resurvey. The new sections are numbered and the new roads named. The tow ban stays in effect "pending conditions."
 2. A box on the office step: the new plat book. Most parcels on new land list their owner as CURRENT RESIDENT. A few carry the names of drivers who walked off and never came back, Angie Kraemer among them.
-3. A call from a fire number on new land. It's Angie, asking you to haul her old car away. She's warm, calm and herself. "It's closer to work now." She doesn't want a ride.
+3. A call from a fire number on new land. It's Angie, asking you to haul her old car away. If you pulled her out on an earlier shift, she remembers the tow. If this is your first meeting, she gives her name and tells you which car is hers. She's warm, calm and herself. “It's closer to work now.” She doesn't want a ride.
 4. A fax: a public auction notice for the unclaimed vehicles in your hold bay. They're ordinary abandoned property now.
 5. A fax: the clerk's revised rate schedule. Loaded miles will be paid "as recorded."
-6. The next ordinary run, yard to Esker Fuel & Food, a drive you've made a hundred times. The slip prints 1.3. It used to be 1.2.
+6. On a later generated haul over familiar ground, the slip prints the miles you drove. An earlier slip from the same run is still on the clipboard. A tenth of a mile can sit between the two carbon copies for as long as it takes you to look.
 7. "Brandt, you on?" The game goes on.
 
 After the story, the calls never stop and the new land keeps generating (see the map). Now and then, far out, you find a car that's already taped, initialed "T.V." in marker.
@@ -221,10 +235,10 @@ The cast is small and almost everyone works nights. Most contact is by radio, fa
 | Deputy Jess Kowalski | Night-shift deputy on her third double | Scenes, holds, the bay | That people are missing and roads are wrong, but not why. She tapes everything | Tired and dry; honest when asked straight |
 | Tou Vang | County surveyor, 20 years setting corners | Absent until Act 4; present through his field book and caps | The most: measurements from the first night | Precise, unbothered, won't speculate |
 | Sheriff Ron Siebert | Keeps the ban in place | Signatures on faxes, one radio call | Everything the county knows | Never more than one sentence at a time |
-| Doreen Pfaff | Clerk's office, accounts payable | Faxes only | That your mileage keeps "padding" | Typed memos with underlines |
-| Duane Ruesch | County plow driver, 31 winters | Stuck plows, radio chatter | Every road by feel. First to say Kolpack Road is longer | Talks through the whole pull. His jokes slowly stop being jokes |
+| Doreen Pfaff | Clerk's office, accounts payable | Faxes only | Which invoices fall outside the county schedule. She keeps equipment calibration dates on file | Typed memos with underlines |
+| Duane Ruesch | County plow driver, 31 winters | Stuck plows, radio chatter | Every road by feel, down to when the dairy usually puts the coffee on | Talks through the whole pull. His jokes slowly stop being jokes |
 | Mai Xiong | Night clerk at Esker Fuel & Food | Every coffee stop | Who has stopped coming in. She keeps a tally of regulars on register tape | Quick and funny |
-| Angie Kraemer | Night nurse at Tamarack Memorial | A ditch pull in Act 0, her empty car in Act 2, a call in Act 5 | That the light was farther than it looked | Practical and kind, a little calmer each time |
+| Angie Kraemer | Night nurse at Tamarack Memorial | An early generated ditch pull can introduce her. Her empty car can turn up in Act 2. She calls in Act 5 | That the light was farther than it looked | Practical and kind, a little calmer each time |
 | Gary and Bev Lindquist | Elderly dairy farmers on Kolpack Road | Gary goes in the ditch checking heifers, over and over | Bev: "We've never had a neighbor on that side." | Comic, stubborn, unchanged |
 | Stranded drivers | Out-of-state truckers, a propane driver, kids home from college | Ditch pulls and semis | Small wrong details about where they went off | Generated from a pool of lines per district |
 
@@ -244,7 +258,7 @@ Every spoke starts at the yard in Esker. The first new land opens on Kolpack Roa
 | --- | --- | --- | --- | --- |
 | Esker | Center-west | Your yard on the north edge, Esker Fuel & Food (open 24 hours), St. Hedwig's twin steeples, Zion Lutheran, the fire hall, the feed co-op, the Esker Tap (closed, sign still lit), a shut cheese factory, the water tower | Highway 64 (Main Street), County K | Ditch pulls, look-sees |
 | The dairy grid | South and east | Section-line town roads named for families, farms with orange sodium yard lights and bunker silos, the 24-hour Brzezinski Dairy with its lit freestall barns | Kolpack Rd, Hendricks Rd, Zielinski Rd, County FF | Ditch pulls, milk tankers, hazard tows. The first new land shows up here |
-| Ginseng gardens and the swamp | North | Rows of bare shade frames (posts and wire) over straw-covered beds; the Tamarack Swamp, which is state land; Swamp Road, which dead-ends at it | County K north, Swamp Rd, Garden Ln | The first hold. Later, roads run on past where they used to end |
+| Ginseng gardens and the swamp | North | Rows of bare shade frames (posts and wire) over straw-covered beds; the Tamarack Swamp, which is state land; Swamp Road, which dead-ends at it | County K north, Swamp Rd, Garden Ln | Ditch pulls and checked hazards. Unit 38 stands in its turnout. Later, roads run past the old dead ends |
 | River and the four-lane | West | The Tamarack River, the Esker dam and flowage, the river bridge, the four-lane US 59 with a truck stop at the interchange and a wayside rest area | US 59, the Highway 64 bridge, River Rd | Jackknifed semis, emergency vehicles |
 | Tamarack (county seat) | East end of Highway 64 | Sheriff's office and 911 center, courthouse, county highway garage, Tamarack Memorial hospital, an AM radio tower with a red beacon you can see from most of the map | Highway 64 | Stuck plows, emergency vehicles |
 | New land | Between and beyond | Slivers inside the dairy grid first, then roads continuing north past the swamp. Finished, aged and empty, with blue-green mercury-vapor yard lights | Not in the plat book; named by the road signs you find | Unmapped retrievals, survey assists, and generated sections after the story |
@@ -362,6 +376,26 @@ All of these are under the SIL Open Font License, so they're free to ship in a c
 
 Build the smallest piece that proves the feeling first: a corner of the dairy grid, the yard, two job types and the odometer. If the third run there feels better than the first, the rest is content.
 
+### Changes needed from the playable build · November 24, 2026
+
+The two ordinary recoveries already playable, ditch pulls and hazard tows, are enough to test procedural dispatch. The existing survey hold supplies the custody work. Heavy recoveries and the later acts are full-game plans.
+
+| Area | In the current build | Change to make |
+| --- | --- | --- |
+| Dispatch and onboarding | `scripts/dispatch.gd` always issues Angie, dairy, farm, bridge, then Unit 38 on slips 1001–1005. Only after the hold does it alternate ditch and hazard calls from four variants on the same four sites. The cab's first hail names the nurse. | Generate local work from slip 1001. Give each save its own draw, build directions to the chosen site, and keep the radio tutorial usable on any first pull. Update the README's first-drive directions when this ships. |
+| The Swamp Road scene | In `scripts/game.gd`, `scripts/county.gd` and `scripts/county_sites.gd`, accepting the hold reveals the tripod, prints and mercury lamp. Kowalski is already there. You can ask about the light at her side. Nothing at the lamp can be inspected. | Give the parked truck and its trail a life between jobs. Add a readable door marking and rod-case tag. Remember each observation, the report and the deputy's order separately. Only an accepted order brings Kowalski and a custody card to the turnout. Keep the existing tripod collection, dollies, marked bay and chain procedure for the actual hold. |
+| Paper and radio | `scripts/game.gd` attempts the first road change near the yard after three jobs. Slip 1004 gets a fixed bridge dispute for 0.4 miles and a “disputed” receipt heading. In `assets/audio/lines.json`, Arlene repeats the deduction and Duane says “Kolpack got longer” after the pickup is held. | Keep the physical change off camera and independent of what Brandt knows. Let Doreen query a real loaded slip whose recorded run differs from her schedule. Print its own number and readings, leave the original payable and give Duane his garage line. A fax or scanner transmission alone never advances an act. |
+| Evidence and saves | Opening the field book sets `book_read`. The ledger preserves that and the custody state. Continuing an active job rebuilds its ticket from the completed-job count. Later acts are still to build. | Save the actual offer and accepted ticket, the truck's identity and location, the observations made, who has been told and which follow-ups were accepted or deferred. Resume the same job and evidence after quitting. Finish any old in-progress ticket on its original terms, honor an existing hold and keep its paperwork. Older operators can pursue later leads from that point. |
+
+### What to play through before shipping the change
+
+- Start two fresh saves. Get a workable local pull in each. Take twenty calls on one without investigating anything. Check that different sites and approaches come up, the directions match the cars, every slip pays on the usual cycle, and the survey pickup still has no case.
+- Finish a tow that passes the light. Return several calls later on your own. Read the pickup door and the rod-case tag, save, quit and take another ordinary job. Both observations survive. Kowalski opens one case when you radio the report. Defer her offer, file another paid slip, then take the hold for the original Unit 38.
+- Resume an older save during a recovery and another with the survey pickup already secured. Keep the active rigging or existing custody record. Neither operator is sent out for a second copy of the pickup. After the final story release, the radio still offers ordinary work.
+- Give a new player a familiar route twice and leave the slips within reach. Ask what, if anything, seemed odd. A player who suspects the speedometer has heard a plausible line. A player who suspects the road should be able to point to a landmark or two readings that made them wonder.
+
+`tests/paperwork_test.gd` and `tests/shift_test.gd` assume the fourth bridge invoice and the fifth-call hold. Replace those assumptions with runs that skip and pursue the case. Keep their checks for winching, filing, delivery and the bay chain.
+
 ### Vertical slice
 
 - [ ] The yard, four sections of the dairy grid, and Highway 64 to the bridge
@@ -379,8 +413,8 @@ The slice passes two tests. Does the third run feel better than the first? Does 
 1. **Drive feel:** truck physics, snow, the cab, the radio.
 2. **Recovery:** rigging, winch tension, wheel-lift, dollies.
 3. **Paper:** plat book, slips, custody cards, fax, logbook.
-4. **Jobs:** the generator, district mixes, taped cars that stay put.
-5. **Story system:** knowledge flags, pulled and pushed beats, Acts 0 to 2.
+4. **Jobs.** Generated local calls from the first pull, district mixes and taped cars that stay put.
+5. **Story system.** Persistent discoveries, voluntary reports and deferred story calls through Act 2.
 6. **Full county:** all five districts, semis, plows, tankers.
 7. **Acts 3 to 5:** the ride home and the ending.
 8. **Endless land:** generated sections and road lengthening.

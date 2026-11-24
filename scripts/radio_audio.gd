@@ -52,10 +52,17 @@ func say(id: String) -> void:
 	var line: Array = lines[id]
 	if not chatter_streams.has(id):
 		chatter_streams[id] = Chatter.render(line[0], line[1])
-	radio_tail = line[0] in ["DISPATCH","COUNTY PLOW"]
+	_play_chatter(line[0], chatter_streams[id])
+
+func speak(who: String, words: String) -> void:
+	# Generated tickets vary indefinitely. Keep only the utterance on the radio.
+	_play_chatter(who, Chatter.render(who, words))
+
+func _play_chatter(who: String, stream: AudioStream) -> void:
+	radio_tail = who in ["DISPATCH","COUNTY PLOW"]
 	chatter.bus = &"County radio" if radio_tail else &"Master"
 	chatter.volume_db = -10.0 if radio_tail else -13.0
-	chatter.stream = chatter_streams[id]
+	chatter.stream = stream
 	if audible:
 		chatter.play()
 

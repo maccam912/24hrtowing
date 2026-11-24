@@ -6,11 +6,17 @@ const STEEL=Color("#929895")
 const SNOW=Color("#ced4d4")
 const HOLD_BODY=Color("#deded2")
 const TAPE=Color("#f4e409")
+const UNIT_PLATE := "WI CO 038"
+const UNIT_VIN := "1BTPK18S4VK044506"
 
-static func car(parent:Node3D, kind:String, variant:int) -> Node3D:
+static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
 	var is_hold:=kind=="hold"
-	var wagon:=kind=="hazard" and variant==2
+	var wagon:=not is_hold and variant==2
 	var p=K.joint(parent,Vector3.ZERO,"CountyPickup" if is_hold else "RoadCar")
+	var plate: String = UNIT_PLATE if is_hold else identity.get("plate","")
+	var vin: String = UNIT_VIN if is_hold else identity.get("vin","")
+	p.set_meta("plate",plate)
+	p.set_meta("vin",vin)
 	var g=K.new(p)
 	var body:Color=HOLD_BODY if is_hold else [Color("#607e98"),Color("#7d6159"),Color("#7b838e"),Color("#79635a")][posmod(variant,4)]
 	var width:=.99 if is_hold else .89
@@ -55,7 +61,7 @@ static func car(parent:Node3D, kind:String, variant:int) -> Node3D:
 		for s in [-1.0,1.0]:
 			g.box(Vector3(s*.91,base+.57,1.45),Vector3(.14,.31,1.76),body)
 			g.box(Vector3(s*.90,base+.736,1.45),Vector3(.136,.022,1.66),SNOW)
-			K.label(p,"TAMARACK COUNTY\nLAND SURVEY",Vector3(s*(width+.024),base+.21,-.40),.082,Color("#29433b"),Vector3(0,s*PI/2,0))
+			K.label(p,"TAMARACK COUNTY\nSURVEY UNIT 38",Vector3(s*(width+.031),base+.24,-.46),.104,Color("#283a32"),Vector3(0,s*PI/2,0))
 		g.box(Vector3(0,base+.54,2.32),Vector3(1.81,.34,.11),body)
 		g.box(Vector3(0,head_y+.13,-.13),Vector3(1.01,.07,.23),BLACK)
 		g.box(Vector3(0,head_y+.21,-.13),Vector3(.95,.105,.21),Color("#bb8654"))
@@ -74,9 +80,15 @@ static func car(parent:Node3D, kind:String, variant:int) -> Node3D:
 	g.box(Vector3(0,base+.21,-length*.99),Vector3(.63,.16,.058),BLACK)
 	for z in [-length,length]:
 		g.box(Vector3(0,base-.015,z),Vector3(width*1.96,.145,.093),STEEL)
-		g.box(Vector3(0,base+.115,z*1.016),Vector3(.32,.15,.03),Color("#d5d8ba"))
+		g.box(Vector3(0,base+.115,z*1.016),Vector3(.36,.16,.03),Color("#d5d8ba"))
+		if not plate.is_empty():
+			K.label(p,plate,Vector3(0,base+.115,z*1.016+signf(z)*.018),.059,BLACK,Vector3(0,0 if z>0 else PI,0),"plex_mono")
+	if not vin.is_empty():
+		var vin_strip := Vector3(-.38,base+.59,-.928)
+		g.box(vin_strip,Vector3(.37,.054,.012),BLACK,Vector3(windshield_tilt,0,0))
+		K.label(p,vin,vin_strip+Vector3(0,.003,-.008),.03,SNOW,Vector3(-windshield_tilt,PI,0),"plex_mono")
 	g.finish()
-	if kind!="ditch":
+	if kind in ["hazard","hold"]:
 		var strip=K.new(p)
 		strip.box(Vector3(-width*1.104,base+.625,-.81),Vector3(.036,.06,.242),TAPE)
 		strip.box(Vector3(-width*1.09,base+.485,-.71),Vector3(.025,.25,.09),TAPE,Vector3(.18,0,.08))
