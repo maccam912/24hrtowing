@@ -4,33 +4,33 @@ Nov 23, 2026 · @Matthew Koski · Revised Nov 24, 2026
 
 ## Pitch and pillars
 
-**Loaded Miles** is a slow, lonely driving game about running the last tow truck in a rural Wisconsin county during a blizzard that never ends. A tow ban keeps everyone else off the roads, so you only go out when the sheriff's dispatcher calls you. Every tow slip records your odometer, because towing is billed by the mile, and those numbers are how you slowly notice the county is getting bigger.
+**Loaded Miles** is a slow, lonely driving game about running the last tow truck in a rural Wisconsin county during a blizzard that never ends. A tow ban keeps everyone else off the roads, so you only go out when the sheriff's dispatcher calls you. Something else is moving cars in Tamarack County. Lights pace your wrecker across the fields, cars turn up where no truck could leave them, and the storm goes still when they come close. You can watch from the cab and keep working, or go see what they left.
 
 Working title: *Loaded Miles*. In towing, those are the miles you drive with a vehicle on the hook, and the ones you bill for. Alternates: *Tow Ban*, *24 HR Towing*.
 
 - **The job is the game.** Driving, rigging and hauling are skills that feel better on the tenth run than the first. The jobs never run out and never depend on the story.
-- **Realism is the baseline.** Tow bans, police tape, evidence holds, fire numbers and plat books work the way they do in rural Wisconsin. The strange stands out because everything around it is procedure.
-- **The player decides when to investigate.** Walk to a light, read the unit number on what you find there, tell Arlene where you found it. Drive past and Arlene still has work for you.
-- **Nothing happens on camera.** No ghosts, voices, visions or creatures. Every anomaly is found already done, and every one can be measured or written down.
-- **Unsettling, not scary.** No jump scares, no chase, no threat. The dread is numbers that don't add up and a drive home that is longer than the drive out.
+- **Realism is the baseline.** Tow bans, police tape, evidence holds, fire numbers and plat books work the way they do in rural Wisconsin. The strange stands out because everything around it is ordinary.
+- **Obvious, never urgent.** Every strange thing is big enough to describe to a friend afterward, and none of them needs you. Nothing blocks the road you need, every event ends on its own, and you can always drive past.
+- **The player decides when to investigate.** Turn toward the lights, walk out to the car in the field, or keep to your route. Arlene still has work for you.
+- **Unsettling, not scary.** No jump scares, no chase, no threat. The dread is being watched by something patient, and a calm that arrives too suddenly.
 - **Pressure, not punishment.** Cold and fuel push you along. There is no game over and no failed job.
 
-It is not survival horror, not a story you have to finish, and not a rescue fantasy. Nobody is saved and nothing is fixed. Touchstones: Easy Delivery Co. (structure), Silent Hill 2 (look), House of Leaves (distance as dread), Return of the Obra Dinn (evidence you read for yourself).
+It is not survival horror, not a story you have to finish, and not a rescue fantasy. Nobody is saved and nothing is fixed. Touchstones: Easy Delivery Co. (structure), Silent Hill 2 (look), the second season of *Fargo* (deadpan Upper Midwest procedure with something in the sky), *Close Encounters of the Third Kind* (lights over a rural road at night).
 
 ## Premise
 
-You are Brandt Towing & Recovery of Esker, Wisconsin: one owner, one heavy wrecker, a fenced yard and a heated bay. Tamarack County is under a tow ban that never lifts, and you are the only operator the sheriff will send. The storm started recently enough that nobody talks about a time before it, and long enough ago that nobody can say exactly when.
+You are Brandt Towing & Recovery of Esker, Wisconsin: one owner, one heavy wrecker, a fenced yard and a heated bay. Tamarack County is under a tow ban that never lifts, and you are the only operator the sheriff will send. The storm started recently enough that nobody talks about a time before it, and long enough ago that nobody can say exactly when. The lights came with it.
 
 ### Why the sheriff calls you
 
 1. **The ban has an exception.** A tow ban suspends every tow unless emergency personnel request it, so owner and motor-club calls stop and police calls continue ([Outagamie County](https://news.yahoo.com/outagamie-county-suspends-towing-41-110330581.html)).
 2. **Heavy work skips the rotation.** Sheriffs rotate ordinary tows through a list of approved companies, except for scenes that need heavy-duty equipment or expertise ([Sheboygan County ordinance](https://sheboygancounty.com/home/showpublisheddocument/6894/635895660988700000)). You own the only heavy wrecker for forty miles.
-3. **Video-game stretch: everyone else quit.** The other outfits parked their trucks when the ban started. The light-duty shop in Tamarack shut after one of its drivers spent a night lost on Kolpack Road. Deputies now call nearly anything a hazard so it can be moved: "Everything's a hazard if I say it is."
-4. **The late reveal.** Before Tou went missing, the clerk showed him some of your earlier invoices. He asked for you by name. Your odometer gave him a second set of measurements (Act 3).
+3. **Video-game stretch: everyone else quit.** The other outfits parked their trucks when the ban started. The light-duty shop in Tamarack shut after one of its drivers lost three hours on Kolpack Road and came to with his truck in a hayfield, facing the way he'd come. Deputies now call nearly anything a hazard so it can be moved: "Everything's a hazard if I say it is."
+4. **The late reveal.** The lights follow the wrecker. On nights you stay in the yard, Duane sees them over the county garage. When you're out, they're with you. Sheriff Siebert keeps you on the road because while they're watching you, they aren't over anybody's house. Arlene knows what she's sending you out to do (Act 3).
 
 ### The setting
 
-Tamarack County is fictional, modeled on the country around Wausau: dairy farms on a one-mile road grid, ginseng gardens, tamarack swamp, and a river with a dam and flowage. Esker (population about 400) is home. The county seat, also called Tamarack, is the east end of the map.
+Tamarack County is fictional, modeled on the country around Wausau: dairy farms on a one-mile road grid, ginseng gardens, tamarack swamp, and a river with a dam and flowage. Esker (population about 400) is home. The county seat, also called Tamarack, is the east end of the map. The case numbers put it in 1996: a county radio and a plat book, no phone in your pocket and no GPS.
 
 It is always night and always snowing, but snow-glow keeps the world readable. The clock on the radio runs; there is no dawn and no shift structure. Time is measured in jobs.
 
@@ -40,12 +40,15 @@ It is always night and always snowing, but snow-glow keeps the world readable. T
 | --- | --- | --- |
 | Tow ban | Ditch cars stay put until the ban lifts unless they're a hazard | The premise. Ditch cars pile up and become landmarks |
 | Rotation list | Light tows rotate between companies; heavy goes to whoever has the gear | Why every call comes to you |
-| Checked-vehicle tape | Tape on a mirror or antenna means checked, nobody inside ([Livingston County](https://whmi.com/news/article/35483)) | The language of noticing. Later you carry your own roll |
+| Checked-vehicle tape | Tape on a mirror or antenna means checked, nobody inside ([Livingston County](https://whmi.com/news/article/35483)) | A taped car found somewhere else is how deputies know it was moved |
 | Evidence hold | The tow yard keeps a vehicle secured until the investigating unit releases it ([Austin PD policy](https://www.AustinTexas.gov/sites/default/files/files/350%20Vehicle%20Towing%20and%20Impound.pdf)) | A locked bay and a signed record of who has the keys |
-| Fire numbers | Rural addresses encode distance from a county origin ([Fond du Lac County](https://www.fdlco.wi.gov/departments/departments-f-m/land-information/rural-address-numbering-system)); in Dane County each number is 20 feet ([Dane County](https://department8-test.countyofdane.com/documents/pdf/Zoning-Forms/Rural-Address-Assignment-and-Supplies-Application.pdf)) | A navigation skill, and a ruler frozen at the county's old size |
+| Fire numbers | Rural addresses encode distance from a county origin ([Fond du Lac County](https://www.fdlco.wi.gov/departments/departments-f-m/land-information/rural-address-numbering-system)); in Dane County each number is 20 feet ([Dane County](https://department8-test.countyofdane.com/documents/pdf/Zoning-Forms/Rural-Address-Assignment-and-Supplies-Application.pdf)) | A navigation skill |
 | Plat book | A printed county atlas of parcels and owner names | Your map. You pencil in whatever isn't printed |
-| Survey grid | Six-mile townships, 36 one-mile sections, monumented corners | The surveyor's evidence. A section line should be 5,280 feet |
-| Loaded miles | Towing is billed per mile with a vehicle on the hook | The odometer on every slip, and the clerk's request for a calibration date |
+| Survey grid | Six-mile townships, 36 one-mile sections, monumented corners | Tou's work. The rings it leaves in open fields sit on section corners |
+| Loaded miles | Towing is billed per mile with a vehicle on the hook | The pay that keeps you on the road |
+| Lights reported to police | Small-town officers have taken sighting reports for decades. Elmwood, in Pierce County, founded UFO Days in 1978 after a run of 1975–76 sightings, including a town police officer's ([MPR News](https://www.mprnews.org/story/2018/07/27/when-ufos-visited-western-wisconsin)) | Arlene logs every call as "lights, no action" |
+| "Swamp gas" | In March 1966 Washtenaw County deputies in Michigan chased lights over a swamp, and the Air Force's consultant J. Allen Hynek suggested marsh gas ([Wikipedia](https://en.wikipedia.org/wiki/Michigan_%22swamp_gas%22_UFO_reports), [Bentley Historical Library](https://bentley.umich.edu/news-events/magazine/flying-saucers-and-swamp-gas)) | Kowalski's official explanation, on Swamp Road |
+| Thundersnow | Lightning and thunder inside a heavy snowstorm, documented in Wisconsin by the weather service ([NWS Milwaukee/Sullivan](https://www.weather.gov/mkx/groundhogdaysnowfall)) | Cover for the green flashes, except these have no thunder |
 
 ## Core loop
 
@@ -53,7 +56,7 @@ Every job has the same shape: a call, a drive out, a recovery, a drive back, a s
 
 &#91;embedded content: Core loop · 7 steps, with the story off to the side\]
 
-Most of the time you just run the loop. The story moves only when you step off it to look.
+Most of the time you just run the loop. Strange things happen around it, and the story moves only when you step off it to look.
 
 1. **The call.** Arlene, the overnight dispatcher, radios a location: a road and fire number, a section corner, or "the Lindquist place." You answer on the radio. There is no job board and no waypoint.
 2. **Plan.** Open the plat book on the passenger seat, find the parcel, count section lines, pick a route. If you're unsure, ask Arlene to talk you in. That's always free.
@@ -61,7 +64,7 @@ Most of the time you just run the loop. The story moves only when you step off i
 4. **The scene.** Leave the cab. Set flares, read the tape, talk to whoever is there, then rig it: anchor, winch line, snatch block, wheel-lift or dollies.
 5. **Drive back.** After a ditch pull, the driver takes their car. Keep the slip on the clipboard and take the next call from the cab, or head back to the yard. With a car on the wheel-lift, braking takes longer and steering goes light. When someone needs a ride, you have company in the cab.
 6. **The yard.** Deliver any car on the hook to storage or the hold bay. The slip prints the odometer reading. Fax the finished slips to the county together.
-7. **Between calls.** Fuel, coffee at Esker Fuel & Food, upgrades from the parts catalog, or a drive to look at something you noticed.
+7. **Between calls.** Fuel, coffee at Esker Fuel & Food, upgrades from the parts catalog, or a drive out to something you saw.
 
 ### Pressure
 
@@ -81,18 +84,19 @@ The yard currently fits tire chains and a snatch block. The catalog also lays ou
 
 | Upgrade | What it changes | Opens with |
 | --- | --- | --- |
-| Tire chains | Better grip, braking and deep-snow travel. Required for Tou’s last corner on Alder Cut | $95 at the yard office |
+| Tire chains | Better grip, braking and deep-snow travel. Required for the run up Alder Cut | $95 at the yard office |
 | LED light bar and spot | Wider and longer beam; the spot reads fire numbers from the road | Early |
 | Heated mirrors | Clear mirrors on long hauls | Early |
 | Snatch block set | A double line for Unit 38 and recurring loaded utility pickups | $175 at the yard office |
 | Go-Jacks (wheel dollies) | Move cars with locked or broken wheels | First evidence hold |
-| Scanner upgrade | Hear deputy traffic on more channels | Talking to Deputy Kowalski |
-| Second winch | Two-line pulls for uprighting a semi or a plow | Heavy jobs |
-| Auxiliary fuel tank | Longer runs into unmapped land | Act 2 |
+| Scanner upgrade | Hear deputy and plow traffic on more channels, including sighting calls | Talking to Deputy Kowalski |
+| Second winch | Two-line pulls for uprighting a semi, a plow or a car set down on its roof | Heavy jobs |
+| Boom controls | Lift a car down off a roof or out of the trees | First impossible recovery (Act 2) |
+| Auxiliary fuel tank | Long retrievals out to the flowage and the swamp | Act 2 |
 | Yard additions such as a fence extension, second hold bay, dedicated pump and coffee maker | More storage, more holds, pumpside service and warmth at home | Steady through the game |
 | Rollback (second truck) | Car jobs are faster and cleaner; it can't do heavy work | Mid-game |
 
-The plat book grows too. Roads you've driven get inked in, and roads that aren't printed get your pencil. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and the map keeps growing.
+The plat book grows too. Roads you've driven get inked in, roads that aren't printed get your pencil, and you can pencil a mark wherever you saw something. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and so do the lights.
 
 ## Job catalog
 
@@ -100,147 +104,272 @@ The full game calls for ten job types. Early jobs are short and easy to read. La
 
 | Job | Who's there | What you do | Skill | Story use |
 | --- | --- | --- | --- | --- |
-| Ditch pull | A stranded driver, cold and chatty | Winch the car back onto the road; they drive off | Anchor and angle | Drivers say where they went off, and they're often wrong by a mile |
-| Hazard tow | Nobody; a taped car | Hook it out of a lane or off a shoulder and haul it to storage | Wheel-lift in tight spaces | Taped cars become landmarks, so any change to one is a clue |
-| Jackknifed semi | The driver, sometimes a deputy | Straighten or upright it with two lines and snatch blocks, then tow it to the truck stop | Heavy rigging | An out-of-state driver can tell you which sign they passed while looking for the truck stop |
-| Stuck plow | A county plow driver | Pull the plow out of a drift or ditch | Short, heavy pull | Duane has driven the same route for years. He notices when he's late for coffee |
+| Ditch pull | A stranded driver, cold and chatty | Winch the car back onto the road; they drive off | Anchor and angle | Some drivers didn't go off here. Twenty minutes ago they were on the four-lane |
+| Hazard tow | Nobody; a taped car | Hook it out of a lane or off a shoulder and haul it to storage | Wheel-lift in tight spaces | Taped cars become landmarks. One night the ditch is empty and bare |
+| Impossible recovery | Usually nobody. Sometimes the driver, calm and warm inside | Bring back a car it set down: roll it upright in a field, winch it off the flowage ice, lift it off a roof or out of the trees | Heavy, unusual rigging | A sighting's aftermath turned into work. The best rigging puzzles in the game |
+| Jackknifed semi | The driver, sometimes a deputy | Straighten or upright it with two lines and snatch blocks, then tow it to the truck stop | Heavy rigging | An out-of-state driver watched the lights from his cab while he waited for you |
+| Stuck plow | A county plow driver | Pull the plow out of a drift or ditch | Short, heavy pull | Duane went in the ditch looking up |
 | Emergency vehicle | A deputy or EMTs | Pull an ambulance or squad car out, fast | Speed over finesse | The only job with a clock, and the clock only affects a pay bonus |
-| Milk tanker | A driver from the 24-hour dairy | Recover a loaded tanker on a farm lane while the slosh shifts its weight | Load management | The dairy is the busiest place left, and its workers talk |
-| Evidence hold | Deputy Kowalski | Sign the custody card, move the car on dollies and lock it in the bay | Careful handling | Kowalski can order a hold on a specific vehicle once she has grounds. It stays until release or auction |
-| Look-see | Nobody | No deputy is free, so Arlene asks you to drive past an address or a car and report back | Observation | Sends you places without a tow |
-| Survey assist | The surveyor's notes | Optional: stop at a section corner, read the brass cap with your spot, log it | Reading | Optional evidence that turns any drive into measuring |
-| Unmapped retrieval | Nobody, or someone sheltering | Bring a car back from land that isn't in the plat book | Long haul, fuel planning | Act 2 onward: the farthest, loneliest jobs |
+| Milk tanker | A driver from the 24-hour dairy | Recover a loaded tanker on a farm lane while the slosh shifts its weight | Load management | The dairy is the busiest place left. The herd won't go in when the lights are out |
+| Evidence hold | Deputy Kowalski | Sign the custody card, move the car on dollies and lock it in the bay | Careful handling | Unit 38 first. Later, cars that came back with nobody in them |
+| Look-see | Nobody | No deputy is free, so Arlene asks you to drive past a reported sighting and tell her what's there | Observation | Sends you toward the strange on purpose, without a tow |
+| Passenger | Someone it set down far from home | Give them a ride to Esker Fuel & Food or the hospital | Company in the cab | They tell you plainly what happened to them |
 
 ### How Arlene finds the next job
 
 Generate ordinary work from the first radio call. For the first pull, pick a nearby ditch with room to park, a straightforward cable angle and a landmark visible from the road. Teach the driver how to take the call, work the winch and file the slip on whichever pull comes up. Angie can be the nurse in that ditch or in a later one.
 
 - Draw a recovery type and a compatible site from the open districts. Vary the shoulder or ditch, approach angle, vehicle, occupant and reason the sheriff needs it moved. Favor underused sites and types. If only one type is workable, vary its site and setup. Keep a reachable local pull in the pool even when a story offer is waiting.
-- Build the radio call, directions, scene and paperwork from the same facts. A wagon blocking the dairy lane needs a clear place to set the wrecker, checked tape, directions that get you to that lane and a storage space back at Brandt's. On another run that lane might have a driver bound for the dairy with two wheels off the pavement. They drive away after the pull. You go back to file a slip with zero loaded miles.
-- Reserve the few jobs that need a particular person, object or place. Ordinary work can take you past the survey pickup. Once Arlene relays your report, Kowalski can offer a separate hold for that truck. The offer waits until your current slip is filed. On the radio you can take it or say “Keep me on rotation” and get a regular call immediately.
-- Space the eight case leads by 5, 6, 5, 7, 6, 8, 5 and 6 filed ordinary jobs, respectively. Count the first five from a new shift and each subsequent interval from the previous case filing. Taking every lead when it arrives gives 48 ordinary jobs and eight case slips. Allowing three minutes per ordinary tow and four and a half per case gives a three-hour tuning target. The radio keeps an offered case available until Brandt chooses it. An observation made early stays in the plat, and another twenty paid jobs can leave the case exactly where you put it.
+- Build the radio call, directions, scene and paperwork from the same facts. A wagon blocking the dairy lane needs a clear place to set the wrecker, checked tape, directions that get you to that lane and a storage space back at Brandt's. On another run that lane might have a driver bound for the dairy with two wheels off the pavement. They drive away after the pull.
+- From Act 2 on, build some ordinary calls from the aftermath pool. The car you saw upside down in a field three jobs ago becomes the call. About one ordinary job in five or six should be an impossible recovery once the gear for it is fitted.
+- Reserve the few jobs that need a particular person, object or place. Ordinary work can take you past Unit 38 in the Swamp Road turnout. Once Arlene relays your report, Kowalski can offer a separate hold for that truck. The offer waits until your current slip is filed. On the radio you can take it or say "Keep me on rotation" and get a regular call immediately.
+- Space the eight case leads by 5, 6, 5, 7, 6, 8, 5 and 6 filed ordinary jobs, respectively. Count the first five from a new shift and each subsequent interval from the previous case filing. Taking every lead when it arrives gives 48 ordinary jobs and eight case slips. Allowing three minutes per ordinary tow and four and a half per case gives a three-hour tuning target. The radio keeps an offered case available until Brandt chooses it. Aftermath stays where it was left, so a car you saw in a field twenty jobs ago is still there until someone brings it in.
 - The storm leaves taped cars at plausible spots. An occupied shoulder stays occupied until the car is removed. Keep named vehicles and evidence out of the ordinary vehicle pool.
 
 ### Rigging on foot
 
 At a scene you walk with a flashlight and place flares, chocks and cribbing. Anchor points highlight when you look at them. You run cable from the winch drum through snatch blocks to the attach points, then work the boom, winch and wheel-lift from the truck's side control panel. A needle gauge shows line tension. Pull too hard and the line slips or kinks, which costs money and time, never an injury. An assist option highlights suggested anchors for players who want less puzzle.
 
+Impossible recoveries use the same tools in odd places. An upside-down car takes two lines and a snatch block to roll it onto its wheels. A car on the ice takes every foot of cable and a slow pull from the shore. A car on a roof or in the trees takes the boom.
+
 ### Tape and hold rules
 
 - Tape is yellow and tied to a mirror or antenna. The deputy writes the date and a badge number on it in marker, and it rides with the car to your yard.
-- In Act 3 you're handed your own roll. Cars you check on look-sees get your initials.
+- A taped car found somewhere else, tape still on the mirror, is the county's proof that it was moved.
 - A hold gets a custody card: case number, deputy, and the times and odometer readings at pickup and drop-off. The bay is locked and you hold the key.
 - You can open a hold car. Nothing stops you and nobody checks. Kowalski may ask whether you went through it; you choose the answer, and it only changes the conversation.
 
 ## The mystery
 
-Tamarack County is getting bigger. Since the storm began, distance keeps appearing between things that haven't moved, and the new land arrives finished, aged and empty. The sheriff knows, the tow ban is how the county copes, and in the end the county simply adopts it.
+Something else is moving cars in Tamarack County. It came with the storm. Lights pace the roads at night, cars turn up where no truck could leave them, and drivers come to miles from where they were driving with hours gone. The sheriff knows, the tow ban is how the county copes, and in the end the county simply prices it into the rate schedule.
 
 ### The truth (for the designer only)
 
-- **Distance is being added between fixed points.** The original survey corners haven't moved, but every time the section lines between them are measured, they're longer. The line Tou Vang measures most often goes from 5,280 feet to 5,402.6 in his field book.
-- **It happens everywhere, in slivers, not at an edge.** Most of it is field, fence line and ditch. Some is road, and along the roads there are farmsteads.
-- **New land arrives finished and old.** Gates are rusted and siding is weathered. Fire-number signs fit the address grid, road signs carry names nobody has heard of, and cars sit in the yards with plates on.
-- **Nobody lives there.** Furnaces run on thermostats and the yard lights are on. Mail on the counter is addressed to Current Resident, and the photos on the walls are landscapes with no people in them.
-- **People who go off the road near new land walk toward a yard light.** It's much farther than it looks. They reach an unlocked, warm, empty house and wait. Some are found. The rest stay, because the way back is longer every time they try it.
-- **The tow ban is containment.** Every car on the road is a chance to lose someone. The sheriff, dispatch and a few deputies know. The county surveyor has been measuring it since the first night.
-- **It's steady.** It doesn't speed up or slow down, and eventually it reaches everything, including your drive to the gas station.
-- **Why and how are never answered.** Tou's best guess is "I don't know if the snow brings it or it brings the snow."
+- **Something above the storm lifts cars off the roads and sets them down somewhere else.** Nothing is dented. Headlights stay on and engines keep running. It sets them down gently and level, in places no truck could reach: a field with no tracks, a roof, the flowage ice, the tops of the tamaracks.
+- **It takes what's out at night.** That's the ban: the fewer cars on the road, the fewer it moves. Taped ditch cars sit out every night, so they go first.
+- **People go along.** They come to in their cars, warm and calm, hours later and miles away. Some face back the way they came. Some arrive in summer clothes with a sunburn on one side of the face and say it was warm where they were. A few haven't come back.
+- **It arranges them.** The cars it sets down in the dairy grid form a ring, nose to tail, around the Lindquist section. You can only see it from the Esker water tower. The bare rings it leaves in open fields always sit on section corners, which is how Tou noticed.
+- **It's interested in the wrecker.** You're the only other thing in the county that moves cars, so it watches you work. The lights follow your truck at a distance, and they come closer as the game goes on.
+- **When it's near, the storm stops.** The wind drops, the snow hangs or falls straight down, and the air warms enough to feel. The calm is the tell. It's pleasant, which is worse.
+- **It never touches the wrecker or what's on your hook.** Being near it makes the truck's electrics falter: the headlights and dash dim, the radio fills with a slow pulse, and the compass turns to point at it. The engine never dies.
+- **It's steady.** It never turns into a threat. It only comes closer and stays longer the more you're out.
+- **What and why are never answered.** What it is, where the missing go and what the ring is for all stay open. Tou's best guess: "I don't know if it's taking them or trying to put them back."
 
 ### Rules for the unexplained
 
-- Never seen happening. Land is never shown growing and nothing moves on camera.
-- Always measurable or written down: odometer, fire numbers, survey caps, radio signal, paperwork.
-- New things look old and maintained, never freshly made.
-- New land holds no people except people from the original county.
-- No ghosts, voices, figures in the snow, time loops or dream sequences. Nobody is possessed or changed. People who stay are calm, ordinary and still themselves.
-- The tells are physical. Yard lights on new land are blue-green mercury vapor instead of sodium orange. There's no skyglow over new land, the radio fades to static sooner, and nobody has taped the cars.
+- **Big enough to tell a friend.** If a player wouldn't mention it afterward, it's too small. No tell lives only on paper, in a number or in a VIN.
+- **The lights keep their distance.** You can watch them move, a car lift away or taillights glide into the trees, but until tier 4 the lights stay a field away or more. Up close, you only find what's left. The overhead passes in Act 4 and the car set down in the finale are the exceptions.
+- **Never what's behind the lights.** No craft, no beam source, no beings, no voices. (See Open decisions for a possible glimpse in the finale.)
+- **Never a threat.** It doesn't chase you, touch the wrecker or block the road you need. Every event ends on its own.
+- **Never required.** No ordinary job needs you to watch an event or go look. Story calls give you a reason; they never force it.
+- **Never during the delicate part.** Nothing starts while a line is under tension or a car is coming down off the boom. Lights can hang over the treeline while you rig; they don't interfere.
+- **Every sight has a second channel.** Its lights make no sound at all. The second channel is the wind stopping and the pulse on the radio.
+- **Its colors are its own.** Cold white-green light and bare dark ground. Never sodium orange, your amber or tape yellow.
+- **Visible when nothing else is.** The storm swallows the world past about 100 meters. Its lights ignore the storm and read at several hundred. That's the first thing wrong with them.
+- **It never copies anyone.** It doesn't learn from you, imitate procedure or impersonate people. It does things nothing in the county does.
 
 ### What people will actually say
 
-Early on, give each speaker a reason for getting on the radio or sending paper. Duane wants the garage to look at his plow. Doreen needs a date for her file. They can both be right about their day without either of them figuring out the county.
+Everyone gets an ordinary reason to be on the radio or at a scene, and some of them say what they saw plainly. Being matter-of-fact about it is the county's way of coping.
 
-| Where you hear it | Example | What the player can check |
+| Where you hear it | Example | What it tells you |
 | --- | --- | --- |
-| Duane to the county garage, after a plow run | “Can you check my speedometer when I'm in? Held forty from the silo to the dairy. Coffee was already put away.” | You can time that same stretch on the dash clock |
-| Doreen, on a fax about an actual loaded haul | “Brandt, when was the truck odometer last calibrated? Pencil the date on our copy when you have it. — D. Pfaff” | Two slips can have the same pickup and drop, with different readings. Use the miles the wrecker actually drove |
-| A dairy driver waiting at the lane | “I called from the bridge. Figured I'd beat the milk truck here.” | The bridge, the lane and the milk truck make sense even if this is your first call |
+| Duane to the county garage | "Garage, I'm going to sit here a minute." | He's stopped under them on Hendricks. Drive out and you'll find the plow sitting with its lights going |
+| Arlene, logging a call on the air | "Got another one over Swamp Road. Lights, no action." | She hears these every night |
+| Kowalski, asked straight | "Swamp gas." | The official explanation. She doesn't believe it |
+| A driver in a ditch | "I was on the four-lane outside Wausau. Where am I?" | It moved them |
+| Bev Lindquist | "The heifers have been standing like that since supper." | You can see the ring of cows from Kolpack |
+| Mai at the register | "Lot lights went out at ten after two again." | She keeps track |
+| Angie, after a shift | "Third sunburn this week. In January." | The people it takes come back a little changed |
 
-Use these lines sparingly. Give Duane ordinary shop talk on other passes. Keep the work prompt on the recovery and leave the two numbers on the slips for Brandt to compare. Tou's columns should be legible for anyone who opens his book. Save his plain answer about distance for a question you choose to ask on the ride home.
+Use these lines sparingly, one in three or four jobs, so they stay part of the night rather than a chorus. Give Duane ordinary shop talk on other passes. Save Tou's plain answers for the questions you choose to ask on the ride home.
 
 ### What the player can answer by the end
 
-- What is happening, and that it started with this storm.
+- What it does: it moves cars, and the people in them.
+- That it came with the storm and isn't leaving.
 - Who knows, and why the ban never lifts.
 - Why dispatch calls you, specifically.
-- Where the missing drivers went, and why they don't come back.
-- What the hold cars are, and where the surveyor went.
-- Whether it's stopping. It isn't.
+- Where the surveyor went, and what he saw.
+- Whether it's dangerous. Not in any way anyone can point to.
 
-What stays open: why it happens, where the land comes from, whether the storm causes it, who built what's on it, and whether it has an edge.
+What stays open: what it is, where the missing go, why it arranges the cars, whether it brings the storm, and whether it will ever take the wrecker.
 
 ### Acts
 
-Each act builds on the last. An observation made early stays in the plat or clipboard until you can use it. Every important step needs a player action that uses something learned in the world. Each can wait while Brandt takes ordinary calls.
+Each act builds on the last. Every step can wait while Brandt takes ordinary calls, and sightings keep happening in ordinary play whether or not you take the story (see Sightings).
 
-| Act | What Brandt does | What that makes possible | Key evidence |
+| Act | What Brandt does | What that makes possible | What you see |
 | --- | --- | --- | --- |
-| 0. Normal | Take a local recovery on the radio | Work and payment continue here indefinitely. A later loaded haul can draw a calibration query. A Swamp Road call can put the section corner in your headlights | Your own slips, the clerk's fax, the printed plat |
-| 1. Off by a tenth | Follow the prints from Unit 38, read the equipment tag under the lamp and tell Arlene where you found it | Kowalski opens the survey pickup case. You can take her hold order when you're ready | Unit 38, its tagged gear, the custody card and Tou's field book |
-| 2. Not in the plat book | Once Unit 38 is in the bay and its card filed, ask Arlene about the junction you marked from Tou's sketch, or show her two slips where you found a difference on the same Kolpack run | Arlene can give you a look-see at N5104 Kolpack. Between the old farms stand a warm empty house and an untaped car. Beyond them are a crossroad and brass survey caps | Your pencil mark or paired slips, the house number, a VIN Arlene can run |
-| 3. Recruited | Copy the number from a cap at that crossroad and show Kowalski where it sits on the printed plat | She brings you into the missing-driver inquiry. Arlene tells you why the ban stays on. Tou had already asked for your slips after the clerk queried his office. You get your own tape roll | Cap rubbing and plat, custody cards, checked cars |
-| 4. The ride | Follow Tou's line, read the last cap and radio its stamp to request a pickup beyond it | Arlene can place you. Tou is there, alive, cold and calm. You can offer him a ride to the yard | The cap stamps and his last field book |
-| 5. Adopted | At the yard, match Tou's unit to its custody card and witness his release of the pickup after Kowalski clears it | With the resurvey back in county hands, the board can adopt it. The resolution reaches you by fax | The signed release, the new plat book and the next slip |
+| 0. Normal | Take local recoveries on the radio | Work and payment continue here indefinitely | Far lights over the swamp, short calms, a remark or two |
+| 1. The empty turnout | Find Unit 38 running in the Section 3 turnout, follow Tou's prints and tell Arlene | Kowalski opens the case on the surveyor and offers the hold | Prints that stop in open snow. A bare ring around the tripod |
+| 2. Where they can't be | Read Tou's field book in the bay, look in on N5104, then go up the water tower | Arlene and Kowalski start sending you to the cars it sets down | An empty house with supper on the table. The ring of cars from above |
+| 3. Recruited | Bring a car in off the flowage ice and the carrier's car from Route 2 | Kowalski brings you into the missing-time inquiry. Arlene tells you the lights follow you | Lights pacing your loaded haul in the mirror. Prints that end in a field |
+| 4. The ride | Drive up Alder Cut on chains, find Tou in the calm and bring him home | Tou's notes go to the county. Unit 38 is released | The snow hanging in the air, the hole in the storm, the lights directly overhead |
+| 5. Afterward | Answer Angie's call | The county prices the impossible into its rate schedule. The calls keep coming | It sets a car down in front of the wrecker |
 
-### The eight calls on the survey file
+### The eight calls on the case file
 
 The totals below count ordinary slips when Brandt takes each case as soon as it becomes available. A deferred call stays with dispatch. The next interval starts when Brandt files that case slip.
 
-| Ordinary slips filed | County business | What Brandt brings back |
+| Ordinary slips filed | County business | What Brandt finds |
 | --- | --- | --- |
-| 5 | Identify the equipment at the Section 3 turnout | A tag links the rod case beyond the gate to the pickup. Kowalski can put that particular truck on a custody card. |
-| 11 | Check the address from Tou’s sketch or Brandt’s paired mileage slips | N5104 has a warm house, a fire number and a car with a legible VIN. Arlene has no checked tag for it. |
-| 16 | Bring the new crossroad into Kowalski’s missing-driver inquiry | A rubbing puts the original section corner east of the house. Brandt leaves signed yellow tape on the sedan for the next operator. |
-| 23 | Identify a bearing for the bridge crew’s parts order | Brandt walks from one abutment to the other. Both plates say **EAST ABUTMENT**. Both have the same copper stain below the fourth nail. |
-| 29 | Settle a disputed stop on rural route 2 | Box 6A has four winters of delivery history. Its worn lid holds a band with Tou’s name on it. |
-| 37 | Recover the monument on Tou’s last line | A road turns north before the old Swamp Road barricade. The stake leads to an original 1936 cap. Arlene can place Tou’s next transmission using Brandt’s report. |
-| 42 | Bring the surveyor back to his truck | Tou rides in the passenger seat. Brandt can ask about the missing drivers and the measurements, then countersigns the release at the yard. |
-| 48 | Work the first tow on the adopted sheet | The county prints Alder Cut on its plat. Angie chooses to stay at N5420 and sends her car back. The clerk accepts the wrecker’s recorded miles. |
+| 5 | Get the door number off the white truck at the Section 3 turnout | Unit 38 idling with its headlights on and the driver's door open. The tripod stands in a ring of bare, wet ground. Tou's prints head north and stop mid-stride in open snow, with his rod case at the end of them, dry. Kowalski can put the truck on a custody card |
+| 11 | Look in on N5104 Kolpack. The milk hauler says every light is on and nobody's answering | The Hoffmann place: the door open, supper on the table, nobody home. The car is gone from the drive, and a bare ring sits where it was parked. Tou had N5104 circled in his book |
+| 16 | Go up the Esker water tower for Kowalski and see what Tou drew | From the tank, the cars it has set down across the dairy grid make a ring nose to tail around the Lindquist section. The Hoffmanns' car is in it |
+| 23 | Bring a car in off the flowage ice above the dam | A sedan sits level in the middle of the ice with its headlights on the dam and no tracks around it. It takes every foot of cable. Kowalski's report tells you about missing time and why the ban stays on |
+| 29 | Recover the relief carrier's car on Route 2 | Her car idles at the N5104 boxes with the mail on the seat. Her prints go into the field and stop. Arlene: she turned up in Marathon County, fine, and wants her car. On the haul back the lights follow you in the mirror, and Arlene finally says it: "They follow you, Brandt. They always have" |
+| 37 | Follow Tou's line up Alder Cut | Past the Kraemer place, Alder Cut is an old logging road on the 1936 plat that the modern plat dropped. On chains to the striped witness stakes. The wind stops, then the snow stops in the air around the truck. Tou's pencil lies in the snow beside the cap. Arlene picks up his portable |
+| 42 | Bring the surveyor back to his truck | Tou stands in a bare ring at the end of Alder Cut under a hole in the storm, stars showing. He thinks he's been out forty minutes. His thermos is still warm and one side of his face is sunburned. On the way out, the lights pass directly over the cab. Ask him what you like on the ride home, then countersign Unit 38's release at the yard |
+| 48 | Answer N5420 Alder Cut | Angie wants her car taken to storage. She's walking up Alder Cut to wait for them and doesn't want a ride. While you rig, the lights settle over the trees ahead of her |
 
-### The survey pickup, from roadside sighting to evidence hold
+### Unit 38, from roadside sighting to evidence hold
 
-1. An ordinary job takes you along Swamp Road. Its customer has their own car and their own slip. At the Section 3 turnout sits a white county pickup, clear of the lane. A strip of checked tape hangs from its mirror. You can read **Survey Unit 38** on the door. Twenty feet away a tripod stands over the corner, capped with snow. You can finish the paying job and leave.
-2. Boot prints head north from the tripod. A blue-green lamp shows through the trees where the plat says state swamp. Walk out on your own, on this call or on a later visit. Under the lamp, inside a gate, is a survey rod case. Turn it over with your glove to read the stenciled unit number. The pickup, prints, lamp and case stay there between calls. Arlene still knows only what you've told her.
-3. Back at the cab you can tell Arlene, “Found Thirty-eight's rod case inside the gate north of the Section Three corner. Anybody heard from the surveyor?” That radio choice becomes available when you've read the tag and identified the pickup. The report can wait. Mark the spot in the plat to find it again.
-4. Arlene tries Tou on the county channel. When he doesn't answer, Kowalski asks for the location, opens a case and offers to meet you at the pickup. If you have a car on the hook, finish that job first. If you'd like to work other calls, the authorized pickup stays in the turnout until you take the order.
-5. Now there is a deputy, a case number and a reason to use the hold bay. Sign with Kowalski, stow the tripod, fit the dollies, bring that same pickup in and lock the chain before faxing. Tou's field book rides on the seat. His dated S3/S4 measurements end at 5,402.6 feet, with a small road sketched in the margin. You can close the cover and go back to work.
+1. An ordinary job takes you along Swamp Road. Its customer has their own car and their own slip. At the Section 3 turnout sits a white county pickup, clear of the lane, engine idling, headlights on, driver's door standing open. You can read **Survey Unit 38** on the door. Twenty feet away a tripod stands over the corner in a ring of bare, wet ground. You can finish the paying job and leave.
+2. Boot prints head north from the tripod toward the swamp. A hundred steps out they stop mid-stride in open snow. Tou's rod case lies at the end of them, dry, with no snow on it. Walk out on your own, on this call or a later one. The pickup, prints and rod case stay between calls. Arlene knows only what you tell her.
+3. Back at the cab you can tell Arlene, "Thirty-eight's running in the Section Three turnout with the door open. Prints go north and quit. Anybody heard from the surveyor?" That radio choice becomes available once you've seen the door and the rod case. The report can wait.
+4. Arlene tries Tou on the county channel. When he doesn't answer, Kowalski asks for the location, opens a case and offers to meet you at the pickup. If you have a car on the hook, finish that job first. If you'd like to work other calls, the pickup stays in the turnout until you take the order.
+5. Now there is a deputy, a case number and a reason to use the hold bay. Sign with Kowalski, stow the tripod, fit the dollies, bring that same pickup in and lock the chain before faxing. Tou's field book rides on the seat. It isn't numbers. It's sketches: rings drawn on the section grid, each on a corner, N5104 circled, and a little drawing of the Esker water tower with "see from the tank" under it. You can close the cover and go back to work.
 
 ### The ride home
 
 You drive and pick questions. Tou answers short and dry.
 
-- **What is it?** "Distance. More of it. The old corners haven't moved. There's more ground between them every time I chain it."
-- **Since when?** "The first night of snow. I have it written down."
-- **Where's it coming from?** "I measure. I don't guess."
-- **The houses?** "Always clean. I've never found a dish in the sink."
-- **The people who walked off?** "Some are in those houses. They're fine. The way back gets longer every time they try it, and after a while they stop trying."
-- **Why me?** "Your odometer and mine were the only two things in this county that agreed with each other."
-- **Is it stopping?** "It isn't speeding up. It isn't slowing down."
-- **Why go back out?** "Somebody has to keep the corners."
+- **Where were you?** "Taking a shot on the corner. The wind quit. Forty minutes, maybe." When you tell him how long it's been: "Then my book's wrong."
+- **The sunburn?** "It was warm where I was. That's all I've got."
+- **The rings?** "The ones out in the fields all sit on section corners. It knows where the corners are. Took me twenty years to learn them."
+- **The cars?** "Not a dent on one of them. I don't know if it's taking them or trying to put them back."
+- **The people?** "Most come back. They're all fine. That's the part I don't like."
+- **Why does it follow me?** "You're the only other thing out here that moves cars."
+- **Is it stopping?** "It hasn't hurried once since the snow started."
+- **Why go back out?** "Somebody ought to keep the corners."
 
-He asks to be dropped at your yard. He leaves his resurvey for the county. Kowalski radios the release. Pull the card for Unit 38 and countersign when Tou signs for his truck. He drives north.
+He asks to be dropped at your yard and leaves his field book for the county. Kowalski radios the release. Pull the card for Unit 38 and countersign when Tou signs for his truck. He drives north.
 
 ### The ending
 
-1. A fax from the county board's emergency session: a resolution adopting the surveyor's resurvey. The new sections are numbered and the new roads named. The tow ban stays in effect "pending conditions."
-2. A box on the office step: the new plat book. Most parcels on new land list their owner as CURRENT RESIDENT. A few carry the names of drivers who walked off and never came back, Angie Kraemer among them.
-3. A call from a fire number on new land. It's Angie, asking you to haul her old car away. If you pulled her out on an earlier shift, she remembers the tow. If this is your first meeting, she gives her name and tells you which car is hers. She's warm, calm and herself. “It's closer to work now.” She doesn't want a ride.
-4. A fax: a public auction notice for the unclaimed vehicles in your hold bay. They're ordinary abandoned property now.
-5. A fax: the clerk's revised rate schedule. Loaded miles will be paid "as recorded."
-6. On a later generated haul over familiar ground, the slip prints the miles you drove. An earlier slip from the same run is still on the clipboard. A tenth of a mile can sit between the two carbon copies for as long as it takes you to look.
-7. "Brandt, you on?" The game goes on.
+1. A fax from the county board's emergency session. The tow ban stays in effect "pending conditions," and the sheriff is authorized to recover vehicles "wherever found."
+2. Doreen's revised rate schedule. New lines sit between winch time and storage: *vehicle on structure*, *vehicle on ice*, *vehicle inverted, no approach*. The county prices the impossible and moves on.
+3. A call from N5420 Alder Cut, the last case call. Angie is calm and herself. If you pulled her out on an earlier shift, she remembers the tow. "I'm not scared of it. I'd just like to see." She walks up Alder Cut. You tow her car to storage.
+4. A fax: a public auction notice for the vehicles in storage whose owners never came back. The Hoffmanns' car is lot 3.
+5. On a later ordinary call, the wind stops on the drive out. The lights come down over the road ahead, and something sets a car on the shoulder at the edge of your headlights, gently and level, its own headlights on. Then the snow starts again. Arlene: "Brandt, you on? I've got one on the shoulder right in front of you."
+6. The game goes on.
 
-After the story, the calls never stop and the new land keeps generating (see the map). Now and then, far out, you find a car that's already taped, initialed "T.V." in marker.
+After the story, the calls never stop, the lights keep pace with you, and impossible recoveries join the regular rotation. Now and then you pull into the yard and find a car set down outside your gate, running, with nobody in it.
+
+### Open decisions
+
+- **A glimpse in the finale.** Default: lights only, forever. Option: in ending beat 5, the storm opens and for two seconds something dark and very large blots out the stars above the lights.
+- **Missing time for the player.** Default: on, rare and guarded (see `missing_time`). Option: drivers only.
+- **Whether Angie turns up again.** Default: she doesn't, and nobody says.
+- **Title.** *Loaded Miles* still works as a towing term. *24 HR Towing* matches the build.
+
+## Sightings
+
+Sightings are the strange things that happen during ordinary play. They come whether or not you take the story calls, so a player who never investigates still feels the county change. Story calls add set pieces and answers; sightings are the weather of the game.
+
+### The sighting director
+
+- Nothing happens on the first two jobs. Let the county be normal first.
+- Each drive can hold at most one major event, on the drive out or back. Minor tells (a short calm, a remark, a flicker) can come any time after that.
+- No major event starts while you're rigging on foot; at most, far lights hang over the treeline. Nothing touches the route you need. Events pick a spot ahead of the truck, past the edge of the storm, and run on their own clock.
+- The more slips you've filed, the closer and longer the sightings get. Story acts can raise the tier early.
+- Once-only events fire once per save. Repeatable ones have cooldowns so they never become routine.
+- Aftermath persists. A car in a field stays until someone tows it. Rings and pressed lines last a few jobs, then the snow covers them.
+- Arlene doesn't mention an ambient event unless you radio it in. From Act 3 on, she stops pretending she didn't hear about it.
+
+| Tier | Starts | How close | How often | Typical events |
+| --- | --- | --- | --- | --- |
+| 1. Far | Slip 3 | Over the horizon | One drive in three | Lights over the swamp, short calms, green flashes |
+| 2. Pacing | Slip 8 | A field away | Most drives | Pacing lights, electrics fading, cars in fields, the cow ring |
+| 3. Close | Slip 20 or Act 2 | Across the road | Every drive, one major at most | The lift, the car into the woods, streetlights, missing time |
+| 4. Overhead | Slip 40 or Act 4 | Directly above | Rare and big | Hanging snow, the hole in the storm, the dry roof, a car at your gate |
+
+### Event catalog
+
+Every event is listed with its ID, the tier it starts at and what it leaves behind. IDs are for the build.
+
+#### In the sky
+
+| ID | Tier | What you see and hear | What's left |
+| --- | --- | --- | --- |
+| `swamp_lights` | 1 | Three cold lights hang in a row over the swamp treeline, perfectly still, then go out together. No sound | Nothing. Arlene logs it if you call it in |
+| `pacing_lights` | 2 | A cluster of lights keeps pace with the wrecker a field away, matching your speed. Stop and they stop. Turn toward them and they're always over the next field | Nothing. The signature event, repeatable |
+| `moving_moon` | 2 | A broad glow crosses slowly behind the clouds. The snow-glow brightens and every shadow swings across the road. About twenty seconds | Nothing |
+| `far_landing` | 2 | Lights drop below the treeline a mile off. The snow above them glows from underneath, then they lift and go | A bare ring at that spot, if you drive out |
+| `mirror_follow` | 3 | On a loaded haul, lights trail the wrecker. You see them in the side mirror, low over the road behind the car on your hook | Nothing |
+| `streetlights_out` | 3 | Esker's streetlights go out one at a time down Main as if something passed over, then come back on in the same order | Mai mentions the lot lights next stop |
+| `the_lift` | 3 | Far ahead, lights settle over a taped car in a ditch. The car rises off the shoulder, level, headlights still on, and is carried off over the treeline | An empty, bare ditch. The car turns up later as an impossible recovery |
+| `yard_visit` | 3 | As you come up K, lights hang over your storage stalls, then slide north | Every car in storage now faces the same way (`yard_turned`) |
+| `snow_column` | 3 | Far off, a column of light where the snow falls upward | A bare ring |
+| `overhead` | 4 | The lights pass directly over the wrecker, low. The cab fills with cold light, the dash goes dark and the snow stops. Then they're gone | Nothing. Once on the way out of Alder Cut, rare afterward |
+
+#### On the road, happening live
+
+| ID | Tier | What you see and hear | What's left |
+| --- | --- | --- | --- |
+| `woods_car` | 3 | Taillights ahead on an empty road. The car leaves the road at speed without a bump, taillights level, glides between trees too close together for it, and goes dark | An unbroken snowbank. Tracks start ten feet into the trees, run straight through gaps narrower than the car, and end at a steaming ring |
+| `empty_oncoming` | 3 | Headlights come at you on a tow-ban road. As the car passes, nobody's at the wheel. In the mirror its taillights are already gone | Nothing |
+| `deer_line` | 2 | A line of deer stands across the road, every head tipped up. They don't move for the horn or the lights. When the calm ends, they walk off together | Hoofprints in a straight line |
+| `plow_stopped` | 2 | Duane's plow sits in the road with its lights going and the blade down. He's in the cab looking up. He waves you around | On the scanner after: "Garage, I'm going to sit here a minute." |
+| `power_lines` | 2 | The power lines along the road hum loud enough to hear in the cab, and the snow shakes off them in one long wave | Nothing |
+| `walker` | 3 | A driver walks along the shoulder toward a far light. Stop and they say, "I'm fine. I just want to see." They keep walking | Their prints end in the field. Their car is a hazard tow on a later call |
+| `dry_road` | 2 | A quarter mile of pavement is bare, wet and steaming, and the air in the cab warms. Past it, the road is glazed | The wet stretch refreezes over a few jobs |
+| `snow_roof` | 4 | You drive under something you can't see. For two hundred meters no snow falls, the road is dry and the storm's noise drops away. Then the snow starts again behind you | A dry strip of road for a while |
+
+#### Found afterward
+
+| ID | Tier | What you find | What's left |
+| --- | --- | --- | --- |
+| `field_car` | 2 | A spotless car sits upside down in the middle of a section, headlights on, engine running, no tracks in or out | Stays until towed. Becomes an impossible recovery: roll it with two lines |
+| `bare_ring` | 2 | A ring of bare, wet ground where something sat, steaming. The most common leftover | Snowed over in a few jobs |
+| `cow_ring` | 2 | The Lindquists' heifers stand in a perfect circle in the snow, heads in | Gary goes in the ditch checking them, again |
+| `empty_ditch` | 2 | A taped car you've passed for weeks is gone. Its ditch is bare and dry, and the tape lies neatly on the ground | The car turns up somewhere else |
+| `nose_car` | 3 | A car stands on its nose in a field, perfectly balanced | Impossible recovery |
+| `roof_car` | 3 | A car sits level on the roof of the co-op office | Impossible recovery with the boom |
+| `ice_car` | 3 | A car sits in the middle of the flowage above the dam, headlights on the dam | Impossible recovery: every foot of cable from shore |
+| `tree_car` | 3 | A car rests in the tops of the tamaracks along Swamp Road, eight feet up, level | Impossible recovery with the boom and a snatch block |
+| `green_circle` | 3 | A circle of summer grass steams in a snowfield, with dandelions in it | Snowed over in a few jobs |
+| `pressed_lines` | 3 | Long straight lines pressed into the snow across a field, too regular to be drifts | Part of the pattern you can see from the water tower |
+| `yard_turned` | 3 | You come back to find every car in storage turned to face north | Stays. Nobody comments unless you ask |
+| `car_ring` | 3 | From the Esker water tower, the cars set down across the dairy grid make a ring nose to tail around the Lindquist section | Story call 3 sends you up. After that you can climb any time |
+| `gate_car` | 4 | A car sits outside your yard gate, running, nobody in it, set down square to the gate | Arlene: "That's not one of mine." The sheriff authorizes the tow. Repeatable after the story |
+
+#### Weather
+
+| ID | Tier | What you see and hear | What's left |
+| --- | --- | --- | --- |
+| `the_calm` | 1 | The wind stops dead. Snow falls straight down and the storm's noise drops out, leaving the diesel and the heater fan. Short at first, longer later. Comes with most major events | Nothing. The signature second channel |
+| `green_flash` | 1 | Green-white flashes light the clouds from inside. No thunder follows | Nothing |
+| `warm_air` | 2 | Frost on the windshield runs. On foot, the warmth meter fills instead of draining | The relief is the tell |
+| `thaw_glaze` | 2 | Water drips off the mirrors and the light bar, then everything glazes as the cold comes back | Cosmetic |
+| `snow_up` | 3 | In a field nearby, the snow falls upward | A bare ring |
+| `hanging_snow` | 4 | The flakes stop in the air. Your headlights light them like dust. Drive through and they part around the truck | Nothing. Once on Alder Cut, rare afterward |
+| `storm_hole` | 4 | The clouds open in a circle overhead: stars, with the storm walled around them. It closes over a minute | Once at the end of Alder Cut, then very rare |
+
+#### The wrecker
+
+| ID | Tier | What happens | Guards |
+| --- | --- | --- | --- |
+| `electrics_fade` | 2 | The headlights, dash lights and radio dim to nothing for a few seconds. The engine keeps running and the light bar keeps turning | Never while you're braking hard or on a grade |
+| `compass_turns` | 2 | The dash compass swings away from north and holds on the lights. You can follow it to them | Settles back when they go |
+| `radio_pulse` | 2 | A slow, even pulse fills Arlene's channel under the static, and the AM station drowns | Arlene's next transmission comes through clean |
+| `missing_time` | 3 | A cut to black. You're farther along the same road, the clock is forty minutes later, and Arlene is asking where you've been | Never moves you farther from the job, never during a recovery, at most once every few shifts. Fuel is unchanged |
+
+#### People
+
+| ID | Tier | Who and what | Where |
+| --- | --- | --- | --- |
+| `arlene_log` | 1 | Arlene, on the air: "Lights over Swamp Road. No action." | Radio, between calls |
+| `kowalski_swamp` | 1 | Kowalski, if you ask about the lights: "Swamp gas." At the hold: "That's not anything." | At a scene with her |
+| `displaced_driver` | 2 | "I was on the four-lane outside Wausau. Where am I?" | Replaces a ditch customer's usual line |
+| `gentle_driver` | 2 | "It picked the whole car up. Set it down real gentle." | Ditch customer |
+| `lost_hours` | 2 | "I pulled over to look. Ten minutes, tops." Arlene took the call three hours ago | Ditch customer |
+| `duane_sits` | 2 | "Garage, I'm going to sit here a minute." | Scanner. Pairs with `plow_stopped` |
+| `bev_heifers` | 2 | "They've been standing like that since supper." | A Kolpack pull. Pairs with `cow_ring` |
+| `mai_lot` | 2 | "Lot lights went out at ten after two again." | Esker Fuel & Food. Pairs with `streetlights_out` |
+| `angie_sunburn` | 2 | "Third sunburn this week. In January." | Angie, on a pull or a coffee stop |
+| `summer_driver` | 3 | A driver in a T-shirt, sunburned on one side: "It was warm where I was." They ask for a ride | A passenger job to Esker Fuel & Food |
 
 ## Cast
 
@@ -248,56 +377,59 @@ The cast is small and almost everyone works nights. Most contact is by radio, fa
 
 | Name | Role | Where you meet them | What they know | Voice |
 | --- | --- | --- | --- | --- |
-| Arlene Kujawa | Overnight dispatcher, Tamarack County 911 | The radio, every job | That the ban isn't about the weather. She runs plates and VINs and won't say it on the air | Flat, warm, efficient. Uses your call sign and never hurries |
-| Deputy Jess Kowalski | Night-shift deputy on her third double | Scenes, holds, the bay | That people are missing and roads are wrong, but not why. She tapes everything | Tired and dry; honest when asked straight |
-| Tou Vang | County surveyor, 20 years setting corners | Absent until Act 4; present through his field book and caps | The most: measurements from the first night | Precise, unbothered, won't speculate |
-| Sheriff Ron Siebert | Keeps the ban in place | Signatures on faxes, one radio call | Everything the county knows | Never more than one sentence at a time |
-| Doreen Pfaff | Clerk's office, accounts payable | Faxes only | Which invoices fall outside the county schedule. She keeps equipment calibration dates on file | Typed memos with underlines |
-| Duane Ruesch | County plow driver, 31 winters | Stuck plows, radio chatter | Every road by feel, down to when the dairy usually puts the coffee on | Talks through the whole pull. His jokes slowly stop being jokes |
-| Mai Xiong | Night clerk at Esker Fuel & Food | Every coffee stop | Who has stopped coming in. She keeps a tally of regulars on register tape | Quick and funny |
-| Angie Kraemer | Night nurse at Tamarack Memorial | An early generated ditch pull can introduce her. Her empty car can turn up in Act 2. She calls in Act 5 | That the light was farther than it looked | Practical and kind, a little calmer each time |
-| Gary and Bev Lindquist | Elderly dairy farmers on Kolpack Road | Gary goes in the ditch checking heifers, over and over | Bev: "We've never had a neighbor on that side." | Comic, stubborn, unchanged |
-| Stranded drivers | Out-of-state truckers, a propane driver, kids home from college | Ditch pulls and semis | Small wrong details about where they went off | Generated from a pool of lines per district |
+| Arlene Kujawa | Overnight dispatcher, Tamarack County 911 | The radio, every job | That the ban isn't about the weather, and that the lights follow your truck. She logs every sighting as "no action" and won't say more on the air | Flat, warm, efficient. Uses your call sign and never hurries |
+| Deputy Jess Kowalski | Night-shift deputy on her third double | Scenes, holds, the bay | Every missing-time case since the snow started, but not why. She tapes everything | Tired and dry; honest when asked straight |
+| Tou Vang | County surveyor, 20 years setting corners | Absent until Act 4; present through his field book and his truck | That the rings in the fields sit on section corners, and what it's like where they take you | Precise, unbothered, won't speculate |
+| Sheriff Ron Siebert | Keeps the ban in place | Signatures on faxes, one radio call | Everything the county knows, including why he keeps sending you | Never more than one sentence at a time |
+| Doreen Pfaff | Clerk's office, accounts payable | Faxes only | How to bill for a car on a roof | Typed memos with underlines |
+| Duane Ruesch | County plow driver, 31 winters | Stuck plows, radio chatter | Every road by feel, and where the lights sit over his routes | Talks through the whole pull. His jokes slowly stop being jokes |
+| Mai Xiong | Night clerk at Esker Fuel & Food | Every coffee stop | When the lot lights go out, and who has stopped coming in. She keeps a tally of regulars on register tape | Quick and funny |
+| Angie Kraemer | Night nurse at Tamarack Memorial; lives at N5420 Alder Cut, the last house before the swamp | An early generated ditch pull can introduce her. She treats the people who come back. She calls in Act 5 | What the people who come back look like | Practical and kind, a little calmer each time |
+| Gary and Bev Lindquist | Elderly dairy farmers on Kolpack Road | Gary goes in the ditch checking heifers, over and over | Bev: "The heifers have been standing like that since supper." | Comic, stubborn, unchanged |
+| The Hoffmanns | Dairy family at N5104 Kolpack | Never. Their empty house and their car | Nothing anyone can ask them | — |
+| Stranded drivers | Out-of-state truckers, a propane driver, kids home from college | Ditch pulls and semis | Some of them where they were before they were here | Generated from a pool of lines per district |
 
 ## The map
 
-The map is one compressed township on a one-mile road grid, with spokes running from your yard out to the river and the county seat. It's small enough to learn by heart, which is what makes it unsettling when it stops matching.
+The map is one compressed township on a one-mile road grid, with spokes running from your yard out to the river and the county seat. It's small enough to learn by heart, which is what makes a car upside down in a field you know so wrong.
 
 **Scale.** One game mile is 400 meters, about a quarter of real size, so a section takes about 20 seconds at 45 mph. The township is six sections square, about 2.4 km a side. Add three miles of highway east to Tamarack and the four-lane along the river to the west. The odometer counts game miles.
 
-&#91;embedded content: Tamarack County schematic · 5 districts and the new land\]
+&#91;embedded content: Tamarack County schematic · 5 districts and where the lights settle\]
 
-Every spoke starts at the yard in Esker. The first new land opens on Kolpack Road inside the dairy grid. Later, County K runs on north past the swamp.
+Every spoke starts at the yard in Esker. The lights show up everywhere, but they settle over the swamp, and Alder Cut runs north off Swamp Road into the middle of it.
 
 ### Districts
 
 | District | Where | What's there | Roads | Jobs |
 | --- | --- | --- | --- | --- |
-| Esker | Center-west | Your yard on the north edge, Esker Fuel & Food (open 24 hours), St. Hedwig's twin steeples, Zion Lutheran, the fire hall, the feed co-op, the Esker Tap (closed, sign still lit), a shut cheese factory, the water tower | Highway 64 (Main Street), County K | Ditch pulls, look-sees |
-| The dairy grid | South and east | Section-line town roads named for families, farms with orange sodium yard lights and bunker silos, the 24-hour Brzezinski Dairy with its lit freestall barns | Kolpack Rd, Hendricks Rd, Zielinski Rd, County FF | Ditch pulls, milk tankers, hazard tows. The first new land shows up here |
-| Ginseng gardens and the swamp | North | Rows of bare shade frames (posts and wire) over straw-covered beds; the Tamarack Swamp, which is state land; Swamp Road, which dead-ends at it | County K north, Swamp Rd, Garden Ln | Ditch pulls and checked hazards. Unit 38 stands in its turnout. Later, roads run past the old dead ends |
-| River and the four-lane | West | The Tamarack River, the Esker dam and flowage, the river bridge, the four-lane US 59 with a truck stop at the interchange and a wayside rest area | US 59, the Highway 64 bridge, River Rd | Jackknifed semis, emergency vehicles |
+| Esker | Center-west | Your yard on the north edge, Esker Fuel & Food (open 24 hours), St. Hedwig's twin steeples, Zion Lutheran, the fire hall, the feed co-op, the Esker Tap (closed, sign still lit), a shut cheese factory, the water tower | Highway 64 (Main Street), County K | Ditch pulls, look-sees. The water tower overlooks the dairy grid |
+| The dairy grid | South and east | Section-line town roads named for families, farms with orange sodium yard lights and bunker silos, the 24-hour Brzezinski Dairy with its lit freestall barns, the Hoffmann place at N5104 | Kolpack Rd, Hendricks Rd, Zielinski Rd, County FF | Ditch pulls, milk tankers, hazard tows. Most of the cars it sets down end up here, in the ring |
+| Ginseng gardens and the swamp | North | Rows of bare shade frames (posts and wire) over straw-covered beds; the Tamarack Swamp, which is state land; Swamp Road, which dead-ends at it; Alder Cut, printed as far as the Kraemer place | County K north, Swamp Rd, Garden Ln, Alder Cut Rd | Ditch pulls and checked hazards. Unit 38 stands in its turnout. Where the lights settle |
+| River and the four-lane | West | The Tamarack River, the Esker dam and flowage, the river bridge, the four-lane US 59 with a truck stop at the interchange and a wayside rest area | US 59, the Highway 64 bridge, River Rd | Jackknifed semis, emergency vehicles, cars on the flowage ice |
 | Tamarack (county seat) | East end of Highway 64 | Sheriff's office and 911 center, courthouse, county highway garage, Tamarack Memorial hospital, an AM radio tower with a red beacon you can see from most of the map | Highway 64 | Stuck plows, emergency vehicles |
-| New land | Between and beyond | Slivers inside the dairy grid first, then roads continuing north past the swamp. Finished, aged and empty, with blue-green mercury-vapor yard lights | Not in the plat book; named by the road signs you find | Unmapped retrievals, survey assists, and generated sections after the story |
 
 ### Finding your way without GPS
 
 - **The plat book** is the map: parcels, owner names, section numbers and fire numbers. Glance at it on the passenger seat while driving, or pull over to study it.
 - **Fire numbers** follow the real grid. The prefix is N on north–south roads and W on east–west roads, and every number is 20 feet, so about 264 to a mile. Experienced players read a sign and know how far along the road they are.
 - **Landmarks** do the rest: the radio tower's red beacon to the east, St. Hedwig's steeples, the dairy's lit barns, the roar of the dam, and the orange skyglow over Esker and Tamarack.
-- **Arlene talks you in** whenever you ask, by landmark: "Past the co-op, left at the Lindquist silo." On new land she can't: "I don't have anything out there."
-- **The dash compass** gives heading only, as period trucks did.
-- **Your marks.** The plat book inks in the roads you've driven. Roads that aren't printed go in in pencil, with your odometer readings beside them.
+- **Arlene talks you in** whenever you ask, by landmark: "Past the co-op, left at the Lindquist silo." Up Alder Cut past the Kraemer place she can't: "I don't have anything out there."
+- **The dash compass** gives heading only, as period trucks did, except when it's pointing at them.
+- **Your marks.** The plat book inks in the roads you've driven. Roads that aren't printed go in in pencil, and you can mark anything you saw.
 
-### How new land is built
+### How sightings are built
 
-- **During the story**, new land is hand-placed: the farm at N5104 Kolpack Rd, the unprinted crossroad, the Swamp Road extension, Tou's caps.
-- **After the story**, it generates whole one-mile sections that snap to the survey grid. Farms come from a kit: house, barn, silo, machine shed, yard-light pole, fences, ditches, culverts.
-- **Old roads lengthen too.** The world is built from road segments, and a straight piece gets inserted at a section boundary while the player is far from it. Snow limits visibility to about 100 meters, so the seam is never seen.
+- **During the story**, set pieces are hand-placed: Unit 38's turnout, N5104, the ring of cars, the flowage car, the Route 2 boxes and Alder Cut.
+- **Ambient events** come from the sighting director. Each one picks a spot along your route ahead of the truck, past the edge of the storm, and runs on its own clock.
+- **The lights** are emissive sprites with small lights of their own that ignore the storm fog, so they read at 300 meters while the ground fades at 100. They hold a set distance from the truck and drop behind terrain or a treeline if you close in.
+- **The calm** is an override on the storm: wind to zero, flakes falling straight or frozen, fog pushed back, the wind audio ducked.
+- **Aftermath props** (an upside-down car, a bare ring, pressed lines) are placed out of sight, beyond the fog, and saved with the world.
+- **After the story**, impossible recoveries are generated from the aftermath pool, and the director stays at tier 4.
 
 ## Visual style
 
-The look is PS2-era Silent Hill 2 moved to a county highway at 3 a.m.: low resolution, snow doing the fog's job, film grain, and a palette where every saturated color means something. PS1 style was the alternative. Its wobbling geometry reads retro and cute, while PS2's stable geometry and soft fog suit a game built on measurement.
+The look is PS2-era Silent Hill 2 moved to a county highway at 3 a.m.: low resolution, snow doing the fog's job, film grain, and a palette where every saturated color means something. PS1 style was the alternative. Its wobbling geometry reads retro and cute, while PS2's stable geometry and soft fog suit a game about things that shouldn't be where they are.
 
 ### Rendering rules
 
@@ -306,11 +438,11 @@ The look is PS2-era Silent Hill 2 moved to a county highway at 3 a.m.: low resol
 - Textures 128 to 256 pixels with bilinear filtering. A little shimmer is fine.
 - World lighting is per-vertex. Only the headlights, spot and flashlight light per-pixel, and only the flashlight casts shadows, as in Silent Hill 2.
 - Polygon budgets: the wrecker about 8,000 triangles, cars 1,500 to 3,000, farm buildings 300 to 1,500, people about 2,000.
-- Snow replaces fog. Distance fog is tinted storm blue with 60 to 120 meters of visibility. Streaking snow billboards thicken in the headlights into a tunnel, and drift sprites cross the road.
+- Snow replaces fog. Distance fog is tinted storm blue with 60 to 120 meters of visibility. Streaking snow billboards thicken in the headlights into a tunnel, and drift sprites cross the road. Its lights are the only thing the fog doesn't touch.
 - Faint CRT scanlines, film grain, a slight vignette and a little horizontal bleed on bright edges.
 - None of the modern extras: no screen-space reflections, simulated volumetric fog, depth of field or motion blur.
-- Side mirrors are low-resolution render textures, so the car on your hook shows in them.
-- Your tire tracks persist as decals. On roads you've driven you can see where you've been; on new land there are no tracks at all.
+- Side mirrors are low-resolution render textures, so the car on your hook, and sometimes the lights behind it, show in them.
+- Your tire tracks persist as decals. On roads you've driven you can see where you've been. Cars it set down have no tracks at all.
 
 ### Palette
 
@@ -319,8 +451,9 @@ The look is PS2-era Silent Hill 2 moved to a county highway at 3 a.m.: low resol
 | Storm | #1B2330 | Sky, far distance | The base everything sits on |
 | Snow shadow | #7F8B9B | Snow away from light |  |
 | Snow lit | #D9DEE4 | Snow in the headlights |  |
-| Sodium | #E8892B | Streetlights, yard lights, skyglow | Original county only |
-| Mercury | #B7D9CF | Yard lights on new land | New land only. This is the main tell |
+| Sodium | #E8892B | Streetlights, yard lights, skyglow | The county's lights |
+| Cold | #B7D9CF | Its lights and their glow on the snow | Its color only. This is the main tell |
+| Thaw | #6E8F4A | Summer grass in the green circle | The only living green in the game |
 | Beacon amber | #FFB000 | Your light bar and work lights | Yours only |
 | Tape | #F4E409 | Checked-vehicle tape | Reserved. Nothing else in the game uses this yellow |
 | Tail red | #B3202A | Taillights, flares, the tower beacon |  |
@@ -332,24 +465,24 @@ A 1990s Class 8 conventional with an integrated 35-ton wrecker body: boom, under
 
 ### Light tells
 
-Over the original county the sky glows orange from Esker and Tamarack, and yard lights are sodium. Over new land the sky goes dark, yard lights are blue-green, and the snow in your headlights looks colder. People are drawn plainly, with restrained faces and heavy winter clothes. Nobody is made uncanny on purpose.
+Over Esker and Tamarack the sky glows orange, and the yard lights are sodium. Its lights are cold white-green and show through the storm farther than anything else can. When they're near, the snow in your headlights looks colder, and when the calm comes it stops moving. People are drawn plainly, with restrained faces and heavy winter clothes. Nobody is made uncanny on purpose, including the people it brought back.
 
 ## Audio
 
 There is no score. The soundtrack is the truck, the wind and three radios, and silence is the main tool.
 
 - **The truck:** diesel idle and turbo spool, the engine brake on grades, air brakes, the PTO's whine when the wrecker body engages, chains on pavement, wipers and the backup alarm. Winch cable creaks under load and rises in pitch as tension climbs, so you can hear the gauge. The heater fan is the comfort sound, and it gets a little louder when you're cold.
-- **Dispatch radio:** Arlene on the county channel, in plain language with a squelch tail after each call. You answer by push-to-talk choices.
-- **Scanner:** deputies, plow drivers and the county garage. This is where most overheard story comes from, and the upgrade adds channels.
-- **AM/FM:** fictional local stations: a farm-and-polka AM with the farm report, a country FM, a replayed high school basketball game, a church station. Signal fades with distance from the Tamarack tower. On new land it fades sooner, because it really is farther.
-- **Outside the cab:** layered wind, snow hissing on your jacket, boots squeaking in cold snow, the dairy's vacuum pumps far off, the dam's roar. Sodium lights buzz and mercury lights hum at a different pitch. That's the light tell again, in sound.
-- **New land is quiet.** No dogs, no machinery, only wind and the hum of the lights.
+- **Dispatch radio:** Arlene on the county channel, in plain language with a squelch tail after each call. You answer by push-to-talk choices. When the lights are near, a slow, even pulse rides under the static.
+- **Scanner:** deputies, plow drivers and the county garage. This is where most overheard story comes from, including the sighting calls, and the upgrade adds channels.
+- **AM/FM:** fictional local stations: a farm-and-polka AM with the farm report, a country FM, a replayed high school basketball game, a church station. Signal fades with distance from the Tamarack tower and drowns in the pulse when the lights are near.
+- **Outside the cab:** layered wind, snow hissing on your jacket, boots squeaking in cold snow, the dairy's vacuum pumps far off, the dam's roar. Sodium lights buzz. Its lights make no sound at all.
+- **The calm is quiet.** The wind stops, the dairy's vacuum pumps stop, the dogs stop. Only the diesel, the heater fan and your boots are left.
 - **The yard:** the fax machine's handshake before every document, fluorescent hum in the office, the bay furnace, the coffee maker.
 - **Voice:** Arlene and Tou's ride home are fully voiced. Everyone else gets short voiced lines. Subtitles are always available.
 
 ## UI and typography
 
-Almost all of the UI is paper or truck hardware. A drive opens behind the wrecker, with a small MPH readout beside the camera switch. Switch to the cab to read the dash instruments. The operator’s view choice carries across shifts. On touchscreens, the wheel, pedals and equipment controls take the shapes of the things you handle. The paperwork is a slip, a book, a fax or a card you hold up to the camera.
+Almost all of the UI is paper or truck hardware. A drive opens behind the wrecker, with a small MPH readout beside the camera switch. Switch to the cab to read the dash instruments. The operator's view choice carries across shifts. On touchscreens, the wheel, pedals and equipment controls take the shapes of the things you handle. The paperwork is a slip, a book, a fax or a card you hold up to the camera.
 
 ### Screens
 
@@ -361,7 +494,7 @@ Almost all of the UI is paper or truck hardware. A drive opens behind the wrecke
 | Tow slip | Three-part carbonless form on a clipboard | Job, location, vehicle, VIN, plate, odometer at each stage, loaded miles, charges | IBM Plex Mono for the form, Caveat for your entries |
 | Custody card | Sheriff's evidence tag | Case number, deputy, times, odometer readings, signatures | IBM Plex Mono and Caveat |
 | Fax | Thermal paper curling out of the office machine | Invoices, rejections, payments, resolutions | IBM Plex Mono, printed slightly faded |
-| Field book | Tou's waterproof survey book | Measurements and sketches | Architects Daughter |
+| Field book | Tou's waterproof survey book | Sketches of the rings on the section grid, N5104 circled, the water tower | Architects Daughter |
 | Parts catalog | A paper catalog with a fax order form | Upgrades and prices | Public Sans, prices in IBM Plex Mono |
 | Signs | Green road signs and fire-number plates in the world | Road names, fire numbers, mileage | Overpass |
 | Title and menus | The title card is a green guide sign | Settings, saves | Overpass |
@@ -373,7 +506,7 @@ Almost all of the UI is paper or truck hardware. A drive opens behind the wrecke
 - Pause and open **Directions & next action** in the truck log to read a route cue, review the current procedure, or check what you can operate within reach. Brief equipment feedback appears when you act.
 - Subtitles are Overpass Semibold with a speaker tag such as DISPATCH or KOWALSKI.
 - UI is drawn at output resolution over the 288-line world, so text stays crisp while the world stays rough. A purist option draws it at native resolution.
-- Every color tell has a second channel. Mercury lights hum, and the tape is printed with SHERIFF in black.
+- Every color tell has a second channel. Its lights come with the calm, and the tape is printed with SHERIFF in black.
 
 ### Fonts
 
@@ -391,27 +524,7 @@ All of these are under the SIL Open Font License, so they're free to ship in a c
 
 ## Scope and build plan
 
-Build the smallest piece that proves the feeling first: a corner of the dairy grid, the yard, two job types and the odometer. If the third run there feels better than the first, the rest is content.
-
-### Changes needed from the playable build · November 24, 2026
-
-The two ordinary recoveries already playable, ditch pulls and hazard tows, are enough to test procedural dispatch. The existing survey hold supplies the custody work. Heavy recoveries and the later acts are full-game plans.
-
-| Area | In the current build | Change to make |
-| --- | --- | --- |
-| Dispatch and onboarding | `scripts/dispatch.gd` always issues Angie, dairy, farm, bridge, then Unit 38 on slips 1001–1005. Only after the hold does it alternate ditch and hazard calls from four variants on the same four sites. The cab's first hail names the nurse. | Generate local work from slip 1001. Give each save its own draw, build directions to the chosen site, and keep the radio tutorial usable on any first pull. Update the README's first-drive directions when this ships. |
-| The Swamp Road scene | In `scripts/game.gd`, `scripts/county.gd` and `scripts/county_sites.gd`, accepting the hold reveals the tripod, prints and mercury lamp. Kowalski is already there. You can ask about the light at her side. Nothing at the lamp can be inspected. | Give the parked truck and its trail a life between jobs. Add a readable door marking and rod-case tag. Remember each observation, the report and the deputy's order separately. Only an accepted order brings Kowalski and a custody card to the turnout. Keep the existing tripod collection, dollies, marked bay and chain procedure for the actual hold. |
-| Paper and radio | `scripts/game.gd` attempts the first road change near the yard after three jobs. Slip 1004 gets a fixed bridge dispute for 0.4 miles and a “disputed” receipt heading. In `assets/audio/lines.json`, Arlene repeats the deduction and Duane says “Kolpack got longer” after the pickup is held. | Keep the physical change off camera and independent of what Brandt knows. Let Doreen query a real loaded slip whose recorded run differs from her schedule. Print its own number and readings, leave the original payable and give Duane his garage line. A fax or scanner transmission alone never advances an act. |
-| Evidence and saves | Opening the field book sets `book_read`. The ledger preserves that and the custody state. Continuing an active job rebuilds its ticket from the completed-job count. Later acts are still to build. | Save the actual offer and accepted ticket, the truck's identity and location, the observations made, who has been told and which follow-ups were accepted or deferred. Resume the same job and evidence after quitting. Finish any old in-progress ticket on its original terms, honor an existing hold and keep its paperwork. Older operators can pursue later leads from that point. |
-
-### What to play through before shipping the change
-
-- Start two fresh saves. Get a workable local pull in each. Take twenty calls on one without investigating anything. Check that different sites and approaches come up, the directions match the cars, every slip pays on the usual cycle, and the survey pickup still has no case.
-- Finish a tow that passes the light. Return several calls later on your own. Read the pickup door and the rod-case tag, save, quit and take another ordinary job. Both observations survive. Kowalski opens one case when you radio the report. Defer her offer, file another paid slip, then take the hold for the original Unit 38.
-- Resume an older save during a recovery and another with the survey pickup already secured. Keep the active rigging or existing custody record. Neither operator is sent out for a second copy of the pickup. After the final story release, the radio still offers ordinary work.
-- Give a new player a familiar route twice and leave the slips within reach. Ask what, if anything, seemed odd. A player who suspects the speedometer has heard a plausible line. A player who suspects the road should be able to point to a landmark or two readings that made them wonder.
-
-`tests/paperwork_test.gd` and `tests/shift_test.gd` assume the fourth bridge invoice and the fifth-call hold. Replace those assumptions with runs that skip and pursue the case. Keep their checks for winching, filing, delivery and the bay chain.
+Build the smallest piece that proves the feeling first: a corner of the dairy grid, the yard, two job types and one sighting. If the third run there feels better than the first, the rest is content. What the current build already has, and what has to change for this story, is in the addendum at the end.
 
 ### Vertical slice
 
@@ -421,9 +534,9 @@ The two ordinary recoveries already playable, ditch pulls and hazard tows, are e
 - [ ] Plat book (glance and study) and fire-number signs
 - [ ] Tow slip with odometer readings, faxed from the yard
 - [ ] Arlene: calls, and talk-in directions on request
-- [ ] One sliver of new land on Kolpack Road that makes the drive back 0.1 longer
+- [ ] Pacing lights with the calm, and one upside-down car in a field along the Kolpack run
 
-The slice passes two tests. Does the third run feel better than the first? Does a playtester notice the 0.1 without being told?
+The slice passes two tests. Does the third run feel better than the first? Does a playtester bring up the lights without being asked, and still finish the job?
 
 ### Milestones
 
@@ -431,20 +544,96 @@ The slice passes two tests. Does the third run feel better than the first? Does 
 2. **Recovery:** rigging, winch tension, wheel-lift, dollies.
 3. **Paper:** plat book, slips, custody cards, fax, logbook.
 4. **Jobs.** Generated local calls from the first pull, district mixes and taped cars that stay put.
-5. **Story system.** Persistent discoveries, voluntary reports and deferred story calls through Act 2.
-6. **Full county:** all five districts, semis, plows, tankers.
+5. **Sightings and story.** The sighting director, the calm, pacing lights, saved aftermath, voluntary reports and deferred story calls through Act 2.
+6. **Full county:** all five districts, semis, plows, tankers, impossible recoveries.
 7. **Acts 3 to 5:** the ride home and the ending.
-8. **Endless land:** generated sections and road lengthening.
+8. **Endless nights:** tier 4 events and generated impossible recoveries after the story.
 9. **Finish:** audio pass, voice, polish.
 
 ### Technical needs
 
-These hold in any engine: a raycast-suspension vehicle whose weight shifts with load; cable constraints with a readable tension value; roads built from segments, so straight pieces can be inserted; a 288-line render target with point upscaling; and saves that store world changes (cars moved or taped, pencil roads, holds).
+These hold in any engine: a raycast-suspension vehicle whose weight shifts with load; cable constraints with a readable tension value; lights that ignore fog; a storm whose wind and snow can be stilled; a 288-line render target with point upscaling; and saves that store world changes (cars moved or set down, rings, pencil marks, holds).
 
 ### What to cut first, and what never to add
 
-Cut first, in this order: the rollback, milk tankers, survey assists, all but one AM station, and the Lindquists' running gag. Never add combat, a chase, a fail state or a dawn.
+Cut first, in this order: the rollback, milk tankers, boom recoveries (roofs and trees), all but one AM station, and the Lindquists' running gag. Never add combat, a chase, a fail state, a dawn or a visible creature.
+
+## Addendum: the playable build vs. this story
+
+Checked against the code on November 24, 2026, at commit `4308f24`. The playable build tells the old story, in which the county grows longer between fixed survey corners and the evidence lives on paper. This section lists everything in the build that touches the story: what to keep, what to retire, what to change and what to build. It names files and functions rather than line numbers, because `scripts/game.gd` is changing quickly.
+
+### Keep as built
+
+- **The case scheduler.** `scripts/county_case.gd` keeps `ORDER`, `GAPS`, `due()`, `on_file()` with its deferral rules, `ticket()` and save/restore. Keep the eight slots and the 5, 6, 5, 7, 6, 8, 5, 6 spacing; rewrite what each slot says and does.
+- **The Unit 38 hold procedure.** Kowalski's custody card, the tripod, the snatch block requirement, the dollies, the marked evidence bay and the corner chain (`scripts/game.gd`, `scripts/county_bay.gd`, `scripts/yard_drop.gd`).
+- **Tou's ride and the release at the chain.** `scripts/casework.gd` items `tou` and `release`.
+- **Ordinary dispatch.** `scripts/dispatch.gd` sites, hazard reasons and driver pool. The driver pool is where displaced-driver lines go.
+- **World systems to hang events on.** Storm gusts, fog and wind shaders in `scripts/county.gd` `advance_storm()`; the sky shader in `assets/county/sky.gdshader`; the dash compass fed by `scripts/rig.gd` `_heading_degrees()`; the side mirrors; persistent tire tracks from `rig.gd` `_build_tracks()`; sodium lamp positions in `county.gd` `lamp_locations`.
+- **Props the story reuses.** The Esker water tower (`scripts/county_sites.gd` `esker()`), the river bridge and dam area, the N5104 house (`kolpack_farm()`), the Route 2 boxes (`scripts/county_case_sites.gd` `_rural_boxes()`), the Alder Cut spur, stakes and cap (`alder_cut()`, `_last_corner()`) and the Kraemer house (`_alder_house()`).
+- **Kowalski's line at the hold.** `assets/audio/lines.json` `light`: "That's not anything."
+
+### Retire: the growing county
+
+| What's built | Where | Change |
+| --- | --- | --- |
+| The Kolpack stretch. After the first job, with the truck near the yard and a Kolpack haul already filed, the road south of the Lindquist farm gains 40 m, once | `county.gd` `lengthened`, `_mapped_z()`, `_printed_z()`, `resolve_point()`, `try_lengthen()`, `set_lengthened()`; trigger in `game.gd` `_survey()`; `kolpack_haul_filed` set in `_file_slip()`; save key `longer` | Remove. Old saves keep loading: ignore `longer` and build the original grid |
+| Directions rebuilt for the longer road | `game.gd` `_current_road_map()` and `directions_lengthened`; `scripts/road_directions.gd` | Remove the lengthened branch |
+| Doreen's calibration query on a loaded slip that differs from her schedule | `game.gd` `_file_slip()`, `survey.queried_slip`; `lines.json` `clerk` | Remove, or swap in an ordinary Doreen fax. No story lives on slips |
+| The paper clip for two Kolpack slips with different miles, an alternative way to the N5104 lead | `scripts/survey_case.gd` `clipped_slips`, `toggle_carbon()`; `game.gd` `_compare_carbons()` and `Dispatch.matching_kolpack_slips()`; the clip note in `scripts/desk_paper.gd` | Remove. The N5104 lead comes from the milk hauler and the field book |
+| The field book's distance table (5,280.0 to 5,402.6 ft) and its "no road on plat" sketch | `desk_paper.gd`, the field notes page | Redraw as sketches: rings on section corners, N5104 circled, the water tower with "see from the tank" |
+| Cold mercury yard lamps as the tell for new land | `county_sites.gd` `lamp(..., is_cold)` calls in `hold_site()` and `kolpack_farm()`; `county_case_sites.gd` `alder_cut()`; `county.gd` `lamp_locations.mercury` and the `cold_halo` material | Remove the poles. Reuse the cold halo material for the sky lights |
+| Duane's speedometer line | `lines.json` `plow`, played once from `game.gd` `_survey()` after two jobs | Rewrite as "Garage, I'm going to sit here a minute." Keep the trigger |
+| The driver line about losing count of fence posts | `lines.json` `rural` | Rewrite. It was a distance joke |
+| The stretch's own test | `tests/kolpack_miles_test.gd` | Delete with the feature |
+
+### Change: the eight case calls
+
+| Slot | Built now | New beat | Where to change it |
+| --- | --- | --- | --- |
+| `unit` | Unit 38 parked at the Section 3 turnout. Prints run from the tripod to a rod case inside an open field gate under a cold lamp | The pickup idles with its headlights on and the driver's door open. The tripod stands in a bare ring. The prints stop mid-stride in open snow, with the rod case at the end, dry. No gate, no lamp | `county_sites.gd` `hold_site()`, `survey_rod_case()`; the survey pickup model; `county_case.gd` `LEADS.unit` |
+| `farm` | Field book or paired slips lead to a look-see on an unprinted Kolpack spur: a house with the porch door ajar, a CURRENT RESIDENT envelope, a landscape print and a sedan's VIN | The Hoffmann place, printed on the plat: every light on, door open, supper on the table, an empty drive with a bare ring. The lead comes from the milk hauler and Tou's circled N5104 | `county_sites.gd` `kolpack_farm()`; `county.gd` `kolpack_open` gating, and plat roads and places; `survey_case.gd` `house`, `vin` and `cap` notes; the `house`/`vin`/`cap` actions in `game.gd` `_site_action()` |
+| `commission` | Kowalski's tape detail: rub the cap east of N5104, then initial the sedan's tape | Climb the Esker water tower and see the ring of cars around the Lindquist section | New climb on the water tower prop; ring-of-cars props; `casework.gd` and `county_case.gd` entries for `commission` |
+| `bridge` | Copy the TC-14 EAST ABUTMENT plates at both ends of the river bridge | Bring a sedan in off the flowage ice above the dam. Kowalski's report explains missing time and the ban | Remove `county_case_sites.gd` `_bridge_plate()`; add the ice site and a long-cable recovery |
+| `mail` | Read the HOLD AT BOX / T. VANG band in box 6A at the N5104 boxes | The relief carrier's car idles at the boxes, mail on the seat, her prints ending in the field. Tow it home while the lights follow in the mirror | Keep `_rural_boxes()`; add her car and prints; `casework.gd` `mail` |
+| `line` | Alder Cut opens; chains; brush off the 1936 cap; Tou's pencil in the snow | Keep the road, chains, stakes, cap and pencil. Add the calm and the hanging snow on the approach | `county_case_sites.gd` `alder_cut()`, `_last_corner()`; the storm override |
+| `ride` | Tou under a cold lamp past the last cap; four questions about corners and distance | Tou in a bare ring under the hole in the storm, thermos warm, sunburned. The lights pass overhead on the way out. Eight new questions | `county_case_sites.gd` `_resident("tou")`; `county_case.gd` `QUESTIONS`; the sky hole |
+| `angie` | The board adopts Tou's resurvey. Angie at N5420 signs for her old sedan: "I can walk to work from here now." Doreen pays loaded miles as recorded | The ban stays and the rate schedule grows. Angie walks up Alder Cut to wait for them, and the lights settle ahead of her. Then the auction notice and the car set down in front of you | `casework.gd` `angie`; `county_case.gd` `LEADS` and `DETAILS` receipts for `angie` |
+
+Two related changes. Print Alder Cut on the plat as far as N5420 from the start; today `county.gd` `map_roads()` adds it only once `angie_house` is a landmark, and the logging road beyond stays unprinted. Every `INSPECTIONS`, `NOTES` and `PROMPTS` entry in `casework.gd` and every `LEADS`, `DETAILS` and `QUESTIONS` entry in `county_case.gd` carries old-story text and needs rewriting.
+
+### Build new
+
+| System | What it needs | Hooks in the build |
+| --- | --- | --- |
+| Sighting director | Tier from slips filed and act, one major event per drive, cooldowns, once-only flags, no events while rigging | `game.gd` `_survey()` already runs every frame with the job count and truck position |
+| Sky lights | A fog-ignoring emissive cluster that paces at a set range, retreats behind terrain and makes no sound | The `cold_halo` lamp material and the environment fog in `county.gd` |
+| The calm | Gust to zero, flakes straight or frozen, fog pushed back, wind audio ducked, warmth refilling | `county.gd` `advance_storm()`; the gust input to `scripts/radio_audio.gd` `mix_truck()` |
+| Sky effects | The moving glow, green flashes, the hole in the storm | `assets/county/sky.gdshader` |
+| Truck interference | Dim headlights, dash and radio; the compass target; the radio pulse | The dash animation call in `rig.gd` (`body.animate(...)`); `radio_audio.gd` |
+| Missing time | Fade out, move along the current road, jump the clock, Arlene's line, guards | `game.gd` `_clock()`; `driven_road()` on the road map |
+| Moving set pieces | The woods car on a path through the trees without collision, the empty oncoming car, the deer line, the walker, the lift | The person builder behind `county_case_sites.gd` `_resident()`; the vehicle models |
+| Aftermath and persistence | Upside-down, nose-down, roof, ice and tree cars; bare and green rings; pressed lines; the cow ring; the empty ditch; turned storage; all saved | `scripts/vehicle_drifts.gd`; the storage pad in `county_sites.gd`; the save in `game.gd` |
+| Impossible recoveries | Rolling an upside-down car with two lines, long pulls on ice, boom lifts | The winch and snatch block in `rig.gd`. The boom is modeled but can't be operated yet |
+| Water tower climb | A ladder and a view from the tank across the dairy grid | The water tower prop in `county_sites.gd` `esker()` |
+| New voice lines | Driver, Duane, Bev, Mai, Angie, Arlene and Tou lines from the catalog | `assets/audio/lines.json` and `tools/generate_audio.py`, which spends ElevenLabs credits |
+
+### Tests and docs to update
+
+- Delete `tests/kolpack_miles_test.gd`.
+- `tests/campaign_test.gd`, `tests/survey_sites_test.gd`, `tests/paperwork_test.gd`, `tests/shift_test.gd` and `tests/road_directions_test.gd` reference the old story: the lengthened road (`paperwork_test`, `road_directions_test`, `survey_sites_test`), the unprinted N5104 spur behind `kolpack_open` (`shift_test`, `survey_sites_test`), and the bridge plates and checked sedan (`campaign_test`, `survey_sites_test`). Rewrite those checks for the new beats and keep their checks on winching, filing, delivery and the bay chain.
+- The README's spoiler walkthrough of the eight case calls describes the old story. Update it when the new campaign ships.
+
+### What to play through before shipping
+
+- Start two fresh saves. Take twenty calls on one without investigating anything. Sightings should start around slip 3 and come closer over time. None should block a job or start during rigging. Every slip should pay on the usual cycle, and Unit 38 should still have no case.
+- Afterward, ask a new player what, if anything, seemed odd. They should bring up the lights without prompting. If what they mention is a number, a slip or a VIN, something is too subtle.
+- Finish a tow that passes Unit 38 and return several calls later on your own. Save, quit and take another ordinary job. The idling pickup, the ring and the prints should all still be there.
+- See a car upside down in a field, take ten ordinary jobs and check that it's still there until it comes up as a recovery.
+- Resume an older save with Unit 38 already secured. Keep its custody record, and don't send the operator out for a second copy of the pickup.
+- After the final story beat, the radio should still offer ordinary work, and the sightings should continue.
 
 ## Sources
 
 Checked 2026-11-23: [Outagamie County tow ban](https://news.yahoo.com/outagamie-county-suspends-towing-41-110330581.html) · [Sheboygan County towing ordinance](https://sheboygancounty.com/home/showpublisheddocument/6894/635895660988700000) · [Livingston County checked-vehicle tape](https://whmi.com/news/article/35483) · [Austin PD hold definition](https://www.AustinTexas.gov/sites/default/files/files/350%20Vehicle%20Towing%20and%20Impound.pdf) · [Fond du Lac County rural addressing](https://www.fdlco.wi.gov/departments/departments-f-m/land-information/rural-address-numbering-system) · [Dane County rural addressing](https://department8-test.countyofdane.com/documents/pdf/Zoning-Forms/Rural-Address-Assignment-and-Supplies-Application.pdf) · [Overpass](https://fonts.google.com/specimen/Overpass/about) · [DSEG](https://www.npmjs.com/package/dseg)
+
+Checked 2026-11-24: [MPR News, "When UFOs visited western Wisconsin"](https://www.mprnews.org/story/2018/07/27/when-ufos-visited-western-wisconsin) · [Wikipedia, Michigan "swamp gas" UFO reports](https://en.wikipedia.org/wiki/Michigan_%22swamp_gas%22_UFO_reports) · [Bentley Historical Library, "Flying saucers and swamp gas"](https://bentley.umich.edu/news-events/magazine/flying-saucers-and-swamp-gas) · [NWS Milwaukee/Sullivan, Groundhog Day 2016 snowstorm](https://www.weather.gov/mkx/groundhogdaysnowfall)
