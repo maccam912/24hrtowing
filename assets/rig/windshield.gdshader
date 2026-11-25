@@ -3,6 +3,8 @@ render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never;
 
 uniform float cold : hint_range(0, 1) = 0.0;
 
+uniform float thaw : hint_range(0,1) = 0.;
+
 float grain(vec2 cell) {
 	return fract(sin(dot(cell, vec2(127.13, 311.75))) * 4375.545);
 }
@@ -16,5 +18,7 @@ void fragment() {
 	float irregular = .012 * sin(UV.x * 33.0) + .009 * sin(UV.y * 39.0);
 	float frost = 1.0 - smoothstep(0., .026 + .075 * cold, edge + irregular);
 	ALBEDO = mix(vec3(.23, .31, .34), vec3(.76, .81, .84), dust);
-	ALPHA = .015 + frost * (.16 + .33 * dust + .15 * ridge);
+	float stream = max(0.,1.-abs(fract(UV.x*27.+.032*sin(UV.y*21.))-.5)*22.);
+	float drop = smoothstep(.2,1.,fract(UV.y+TIME*.14+grain(vec2(floor(UV.x*27.),.5))));
+	ALPHA = .015 + frost * (1.-.9*thaw) * (.16 + .33 * dust + .15 * ridge) + stream * drop * thaw * .29;
 }

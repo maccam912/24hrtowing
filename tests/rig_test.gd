@@ -46,9 +46,11 @@ func run() -> void:
 	test_axle_steering()
 	test_line()
 	test_double_line()
+	test_impossible_recoveries()
+	test_sighting_interference()
 	test_departing_driver()
 	if not failed:
-		print("CHECKS PASSED — steering, braking, cable relief, chains, double-line utility tow and independent customer departures. Stops from 12 m/s: empty %.1f m / chained %.1f m / sedan %.1f m / utility %.1f m." % [empty.braking,chained.braking,heavy.braking,utility.braking])
+		print("CHECKS PASSED — steering, braking, cable relief, chains, utility, field, ice and boom recoveries, truck electrics and customer departures. Stops from 12 m/s: empty %.1f m / chained %.1f m / sedan %.1f m / utility %.1f m." % [empty.braking,chained.braking,heavy.braking,utility.braking])
 	quit(1 if failed else 0)
 
 func test_footsteps() -> void:
@@ -241,6 +243,67 @@ func test_double_line() -> void:
 	require(rig.phase=="at_lift","double-line pull brings the utility pickup to the underlift")
 	operate("lift",rig._panel())
 	require(rig.loaded,"heavy utility pickup can be secured for the return haul")
+
+func stand_at(at: Vector3) -> void:
+	rig.in_cab=false
+	rig.foot=Vector3(at.x,0,at.z)
+	rig._update_eyes()
+	aim_at(at)
+
+func test_impossible_recoveries() -> void:
+	var modes := ["ice","roll","nose","roof","tree","gate"]
+	for recovery: String in modes:
+		var ice := recovery=="ice"
+		var raised := recovery in ["roof","tree"]
+		var rolling := recovery in ["roll","nose"]
+		var point := Vector3(-2,6.75 if raised else 0.0,43.0 if ice else 14.0)
+		rig.set_spawn(Vector3.ZERO)
+		rig.start_job("hazard",point,.12,{"recovery":recovery, "running":true, "heavy_recovery": rolling or recovery=="tree"})
+		rig.snatch_block=true
+		require(rig.car_lamps.get_node_or_null("TailpipeVapor")!=null, recovery+" still runs at the site")
+		stand_at(rig._panel() if ice or raised else rig.car.position+Vector3.LEFT*2.5)
+		operate("flare",rig._panel() if ice or raised else rig.car.position)
+		stand_at(rig._panel())
+		operate("cable",rig._panel())
+		if raised:
+			operate("sling",rig._panel())
+		elif rolling:
+			stand_at(rig._side_eye(-1))
+			operate("roll_hook",rig._side_eye(-1))
+			stand_at(rig._side_eye(1))
+			operate("check_line",rig._side_eye(1))
+		else:
+			var eye: Vector3 = rig._eyelet(-1)
+			stand_at(eye+Vector3.FORWARD*.60)
+			operate("attach",eye)
+		stand_at(rig._panel())
+		aim_at(rig._panel())
+		if raised or rolling:
+			for tick in 150: rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+			var before: float = rig.special_work
+			var pose: Transform3D = rig.car.transform
+			rig.restore_state(rig.save_state())
+			require(before>0 and rig.special_work==before and pose.is_equal_approx(rig.car.transform),
+				recovery+" resumes partway through rigging with its pose intact")
+		for tick in 3500:
+			if rig.phase=="at_lift": break
+			rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+		require(rig.phase=="at_lift",recovery+" reaches the underlift")
+		require(absf(rig.car.rotation.z)<.001 and absf(rig.car.rotation.x)<.001,recovery+" comes down upright")
+		operate("lift",rig._panel())
+		require(rig.loaded,recovery+" can be strapped for the haul")
+		rig.end_job()
+
+func test_sighting_interference() -> void:
+	rig.set_spawn(Vector3.ZERO)
+	rig.in_cab=false
+	rig.warmth=.40
+	rig.set_sighting(1.0,Vector3(200,40,0),1.0)
+	rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,STEP)
+	require(rig.warmth>.40 and rig.body.headlamps[0].light_energy<.1,"the windless air warms Brandt while the lamps go dark")
+	require(absf(rig.get_status().heading-90)<.1 and rig.engine_rpm>500,"dash compass points at the lights while the diesel idles")
+	rig.set_sighting(0.0,Vector3.INF,0.0)
+	require(rig.body.headlamps[0].light_energy>3 and absf(rig.get_status().heading)<.1,"headlights and compass recover")
 
 func test_departing_driver() -> void:
 	rig.set_spawn(Vector3.ZERO)

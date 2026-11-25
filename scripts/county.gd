@@ -7,9 +7,7 @@ const Bay = preload("res://scripts/county_bay.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
 const SURVEY_PICKUP := Vector3(314,0,-409)
 const SURVEY_YAW := .38
-const KOLPACK_SEDAN := {"plate":"WLP 504","vin":"1BTAL52C8TJ510428"}
-const KOLPACK_CAR_POINT := Vector3(427,0,330)
-const KOLPACK_CROSSING := Vector2(463,336)
+const HOFFMANN_LANE_END := Vector2(457,336)
 const TERRAIN_X := Vector2i(-795, 1100)
 const TERRAIN_Z := Vector2i(-610, 1000)
 const YARD := Rect2(-65,-90,68,61)
@@ -24,12 +22,9 @@ const PLACES := [
 	["Brzezinski Dairy",90,425], ["Lindquist",431,246], ["Section 3",314,-400],
 	["River bridge",-435,0], ["Esker Co-op",40,-22], ["Tamarack",895,0],
 ]
-var lengthened := false
-var kolpack_open := false
 var alder_open := false
-var case_landmarks := {}
+var case_landmarks := {"angie_house":true,"mailboxes":true}
 var case_models := {}
-var sedan_tape: Node3D
 var rebuild_queued := false
 var county_model: Node3D
 var hold: Node3D
@@ -41,6 +36,13 @@ var rod_case: Node3D
 var rod_case_read := false
 var rod_turn: Tween
 var storm_environment: Environment
+var calm := 0.0
+var hanging := 0.0
+var tower_view := false
+var tower_meshes: Array[GeometryInstance3D] = []
+var sky_material: ShaderMaterial
+var skylight: DirectionalLight3D
+var wind_time := 0.0
 var storm_time := 0.0
 var storm_gust := 0.0
 var storm_travel := 0.0
@@ -59,7 +61,7 @@ var survey_pickup_parked := true
 var tripod_taken := false
 var rng := RandomNumberGenerator.new()
 var county_font: Font
-var lamp_locations := {"sodium": [], "mercury": []}
+var lamp_locations := {"sodium": []}
 var ballasts := {}
 var lamp_update := 0
 
@@ -81,53 +83,21 @@ func map_roads() -> Array:
 	var result := []
 	for r: Array in ROADS:
 		result.append({"name":r[0],"points":PackedVector2Array([Vector2(r[1],r[2]),Vector2(r[3],r[4])])})
-	if case_landmarks.has("angie_house"):
-		result.append({"name":"Alder Cut Rd","points":PackedVector2Array([Vector2(CaseSites.ALDER_X,-400),Vector2(CaseSites.ALDER_X,CaseSites.ALDER_END)])})
+	result.append({"name":"Alder Cut Rd","points":PackedVector2Array([Vector2(CaseSites.ALDER_X,-400),Vector2(CaseSites.ALDER_X,-470)])})
+	result.append({"name":"Hoffmann lane","points":PackedVector2Array([Vector2(400,336),HOFFMANN_LANE_END])})
 	return result
 
 func map_places() -> Array:
 	var result := []
 	for p: Array in PLACES:
 		result.append({"name":p[0],"point":Vector2(p[1],p[2])})
-	if case_landmarks.has("angie_house"):
-		var number: Vector3 = CaseSites.POINTS.angie_house
-		result.append({"name":"N5420 Alder Cut","point":Vector2(number.x,number.z)})
+	result.append({"name":"N5420 Alder Cut","point":Vector2(462,-470)})
+	result.append({"name":"N5104 Hoffmann","point":Vector2(446,331)})
+	result.append({"name":"Esker water tower","point":Vector2(44,-68)})
 	return result
 
-func _mapped_z(z: float) -> float:
-	return z + (40.0 * clampf((z-164.0)/72.0, 0, 1) if lengthened else 0.0)
-
 func resolve_point(p: Vector3) -> Vector3:
-	return Vector3(p.x, p.y, _mapped_z(p.z))
-
-func _printed_z(z: float) -> float:
-	if not lengthened:
-		return z
-	return z - 40.0*clampf((z-164.0)/112.0,0,1)
-
-func try_lengthen(player_position: Vector3) -> bool:
-	if lengthened:
-		return true
-	# Both the original farm and the new section must be beyond the storm horizon.
-	# Leave the entire southern half untouched while it is occupied.
-	if player_position.z >= 28.0:
-		return false
-	set_lengthened(true)
-	return true
-
-func set_lengthened(value: bool) -> void:
-	if lengthened != value:
-		lengthened = value
-		if value:
-			kolpack_open = true
-		_queue_build()
-
-func set_kolpack_open(value: bool) -> void:
-	if lengthened:
-		value = true
-	if kolpack_open != value:
-		kolpack_open = value
-		_queue_build()
+	return p
 
 func _queue_build() -> void:
 	if county_model and not rebuild_queued:
@@ -159,7 +129,7 @@ func set_survey_anchor(point: Vector3, yaw: float) -> void:
 		survey_pickup.rotation.y = yaw
 
 func rod_case_point() -> Vector3:
-	return Vector3(331,ground_height(331,-483)+.63,-483)
+	return Vector3(331,ground_height(331,-483)+.30,-483)
 
 func set_rod_case_read(value: bool) -> void:
 	if value == rod_case_read:
@@ -174,30 +144,21 @@ func set_rod_case_read(value: bool) -> void:
 	rod_turn.tween_property(rod_case,"rotation:x",PI if value else 0.0,.45)
 
 func story_point(id: String) -> Vector3:
-	var point: Vector3
-	match id:
-		"house": point = Vector3(446,1.22,331.2)
-		"vin": point = KOLPACK_CAR_POINT + Vector3(-.38,1.05,-.93)
-		"cap": point = Vector3(457,0.16,330)
-		_:
-			if not CaseSites.POINTS.has(id):
-				return Vector3.INF
-			point = CaseSites.POINTS[id]
-	point = resolve_point(point)
+	if not CaseSites.POINTS.has(id):
+		return Vector3.INF
+	var point: Vector3 = CaseSites.POINTS[id]
 	point.y += ground_height(point.x,point.z)
 	return point
 
 func set_case_landmarks(ids: Array) -> void:
-	var requested := {}
+	var requested := {"angie_house":true,"mailboxes":true}
 	for id: String in ids:
-		if CaseSites.POINTS.has(id) or id == "mail_open":
+		if CaseSites.POINTS.has(id):
 			requested[id] = true
-	if requested.has("bridge_plate"):
-		requested["bridge_plate_far"] = true
 	if requested == case_landmarks:
 		return
 	case_landmarks = requested
-	var open_spur := requested.has("last_cap") or requested.has("tou") or requested.has("angie_house")
+	var open_spur := requested.has("last_cap") or requested.has("tou")
 	if alder_open != open_spur:
 		alder_open = open_spur
 		_queue_build()
@@ -205,25 +166,20 @@ func set_case_landmarks(ids: Array) -> void:
 		_sync_case_models()
 
 func _sync_case_models() -> void:
-	if is_instance_valid(sedan_tape):
-		sedan_tape.visible = case_landmarks.has("checked_sedan")
 	for id: String in case_models.keys():
 		if not case_landmarks.has(id):
 			var retired: Node3D = case_models[id]
 			county_model.remove_child(retired)
 			retired.queue_free()
 			case_models.erase(id)
-	var had_boxes := case_models.has("mailboxes")
 	for id: String in case_landmarks:
-		if id in ["checked_sedan","mail_open"] or case_models.has(id):
+		if case_models.has(id):
 			continue
 		var landmark := Node3D.new()
 		landmark.name = id
 		county_model.add_child(landmark)
 		CaseSites.new(self,Batch.new(landmark,materials)).build_landmark(id)
 		case_models[id] = landmark
-	if case_models.has("mailboxes"):
-		CaseSites.set_mail_open(case_models.mailboxes,case_landmarks.has("mail_open"),had_boxes)
 
 func set_tripod_collected(value: bool) -> void:
 	tripod_taken = value
@@ -236,25 +192,48 @@ func set_survey_pickup_parked(value: bool) -> void:
 		survey_pickup.visible = value
 		survey_pickup.process_mode = Node.PROCESS_MODE_INHERIT if value else Node.PROCESS_MODE_DISABLED
 
+func set_sighting_weather(id: String, strength: float, progress: float) -> void:
+	calm = strength
+	hanging = strength if id in ["overhead","hanging_snow","storm_hole","set_down"] else 0.0
+	var hole := strength if id == "storm_hole" else 0.0
+	var glow := strength if id == "moving_moon" else 0.0
+	var flash := strength * pow(maxf(0.0,sin(progress*10.0)),10.0) if id == "green_flash" else 0.0
+	sky_material.set_shader_parameter("opening",hole)
+	sky_material.set_shader_parameter("glow",glow+flash)
+	sky_material.set_shader_parameter("passage",progress)
+	skylight.rotation_degrees.y = -34.0+glow*(progress*130.0-65.0)
+	skylight.light_energy = 0.30+glow*0.60+flash*0.8
+	storm.visible = id != "snow_roof" or strength < 0.8
+	powder_clouds.transparency = strength
+	spindrift.transparency = strength
+
 func advance_storm(dt: float) -> void:
-	storm_time += dt
+	storm_time += dt * (1.0-hanging)
+	wind_time += dt * (1.0-calm)
 	# Broad gust fronts pass at uneven intervals. Integrate the wind so flakes
 	# keep moving downwind as a front recedes, even on a long night shift.
 	var front := sin(storm_time * .42 + 1.2 * sin(storm_time * .13) - .7)
-	storm_gust = smoothstep(-.30, .90, front)
-	storm_travel += dt * lerpf(13.5, 27.0, storm_gust)
+	storm_gust = smoothstep(-.30, .90, front) * (1.0-calm)
+	storm_travel += dt * lerpf(13.5, 27.0, storm_gust) * (1.0-calm)
 	# The Adreno 830 GLES compiler crashes when the wind shaders read these
 	# values through Godot's global uniform buffer on the first yard frame.
 	for material in wind_materials:
-		material.set_shader_parameter(&"storm_time", storm_time)
+		material.set_shader_parameter(&"storm_time", storm_time if material == snow_shader else wind_time)
 		material.set_shader_parameter(&"storm_gust", storm_gust)
 	snow_shader.set_shader_parameter(&"storm_travel", storm_travel)
+	snow_shader.set_shader_parameter(&"calm", calm)
+	snow_shader.set_shader_parameter(&"hanging", hanging)
 	powder_shader.set_shader_parameter(&"storm_travel", storm_travel)
 	spindrift_shader.set_shader_parameter(&"storm_travel", storm_travel)
-	storm_environment.fog_depth_begin = lerpf(16.0, 6.0, storm_gust)
-	storm_environment.fog_depth_end = lerpf(98.0, 60.0, storm_gust)
+	storm_environment.fog_depth_begin = 420.0 if tower_view else lerpf(16.0,6.0,storm_gust)+75.0*calm
+	storm_environment.fog_depth_end = 760.0 if tower_view else lerpf(98.0,60.0,storm_gust)+100.0*calm
 
 func follow_camera(pos: Vector3) -> void:
+	var elevated := pos.y >= 14.0 and Vector2(pos.x,pos.z).distance_to(Vector2(44,-68)) < 24.0
+	if elevated != tower_view:
+		tower_view = elevated
+		for mesh: GeometryInstance3D in tower_meshes:
+			mesh.visibility_range_end = 850.0 if elevated else 230.0
 	if snow_shader:
 		snow_shader.set_shader_parameter("eye",pos)
 		powder_shader.set_shader_parameter("eye",pos)
@@ -298,22 +277,18 @@ func _fixture_audio() -> void:
 
 func road_distance(x: float, z: float, include_alder := true) -> float:
 	var distance := INF
-	if alder_open and include_alder:
+	if include_alder:
 		var dx := x-CaseSites.ALDER_X
-		var dz := z-clampf(z,CaseSites.ALDER_END,-400)
+		var dz := z-clampf(z,CaseSites.ALDER_END if alder_open else -470.0,-400)
 		distance = dx*dx+dz*dz
-	if kolpack_open:
-		var cross_z := _mapped_z(KOLPACK_CROSSING.y)
-		var lane_dx := x-clampf(x,400,515)
-		var lane_dz := z-cross_z
-		var cross_dx := x-KOLPACK_CROSSING.x
-		var cross_dz := z-clampf(z,cross_z-38,cross_z+45)
-		distance = minf(distance,minf(lane_dx*lane_dx+lane_dz*lane_dz, cross_dx*cross_dx+cross_dz*cross_dz))
+	var lane_dx := x-clampf(x,400,HOFFMANN_LANE_END.x)
+	var lane_dz := z-HOFFMANN_LANE_END.y
+	distance = minf(distance,lane_dx*lane_dx+lane_dz*lane_dz)
 	for r: Array in ROADS:
 		var x0 := float(r[1])
 		var x1 := float(r[3])
-		var z0 := _mapped_z(r[2])
-		var z1 := _mapped_z(r[4])
+		var z0 := float(r[2])
+		var z1 := float(r[4])
 		var dx := x-clampf(x,minf(x0,x1),maxf(x0,x1))
 		var dz := z-clampf(z,minf(z0,z1),maxf(z0,z1))
 		distance = minf(distance, dx*dx + dz*dz)
@@ -321,11 +296,9 @@ func road_distance(x: float, z: float, include_alder := true) -> float:
 
 func _distance_from_lot(x: float, z: float) -> float:
 	var nearest := INF
-	if alder_open:
-		var edge := CaseSites.HOUSE_YARD
-		nearest = maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y))
-		nearest = maxf(nearest,0)
-	if kolpack_open and Rect2(422,317,34,18).has_point(Vector2(x,z)):
+	var edge := CaseSites.HOUSE_YARD
+	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
+	if Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
 	for lot: Rect2 in [YARD,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
@@ -334,20 +307,20 @@ func _distance_from_lot(x: float, z: float) -> float:
 	return nearest
 
 func ground_height(x: float, z: float) -> float:
-	var natural_z := _printed_z(z)
 	if x > -501 and x < -449:
 		var channel := smoothstep(0,8,minf(x+501,-449-x))
 		if absf(z) > 6.6:
-			return -4.4*channel*smoothstep(6.6,13,absf(z))
+			var floor_height := -2.01 if z <= -108 else -4.4
+			return floor_height*channel*smoothstep(6.6,13,absf(z))
 	var d := road_distance(x,z)
 	if d < 4.9:
 		return 0.0
-	var lot := _distance_from_lot(x,natural_z)
+	var lot := _distance_from_lot(x,z)
 	if lot < 0.01:
 		return 0.0
 	var bank := smoothstep(4.9,6.5,d)*(1.-smoothstep(6.5,8.0,d)) * .29
 	var ditch := smoothstep(6.5,9,d)*(1.-smoothstep(10,16,d))
-	var field := (0.37+0.7*sin(x*.019)+0.42*cos(natural_z*.024))*smoothstep(10,30,d)
+	var field := (0.37+0.7*sin(x*.019)+0.42*cos(z*.024))*smoothstep(10,30,d)
 	return (bank-.86*ditch+field)*smoothstep(0,5,lot)
 
 func _paint(tint: String, texture_path := "", emission := 0.0) -> StandardMaterial3D:
@@ -372,7 +345,7 @@ func _make_materials() -> void:
 		["oxide","773e35"],["green","245d4c"],["post","87999c"],["black","1e262b"],
 		["slush","8a97a4"],["stripe","a99875"],["glass","3e4d54"],["river","425263"],
 		["lamp","ffac64","",0.82],["window","e6a46a","",0.43],["fluoro","dbe0db","",0.65],
-		["white","dfded1","",0.05],["mercury","b7d9cf","",.85],["red","be343c","",.80],
+		["white","dfded1","",0.05],["red","be343c","",.80],
 		["safety_yellow","f6b83e","",.40],["amber_lens","ffb62a","",1.7],
 		["brass","b89d61"],
 		["sign","ffffff","brandt_enamel"],
@@ -403,14 +376,10 @@ func _make_materials() -> void:
 	var wire := ShaderMaterial.new()
 	wire.shader = preload("res://assets/county/wire.gdshader")
 	materials["wire"] = wire
-	for role: String in ["sodium","cold_halo"]:
-		var halo := ShaderMaterial.new()
-		halo.shader = preload("res://assets/county/light_halo.gdshader")
-		halo.set_shader_parameter("tint",Color("#ffb579") if role=="sodium" else Color("#b7d9cf"))
-		materials[role] = halo
-	var beacon := ShaderMaterial.new()
-	beacon.shader = preload("res://assets/county/survey_lamp.gdshader")
-	materials["survey_beacon"] = beacon
+	var halo := ShaderMaterial.new()
+	halo.shader = preload("res://assets/county/light_halo.gdshader")
+	halo.set_shader_parameter("tint",Color("#ffb579"))
+	materials["sodium"] = halo
 	var bootprint := ShaderMaterial.new()
 	bootprint.shader = preload("res://assets/county/bootprint.gdshader")
 	materials["bootprint"] = bootprint
@@ -420,9 +389,9 @@ func _weather() -> void:
 	storm_environment = env
 	env.background_mode = Environment.BG_SKY
 	var sky := Sky.new()
-	var sky_mat := ShaderMaterial.new()
-	sky_mat.shader = preload("res://assets/county/sky.gdshader")
-	sky.sky_material = sky_mat
+	sky_material = ShaderMaterial.new()
+	sky_material.shader = preload("res://assets/county/sky.gdshader")
+	sky.sky_material = sky_material
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color("#a0a5b0")
@@ -438,7 +407,7 @@ func _weather() -> void:
 	var weather := WorldEnvironment.new()
 	weather.environment = env
 	add_child(weather)
-	var skylight := DirectionalLight3D.new()
+	skylight = DirectionalLight3D.new()
 	skylight.rotation_degrees = Vector3(-48,-34,10)
 	skylight.light_color = Color("#adb1bc")
 	skylight.light_energy = .30
@@ -479,15 +448,13 @@ func _build_spindrift() -> void:
 
 func _bake_spindrift_ground(xs: Array, zs: Array, heights: Array) -> void:
 	var surface := Image.create_empty(xs.size(), zs.size(), false, Image.FORMAT_RH)
-	var mapped_zs := []
 	for row in zs.size():
-		mapped_zs.append(_mapped_z(zs[row]))
 		for col in xs.size():
 			surface.set_pixel(col, row, Color(heights[row][col], 0., 0.))
 	# The terrain packs extra vertices into ditches. Translate world metres
 	# into fractional row/column indices so wisps sample that same surface.
-	var axes := [xs, mapped_zs]
-	var width := ceili(maxf(xs.back() - xs[0], mapped_zs.back() - mapped_zs[0])) + 1
+	var axes := [xs, zs]
+	var width := ceili(maxf(xs.back() - xs[0], zs.back() - zs[0])) + 1
 	var lookup := Image.create_empty(width, 2, false, Image.FORMAT_RH)
 	for dim in 2:
 		var axis: Array = axes[dim]
@@ -500,7 +467,7 @@ func _bake_spindrift_ground(xs: Array, zs: Array, heights: Array) -> void:
 			lookup.set_pixel(metre, dim, Color((cell + t + .5) / axis.size(), 0., 0.))
 	spindrift_shader.set_shader_parameter("ground_surface", ImageTexture.create_from_image(surface))
 	spindrift_shader.set_shader_parameter("ground_axes", ImageTexture.create_from_image(lookup))
-	spindrift_shader.set_shader_parameter("ground_origin", Vector2(xs[0], mapped_zs[0]))
+	spindrift_shader.set_shader_parameter("ground_origin", Vector2(xs[0], zs[0]))
 
 func _airborne_snow(material: ShaderMaterial, count: int) -> MultiMeshInstance3D:
 	var quad := QuadMesh.new()
@@ -524,7 +491,6 @@ func _airborne_snow(material: ShaderMaterial, count: int) -> MultiMeshInstance3D
 func _build() -> void:
 	rebuild_queued = false
 	case_models.clear()
-	sedan_tape = null
 	if is_instance_valid(county_model):
 		remove_child(county_model)
 		county_model.queue_free()
@@ -538,9 +504,15 @@ func _build() -> void:
 	_build_ground(draw)
 	var places = Sites.new(self,draw)
 	places.build()
-	if alder_open:
-		CaseSites.new(self,draw).alder_cut()
+	for x: float in [205.45,208.65]:
+		draw.spruce(Vector3(x,ground_height(x,-408.75),-408.75),5.65,x)
+	CaseSites.new(self,draw).alder_cut()
 	draw.finish()
+	tower_meshes.clear()
+	for mesh: Node in county_model.get_children():
+		if mesh is GeometryInstance3D and mesh.visibility_range_end == 230.0:
+			tower_meshes.append(mesh)
+			if tower_view: mesh.visibility_range_end = 850.0
 	bay = Bay.new()
 	county_model.add_child(bay)
 	bay.setup(materials,bay_locked)
@@ -560,10 +532,7 @@ func _build() -> void:
 	gear.survey_rod_case()
 	gear.draw.finish()
 	rod_case.rotation.x = PI if rod_case_read else 0.0
-	survey_pickup = _parked_car(hold,"hold",0,survey_point,survey_yaw,{})
-	if kolpack_open:
-		var sedan := _parked_car(county_model,"unattended",0,KOLPACK_CAR_POINT,0,KOLPACK_SEDAN)
-		sedan_tape = Scene.sheriff_tape(sedan,.89,.46,"B.T.")
+	survey_pickup = _parked_car(hold,"hold",0,survey_point,survey_yaw,{"open_door":true,"untaped":true})
 	var instrument = Sites.new(self,Batch.new(tripod,materials))
 	instrument.survey_tripod()
 	instrument.draw.finish()
@@ -600,19 +569,19 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800]+([CaseSites.ALDER_X] if alder_open else []),[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323]+([458,463,468,515] if kolpack_open else []))
-	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[-412,-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,425,448]+([298,331,336,341,381] if kolpack_open else [])+([CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-461] if alder_open else []))
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462])
+	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,331,336,341,425,448])
 	var ground := {}
 	var h_rows := []
 	for z: float in zs:
 		var heights := PackedFloat32Array()
 		for x: float in xs:
-			heights.append(ground_height(x,_mapped_z(z)))
+			heights.append(ground_height(x,z))
 		h_rows.append(heights)
 	_bake_spindrift_ground(xs, zs, h_rows)
 	for row in range(zs.size()-1):
-		var z0 := _mapped_z(zs[row])
-		var z1 := _mapped_z(zs[row+1])
+		var z0 := float(zs[row])
+		var z1 := float(zs[row+1])
 		for col in range(xs.size()-1):
 			var x0 := float(xs[col])
 			var x1 := float(xs[col+1])
@@ -621,25 +590,23 @@ func _build_ground(draw) -> void:
 			var c := Vector3(x1,h_rows[row+1][col+1],z1)
 			var d := Vector3(x0,h_rows[row+1][col],z1)
 			var center := (a+c)*.5
-			var natural_z := _printed_z(center.z)
 			var road := road_distance(center.x,center.z) <= 5.0
-			var yard_floor := YARD.has_point(Vector2(center.x,natural_z))
-			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,natural_z))
+			var yard_floor := YARD.has_point(Vector2(center.x,center.z))
+			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z))
 			var material := "road" if road else ("pavement" if yard_floor or forecourt else "snow")
 			var uv := PackedVector2Array()
-			var highway := absf(center.z)<5.1 or absf(natural_z-400)<5.1 or absf(natural_z-800)<5.1 or absf(natural_z+400)<5.1
+			var highway := absf(center.z)<5.1 or absf(center.z-400)<5.1 or absf(center.z-800)<5.1 or absf(center.z+400)<5.1
 			var xline := 0.0
 			var zline := 0.0
 			if road:
 				for axis: float in [-608.,400.,800.]:
 					if absf(center.x-axis)<absf(center.x-xline): xline=axis
-				for axis: float in [-400.,_mapped_z(400),_mapped_z(800)]:
+				for axis: float in [-400.,400.,800.]:
 					if absf(center.z-axis)<absf(center.z-zline): zline=axis
-				if kolpack_open and center.x>405 and center.x<521 and natural_z>292 and natural_z<387:
-					highway = absf(natural_z-KOLPACK_CROSSING.y) < 5.1
-					xline = KOLPACK_CROSSING.x
-					zline = _mapped_z(KOLPACK_CROSSING.y)
-				if alder_open and center.z < -405 and absf(center.x-CaseSites.ALDER_X) <= 5:
+				if center.x>405 and center.x<HOFFMANN_LANE_END.x+5 and absf(center.z-HOFFMANN_LANE_END.y)<5.1:
+					highway = true
+					zline = HOFFMANN_LANE_END.y
+				if center.z < -405 and absf(center.x-CaseSites.ALDER_X) <= 5:
 					xline = CaseSites.ALDER_X
 			for p: Vector3 in [a,b,c,d]:
 				if road:

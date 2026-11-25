@@ -238,7 +238,7 @@ func run() -> void:
 		if i == 2:
 			game._survey()
 			var printed := Vector3(409,0,246)
-			check(game.county.kolpack_open and game.county.resolve_point(printed).is_equal_approx(printed),"unprinted farm opens while the original Kolpack haul is still measurable")
+			check(game.county.resolve_point(printed).is_equal_approx(printed),"the Lindquist shoulder stays at the printed location")
 			var balance: float = game.account.cash
 			game._action("buy_snatch_block")
 			game._action("buy_snatch_block")
@@ -274,11 +274,8 @@ func run() -> void:
 		check(not game.bay_locked and not rig.in_cab and rig.truck.to_local(rig.foot).x > 1.4, "a rig saved against the bay wall opens the chains and lets the operator exit on the yard side")
 		walk_to(Vector3(-55,0,-54))
 	check(game.faxes.size()==5,"all five jobs keep their receipts")
-	var query_found := false
 	for receipt: String in game.faxes:
-		if "calibrated" in receipt:
-			query_found = str(game.survey.queried_slip) in receipt and "loaded mi" in receipt
-	check(query_found, "Doreen references an actual loaded slip and leaves the amount payable")
+		check("Net invoice" in receipt and "calibrated" not in receipt, "Doreen pays the normal schedule throughout the hold")
 	if failures == 0:
 		await investigate_kolpack()
 	if failures == 0:
@@ -310,7 +307,7 @@ func investigate_kolpack() -> void:
 	check(game.job.get("kind") == "looksee" and rig.car == null,"the requested look-see has no recovery on the hook")
 	rig.set_spawn(game.county.resolve_point(Vector3(416,0,336)),0)
 	game._action("interact")
-	for item: String in ["house","vin","cap"]:
+	for item: String in ["house","farm_ring"]:
 		var point: Vector3 = game.county.story_point(item)
 		stand(point+Vector3(0,0,1),point)
 		game._action("interact")
@@ -320,13 +317,13 @@ func investigate_kolpack() -> void:
 	game._action("interact")
 	press_key(KEY_R)
 	await tap_control("report_farm")
-	check(game.mode == "available" and game.survey.farm_reported, "calling in the VIN from the cab clears the truck for dispatch")
+	check(game.mode == "available" and game.survey.farm_reported, "reporting the empty house and ring clears the truck for dispatch")
 	rig.set_spawn(game.SPAWN,-PI/2)
 	game._action("interact")
 	stand(game.FAX+Vector3.FORWARD,game.FAX)
 	game._action("interact")
 	var filed: Dictionary = game.slips.back()
-	check(filed.kind == "looksee" and filed.pay == 38 and filed.loaded == 0 and filed.vin == game.county.KOLPACK_SEDAN.vin, "the address report pays only the call-out and files the observed VIN")
+	check(filed.kind == "looksee" and filed.pay == 38 and filed.loaded == 0 and filed.case_id == "farm", "the Hoffmann visit pays the call-out and files the investigation")
 	game.desk.dismiss()
 	stand_at_cab_door(-1)
 	game._action("interact")

@@ -47,6 +47,7 @@ void fragment() {
 	float plume = soft_edge * soft_edge * (.32 + .68 * noise) * (.65 + .35 * strands);
 	bool sheltered = world_point.x > -60. && world_point.x < -42. && world_point.z > -51.
 		&& world_point.z < -38.3 && world_point.y < 5.18;
+	sheltered = sheltered || (world_point.x > 440.8 && world_point.x < 449.2 && world_point.z > 321.0 && world_point.z < 331.1 && world_point.y < 5.);
 	float light = headlamp_scatter(world_point);
 	ALBEDO = mix(vec3(.59,.61,.66), vec3(.96,.92,.83), light);
 	ALPHA = sheltered ? 0. : fade * plume * (.09 + .20 * storm_gust + light * (.36 + .29 * storm_gust));

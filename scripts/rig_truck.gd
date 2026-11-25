@@ -35,6 +35,11 @@ var steer_wheel: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
 var stinger: Node3D
+var boom: Node3D
+var boom_extension: Node3D
+var boom_tip: Node3D
+var panel_face: StandardMaterial3D
+var radio_faces: Array[Label3D] = []
 var headlamps: Array[SpotLight3D] = []
 var work_light:=SpotLight3D.new()
 var odo_label: Label3D
@@ -187,22 +192,27 @@ func _bed(k) -> void:
 		k.beam(Vector3(s*.72,2.60,.94),Vector3(s*.72,1.48,2.93),.24,.24,MAROON)
 		k.tube(Vector3(s*.53,1.43,2.57),Vector3(s*.53,2.52,1.07),.102,IRON)
 		k.tube(Vector3(s*.54,2.03,1.76),Vector3(s*.54,2.52,1.07),.07,CHROME)
-	k.beam(Vector3(0,2.28,.84),Vector3(0,2.89,3.45),.50,.40,MAROON)
-	k.beam(Vector3(0,2.86,3.37),Vector3(0,3.05,4.08),.33,.25,STEEL)
-	var lamp_at:=Vector3(0,3.15,4.03)
-	k.box(lamp_at,Vector3(.29,.15,.17),IRON)
-	k.box(lamp_at+Vector3(0,0,.092),Vector3(.24,.10,.02),CREAM)
-	add_child(work_light)
-	work_light.position=lamp_at+Vector3(0,0,.12)
+	boom=Kit.joint(self,Vector3(0,2.28,.84),"RecoveryBoom")
+	var arm:=Kit.new(boom)
+	arm.beam(Vector3.ZERO,Vector3(0,.61,2.61),.50,.40,MAROON)
+	for s in [-.12,.12]:
+		arm.tube(Vector3(s,-.07,.24),Vector3(s,.75,3.25),.021,IRON)
+	arm.finish()
+	boom_extension=Kit.joint(boom,Vector3(0,.58,2.53),"InnerBoom")
+	var extension:=Kit.new(boom_extension)
+	extension.beam(Vector3(0,-.30,-1.50),Vector3(0,.19,.71),.33,.25,STEEL)
+	extension.box(Vector3(0,.29,.66),Vector3(.29,.15,.17),IRON)
+	extension.box(Vector3(0,.29,.752),Vector3(.24,.10,.02),CREAM)
+	extension.finish()
+	boom_tip=Kit.joint(boom_extension,Vector3(0,.19,.71),"Sheave")
+	boom_tip.add_child(work_light)
+	work_light.position=Vector3(0,.13,.1)
 	work_light.rotation=Vector3(-.38,PI,0)
 	work_light.light_color=Color("#fff0ca")
 	work_light.light_energy=2.7
 	work_light.spot_angle=43.0
 	work_light.spot_range=18.0
 	work_light.visible=false
-	for s in [-.12,.12]:
-		k.tube(Vector3(s,2.21,1.08),Vector3(s,3.03,4.09),.021,IRON)
-		k.tube(Vector3(s,3.03,4.08),Vector3(s,1.83,4.0),.017,IRON)
 	for z in [1.42,2.12]:
 		k.tube(Vector3(-.31,1.73,z),Vector3(.31,1.73,z),.22,IRON,14)
 		for x in range(-5,6):
@@ -220,6 +230,30 @@ func _bed(k) -> void:
 		forks.box(HITCH+Vector3(s*.79,.02,0),Vector3(.12,.145,.64),IRON)
 	forks.finish()
 
+func aim_boom(at: Vector3) -> void:
+	var toward := to_local(at)-boom.position
+	boom.rotation.y = atan2(toward.x,toward.z)
+	boom.rotation.x = clampf(.22-atan2(toward.y,Vector2(toward.x,toward.z).length()),-1.23,.1)
+	var reach := clampf(toward.length(),3.32,20.0)
+	# Extend steel from the base of the inner boom, keeping the tip over the load.
+	boom_extension.scale.z = 1.0+(reach-3.32)/2.21
+	boom_extension.position.z = 2.53+1.50*(boom_extension.scale.z-1.0)
+
+func stow_boom() -> void:
+	boom.rotation=Vector3.ZERO
+	boom_extension.scale=Vector3.ONE
+	boom_extension.position=Vector3(0,.58,2.53)
+
+func set_electrics(amount: float) -> void:
+	var power := 1.0-clampf(amount,0,1)
+	for light in headlamps:
+		light.light_energy=3.5*power
+	RenderingServer.global_shader_parameter_set("headlamp_power",power)
+	panel_face.albedo_color=Color.WHITE*lerpf(.06,1,power)
+	for face in radio_faces:
+		face.modulate.a=power
+	odo_label.modulate.a=power
+
 func _cabin(k) -> void:
 	k.box(Vector3(0,1.74,-.37),Vector3(1.88,.18,.50),Color("#54534a"))
 	k.box(Vector3(0,2.00,-.17),Vector3(1.89,.50,.12),Color("#5a594e"),Vector3(-.08,0,0))
@@ -230,7 +264,7 @@ func _cabin(k) -> void:
 	k.box(Vector3(-.48,2.16,-1.445),Vector3(.94,.34,.17),IRON)
 	k.box(Vector3(-.48,2.339,-1.42),Vector3(.96,.032,.23),RUBBER)
 	var face:=Kit.joint(self,Vector3(-.48,2.163,-1.354))
-	_screen(face,"res://assets/rig/instruments.png",Vector2(.92,.2875))
+	panel_face=_screen(face,"res://assets/rig/instruments.png",Vector2(.92,.2875))
 	for spec in [[184,160,.098],[492,160,.098],[720,114,.046],[913,114,.046]]:
 		var pos:=Vector3((float(spec[0])/1024-.5)*.92,(.5-float(spec[1])/320)*.2875,.0025)
 		needles.append(_needle(face,pos,spec[2]))
@@ -253,8 +287,9 @@ func _cabin(k) -> void:
 		k.box(Vector3(.141,y,-1.274),Vector3(.205,.039,.016),Color("#23332c"))
 		k.tube(Vector3(.285,y,-1.278),Vector3(.285,y,-1.253),.020,IRON)
 	radio_label=Kit.label(self,"COUNTY 1",Vector3(.143,2.174,-1.255),.026,Color("#bdc898"),Vector3.ZERO,"dseg14")
-	Kit.label(self,"SCAN",Vector3(.141,2.096,-1.255),.020,GREEN,Vector3.ZERO,"dseg14")
-	Kit.label(self,"680 AM",Vector3(.141,2.02,-1.255),.023,GREEN,Vector3.ZERO,"dseg14")
+	radio_faces.append(radio_label)
+	radio_faces.append(Kit.label(self,"SCAN",Vector3(.141,2.096,-1.255),.020,GREEN,Vector3.ZERO,"dseg14"))
+	radio_faces.append(Kit.label(self,"680 AM",Vector3(.141,2.02,-1.255),.023,GREEN,Vector3.ZERO,"dseg14"))
 	k.box(Vector3(.67,1.973,-1.37),Vector3(.58,.21,.045),Color("#636457"))
 	k.box(Vector3(.68,2.024,-1.33),Vector3(.12,.025,.024),CHROME)
 	seat_gear = Kit.joint(self, Vector3.ZERO, "BenchGear")
@@ -284,7 +319,7 @@ func _needle(p: Node3D, at: Vector3, length:float) -> Node3D:
 	g.finish()
 	return pivot
 
-func _screen(p:Node3D,path:String,size:Vector2) -> void:
+func _screen(p:Node3D,path:String,size:Vector2) -> StandardMaterial3D:
 	var quad:=QuadMesh.new()
 	quad.size=size
 	var mat:=StandardMaterial3D.new()
@@ -295,6 +330,7 @@ func _screen(p:Node3D,path:String,size:Vector2) -> void:
 	var mesh:=MeshInstance3D.new()
 	mesh.mesh=quad
 	p.add_child(mesh)
+	return mat
 
 func _panel_detail() -> void:
 	var panel=Kit.joint(self,Vector3(-1.269,1.475,2.34),"Hydraulics")
@@ -333,7 +369,7 @@ func _mirror(s:float) -> void:
 	var camera:=Camera3D.new()
 	viewport.add_child(camera)
 	camera.fov=38
-	camera.far=110
+	camera.far=570
 	camera.cull_mask=1
 	var loc=Kit.joint(self,at+Vector3(s*.08,0,.015),"MirrorEye")
 	loc.rotation=Vector3(-.16,PI-s*.13,0)

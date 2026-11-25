@@ -1,7 +1,7 @@
 extends RefCounted
 
 const FILE := "user://brandt-operations.json"
-const VERSION := 4
+const VERSION := 5
 
 static func read() -> Dictionary:
 	for name in [FILE, FILE+".previous"]:

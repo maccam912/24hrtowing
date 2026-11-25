@@ -15,7 +15,6 @@ ROOT = Path(__file__).resolve().parents[1]
 AUDIO = ROOT / "assets/audio"
 EFFECTS = {
     "sodium": (4, True, "Field recording up close beneath one old orange high-pressure sodium street lamp. Low grainy electrical ballast buzz steady around 120 Hz, slightly rattly with very soft upper harmonics, no wind, voices or other sounds."),
-    "mercury": (4, True, "Quiet isolated electrical hum of an old mercury-vapor yard light ballast, a precise narrow slightly higher resonant ringing hum with a faint mains undertone, completely steady. No voices, music or environmental sounds."),
     "diesel": (6, True, "Steady low idle in the cab of a 1990s American class eight diesel tow truck. Soft deep six cylinder vibration and individually audible diesel knocks. No acceleration, voices or music."),
     "diesel_pull": (6, True, "Seamless constant-RPM engine loop, heard inside a 1990s American heavy wrecker as its inline-six turbo diesel pulls hard in one gear at 1550 rpm. Strong throaty rhythmic exhaust growl, coarse midrange combustion harmonics audible through the firewall, faint steady turbo air behind the engine. Hold exactly the same revs and load the whole recording. No idle, acceleration sweep, gear changes, tire noise, horn, music or voices."),
     "wind": (9, True, "Field recording of dry snow hissing across a windy empty Wisconsin road. Open air blizzard with a gentle ebb and swell. No whistling, music or speech."),

@@ -4,7 +4,7 @@ const Legacy := preload("res://scripts/legacy_dispatch.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
-# Points are centerline stations in the printed plat, before any ground has changed.
+# Points are centerline stations on the county plat.
 const SITES := {
 	"angie": {"road":"County K", "landmark":"St. Hedwig’s", "station":Vector2(0,135), "north_south":true,
 		"hazard_reasons":["The parish plow needs room to turn.", "Owner rode back to town with the deputy."],
@@ -53,6 +53,30 @@ const DRIVERS := [
 	{"person":"School custodian","reply":"custodian_pull","reason":"Missed the edge coming around a windrow."},
 ]
 
+const RECOVERIES := {
+	"field_car": ["roll", "upside down in a field", "Rig two lines and roll it onto its wheels.", "Vehicle inverted, no approach", 85.0],
+	"nose_car": ["nose", "standing on its front bumper", "Check it with a second line before lowering it.", "Vehicle inverted, no approach", 85.0],
+	"roof_car": ["roof", "on the co-op roof", "Set up on the street side and lower it with the boom.", "Vehicle on structure", 95.0],
+	"tree_car": ["tree", "up in the tamaracks", "Set the boom and reeve the snatch block.", "Vehicle on structure", 95.0],
+	"ice_car": ["ice", "on the flowage ice", "Park on the bank. Pay out the whole drum for a slow pull.", "Vehicle on ice", 70.0],
+	"shoulder_car": ["gate", "on the shoulder with the headlights on", "The sheriff authorizes recovery where found.", "", 0.0],
+	"walker_car": ["gate", "running beside the road", "The driver went into the field. Bring the car in.", "", 0.0],
+	"gate_car": ["gate", "running outside your gate", "Nobody's in it. Bring it into storage.", "", 0.0],
+}
+
+static func impossible(completed: int, event_id: String, point: Vector3, route: String, road: String, landmark: String, approach: String) -> Dictionary:
+	if not RECOVERIES.has(event_id):
+		return {}
+	var spec: Array = RECOVERIES[event_id]
+	var heavy := event_id in ["field_car", "nose_car", "tree_car"]
+	return {"id":event_id, "number":1001+completed, "kind":"hazard", "route":route, "site":route,
+		"point":point, "angle":PI if event_id == "ice_car" else 0.0, "variant":0, "vehicle":"Blue compact sedan",
+		"plate":"TMR %03d" % (100 + posmod(completed*37,900)), "vin":"1BTRS39C5WJ%06d" % posmod(completed*2317,1000000),
+		"road":road, "location":road+" · "+landmark, "recovery":spec[0], "heavy_recovery":heavy,
+		"rate_name":spec[3], "rate_fee":spec[4], "running":true, "reply":"clear", "run":route,
+		"dispatch":"Brandt, there's a blue sedan %s at %s. %s Sheriff wants it in storage." % [spec[1],landmark,spec[2]],
+		"directions":approach + " " + str(spec[2]), "schedule":_scheduled_miles(Vector2(point.x,point.z))}
+
 static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_block := false) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	var used := {}
@@ -60,15 +84,17 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var site_hazards := {}
 	var ditches := 0
 	var hazards := 0
+	var passenger_calls := 0
 	var met_angie := false
 	for slip: Dictionary in slips:
 		met_angie = met_angie or slip.get("vin", "") == Legacy.JOBS.angie.vin
-		if slip.has("case_id") or slip.kind not in ["ditch", "hazard"]:
+		if slip.has("case_id") or slip.kind not in ["ditch", "hazard","passenger"]:
 			continue
 		var site_id := _site_on_slip(slip)
 		used[site_id] = int(used.get(site_id, 0)) + 1
-		if slip.kind == "ditch":
+		if slip.kind in ["ditch","passenger"]:
 			ditches += 1
+			if slip.kind=="passenger": passenger_calls+=1
 			var reply: String = slip.get("reply", "")
 			driver_calls[reply] = int(driver_calls.get(reply, 0)) + 1
 		else:
@@ -131,6 +157,16 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			job.person = driver.person
 			job.reply = driver.reply
 			reason = driver.reason
+		if job.id=="rotation" and rotation_count>=19 and ditches>=10+posmod(dispatch_seed,3)+passenger_calls*12:
+			job.reply = "summer_driver"
+		elif rotation_count >= 7 and posmod(rotation_count + dispatch_seed, 4) == 0:
+			if job.id == "angie":
+				job.reply = "angie_sunburn"
+			elif job.id == "farm":
+				job.reply = "gary_heifers"
+			else:
+				var replies := ["displaced_driver","gentle_driver","lost_hours"]
+				job.reply = replies[rng.randi_range(0,replies.size()-1)]
 		job.dispatch = "%s on %s by %s, %s ditch. %s needs a pull. %s" % [
 			job.vehicle, site.road, site.landmark, shoulder, job.person, reason]
 	else:
@@ -142,6 +178,14 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			reason = "Service body’s loaded with tools. Bring the snatch block. " + reason
 		job.dispatch = "%s on %s by %s, %s shoulder. Checked and taped. Bring it to storage. %s" % [
 			job.vehicle, site.road, site.landmark, shoulder, reason]
+	if job.reply=="summer_driver":
+		job.kind="passenger"
+		job.id="summer_driver"
+		job.driver_variant=2
+		job.running=true
+		job.untaped=true
+		job.person="Driver in a T-shirt"
+		job.dispatch="There's a driver out by %s in a T-shirt. %s shoulder on %s. Bring them in to Esker Fuel & Food." % [site.landmark,shoulder,site.road]
 	job.directions = "%s Look on the %s side for the %s." % [site.approach, shoulder, job.vehicle.to_lower()]
 	return job
 
@@ -191,10 +235,10 @@ static func hold_ticket(completed: int, lines: Dictionary, heavy_recovery := fal
 
 static func looksee(completed: int) -> Dictionary:
 	return {"id":"n5104", "kind":"looksee", "number":1001 + completed, "site":"n5104", "route":"n5104",
-		"road":"Kolpack Rd", "location":"Kolpack Rd · N5104", "unmapped":true, "point":Vector3(445,0,326), "angle":0.0,
-		"vehicle":"Car at the house", "plate":"Unconfirmed", "vin":"Unconfirmed",
-		"dispatch":"Brandt, can you look in on N5104? Take the lane south of Lindquist’s. Read me the number at the house and the VIN on the car.",
-		"directions":"Take Kolpack south past the Lindquist silo. Your pencil mark is all I have for the lane to N5104."}
+		"road":"Kolpack Rd", "location":"Kolpack Rd · N5104", "point":Vector3(445,0,326), "angle":0.0,
+		"vehicle":"Hoffmann welfare check", "plate":"—", "vin":"—",
+		"dispatch":"Milk hauler says every light is on at N5104 Kolpack and nobody answers. Look in on the Hoffmanns and check the drive.",
+		"directions":"Take Kolpack south past the Lindquist silo. Turn into the Hoffmann drive at the blue N5104 sign."}
 
 static func pack(job: Dictionary) -> Dictionary:
 	var data := job.duplicate()
@@ -218,31 +262,26 @@ static func _site_on_slip(slip: Dictionary) -> String:
 			return id
 	return ""
 
-static func matching_kolpack_slips(slips: Array) -> Array:
-	var previous := {}
-	for slip: Dictionary in slips:
-		if slip.has("case_id") or _site_on_slip(slip) != "farm" or slip.kind != "hazard" or float(slip.loaded) <= 0:
-			continue
-		var run: String = slip.get("run", "farm/east")
-		if previous.has(run) and not is_equal_approx(previous[run].loaded, slip.loaded):
-			return [previous[run], slip]
-		previous[run] = slip
-	return []
-
-static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float, seconds: float, clock: String) -> Dictionary:
+static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float, seconds: float, clock: String, revised_rates:=false) -> Dictionary:
 	var towed: bool = job.kind in ["hold", "hazard"]
-	var look_only: bool = job.kind == "looksee"
+	var look_only: bool = job.kind in ["looksee","passenger"]
 	var mile := snappedf(maxf(0, drop - pickup), .1) if towed else 0.0
 	var hookup := 0 if look_only else 16
 	var winch := 0 if look_only else maxi(1, ceili(seconds / 60.0)) * 6
 	var storage := 12 if towed else 0
 	var heavy_fee := HEAVY_FEE if job.get("heavy_recovery", false) else 0
-	var pay := 38.0 + hookup + winch + mile * 3.25 + storage + heavy_fee
+	var rate_fee := float(job.get("rate_fee",0.0)) if revised_rates else 0.0
+	var pay := 38.0 + hookup + winch + mile * 3.25 + storage + heavy_fee + rate_fee
 	var slip := {"number":job.number, "kind":job.kind, "site":job.site, "run":job.get("run",job.site),
 		"location":job.location, "vehicle":job.vehicle, "plate":job.plate, "vin":job.vin,
 		"start_odo":start, "pickup_odo":pickup, "drop_odo":drop, "loaded":mile,
 		"schedule":job.get("schedule",0.0), "call_out":38, "hookup":hookup, "winch":winch,
 		"storage":storage, "heavy_fee":heavy_fee, "pay":snappedf(pay,.01), "time":clock}
-	if job.kind == "ditch":
+	if rate_fee > 0:
+		slip.rate_name = job.get("rate_name","Vehicle on ice")
+		slip.rate_fee = rate_fee
+	if job.has("recovery"):
+		slip.recovery = job.recovery
+	if job.kind in ["ditch","passenger"]:
 		slip.reply = job.get("reply","")
 	return slip

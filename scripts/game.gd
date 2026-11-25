@@ -43,8 +43,8 @@ var dispatch_seed := randi()
 var survey := SurveyCase.new()
 var campaign := Campaign.new()
 @onready var casework := Casework.new(self,campaign)
-var paired_slips := []
-var kolpack_haul_filed := false
+var sightings := preload("res://scripts/sighting_director.gd").new()
+var mai_lot_heard := false
 var completed := 0
 var slips := []
 var pending_slips := []
@@ -79,8 +79,6 @@ var save_timer := 0.0
 var ui_timer := 0.0
 var direction_timer := 0.0
 var road_directions := RoadDirections.new()
-var directions_lengthened := false
-var directions_adopted := false
 var plow_heard := false
 var saved_data := {}
 var state := {}
@@ -124,6 +122,7 @@ func _ready() -> void:
 	desk.action.connect(_action)
 	Engine.max_fps = int(saved_data.get("fps",30))
 	desk.fps = Engine.max_fps
+	audio.set_spoken(saved_data.get("spoken",false))
 	_refresh()
 	print("24 HR Towing | dispatch ready")
 
@@ -194,6 +193,9 @@ func _physics_process(dt: float) -> void:
 		return
 	var playing: bool = active and not desk.is_blocking()
 	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or desk.is_title() else SubViewport.UPDATE_DISABLED
+	if playing:
+		sightings.advance(dt,self)
+		casework.advance_departure(dt)
 	if playing or desk.is_title():
 		county.advance_storm(dt)
 	if desk.is_title():
@@ -205,6 +207,9 @@ func _physics_process(dt: float) -> void:
 		var look: Vector2 = mouse_motion*0.0023 + desk.take_look()*0.0039
 		var working: bool = desk.work_held() or Input.is_physical_key_pressed(KEY_F) or Input.is_physical_key_pressed(KEY_SPACE)
 		var brake: bool = desk.brake_held() or Input.is_physical_key_pressed(KEY_SHIFT) or Input.is_physical_key_pressed(KEY_SPACE)
+		if is_instance_valid(casework.tower_view):
+			move = Vector2.ZERO
+			look = Vector2.ZERO
 		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working,brake,dt)
 		shift_seconds += dt
 		if rig.get_status().get("working",false):
@@ -271,18 +276,20 @@ func _action(id: String) -> void:
 				if not saved_data.is_empty():
 					_restore(saved_data)
 				else:
+					sightings.restore({},county)
 					_prepare_offers()
 					_say("hail")
 					_save()
 			desk.start_play()
 		"title":
+			casework.leave_tower()
 			_save()
 			title_camera.make_current()
 			title_light.visible = true
 			get_tree().physics_frame.connect(_frame_parked_truck,CONNECT_ONE_SHOT)
 		"radio":
 			if rig.get_status().in_cab:
-				if _needs_fuel_can() or not _radio_contact().is_empty() or (mode == "available" and _case_due()):
+				if _needs_fuel_can() or sightings.can_report() or not _radio_contact().is_empty() or (mode == "available" and _case_due()):
 					desk.show_document("radio",state)
 				elif mode == "available":
 					_take_rotation()
@@ -304,7 +311,7 @@ func _action(id: String) -> void:
 						_prepare_offers()
 						_save()
 					"talk_tou": desk.show_document("passenger",state)
-		"tou_0","tou_1","tou_2","tou_3":
+		"tou_0","tou_1","tou_2","tou_3","tou_4","tou_5","tou_6","tou_7":
 			if _radio_contact().get("id") == "talk_tou":
 				var choice := int(id.right(1))
 				if choice not in campaign.asked:
@@ -316,11 +323,9 @@ func _action(id: String) -> void:
 				survey.record("sketch",rig.odo)
 				desk.show_document("map",state)
 				_save()
-		"clip_slip":
-			var index: int = desk.slip_index
-			if desk.page == "slip" and index >= 0 and index < slips.size() and slips[index].loaded > 0:
-				survey.toggle_carbon(int(slips[index].number))
-				_compare_carbons()
+		"report_sighting":
+			if rig.in_cab and sightings.can_report():
+				_speak("DISPATCH",sightings.report(campaign.stage))
 				_save()
 		"talk_in":
 			if rig.get_status().in_cab:
@@ -336,6 +341,11 @@ func _action(id: String) -> void:
 		"read_field":
 			if held and (book_read or _near(BAY,5.0)):
 				_read_book()
+		"settings_voice":
+			audio.set_spoken(not audio.spoken)
+			if not saved_data.is_empty():
+				saved_data.spoken = audio.spoken
+			_save()
 		"settings_30","settings_60":
 			Engine.max_fps = 30 if id == "settings_30" else 60
 			_save()
@@ -401,6 +411,8 @@ func _shop_purchase(id: String) -> void:
 func _prepare_offers() -> void:
 	if mode == "available":
 		var issued := completed + pending_slips.size()
+		if rotation_offer.is_empty() and campaign.stage >= 2:
+			rotation_offer = sightings.recovery_offer(issued,county,account.owns("snatch_block"),campaign.stage == Campaign.ORDER.size())
 		if rotation_offer.is_empty():
 			rotation_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,account.owns("snatch_block"))
 		else:
@@ -418,7 +430,7 @@ func _prepare_offers() -> void:
 	_sync_waiting_hazard()
 
 func _sync_waiting_hazard() -> void:
-	var waiting: bool = rotation_offer.get("kind") == "hazard"
+	var waiting: bool = rotation_offer.get("kind") == "hazard" and not rotation_offer.has("aftermath_key")
 	var point: Vector3 = county.resolve_point(rotation_offer.point) if waiting else Vector3.ZERO
 	if is_instance_valid(waiting_hazard):
 		if waiting and waiting_hazard.get_meta("offer_pose") == [rotation_offer.vin, point, rotation_offer.angle]:
@@ -452,12 +464,9 @@ func _radio_contact() -> Dictionary:
 			return {"id":"take_case","label":"Meet Kowalski at Unit 38"}
 		return {"id":"take_case","label":"Take the N5104 look-see"}
 	if campaign.chapter() == "farm" and _case_due() and survey.can_request_farm():
-		if survey.notes.has("sketch"):
-			return {"id":"ask_farm","label":"Ask about Tou’s Kolpack sketch"}
-		if paired_slips.size() == 2:
-			return {"id":"ask_farm","label":"Compare Kolpack slips %d / %d" % [paired_slips[0].number, paired_slips[1].number]}
-	if mode == "fieldwork" and job.get("id") == "n5104" and survey.notes.has("house") and survey.notes.has("vin"):
-		return {"id":"report_farm","label":"Call in N5104 and the VIN"}
+		return {"id":"ask_farm","label":"Ask about N5104 Kolpack"}
+	if mode == "fieldwork" and job.get("id") == "n5104" and survey.notes.has("house") and survey.notes.has("farm_ring"):
+		return {"id":"report_farm","label":"Report the empty Hoffmann place"}
 	return casework.contact()
 
 func _case_lock() -> String:
@@ -474,10 +483,6 @@ func _case_lock() -> String:
 	var part := campaign.required_equipment()
 	return campaign.equipment_note() if not part.is_empty() and not account.owns(part) else ""
 
-func _compare_carbons() -> void:
-	var clipped := slips.filter(func(slip): return int(slip.number) in survey.clipped_slips)
-	paired_slips = Dispatch.matching_kolpack_slips(clipped)
-
 func _radio_case(id: String) -> void:
 	if _radio_contact().get("id") != id:
 		return
@@ -485,10 +490,10 @@ func _radio_case(id: String) -> void:
 		"report_unit":
 			survey.unit_reported = true
 			survey.hold_order = "offered"
-			_speak("DISPATCH","Copy the rod case inside the gate. Tou hasn’t answered. Kowalski opened TC-96-031. Call for her hold when you’re clear.")
+			_speak("DISPATCH","Copy. Prints stop in open snow. Nothing from Tou on the county channel. Kowalski opened TC-96-031. Call for her hold when you’re clear.")
 		"ask_farm":
 			survey.farm_order = "offered"
-			_speak("DISPATCH","Kolpack, south of Lindquist’s? No parcel there on my sheet. I can give you a look-see. Call when you’re free.")
+			_speak("DISPATCH","Hoffmann place. Milk hauler says every light is on. He knocked twice. I can give you the look-see when you’re free.")
 		"take_case":
 			_prepare_offers()
 			if survey.pending_order() == "hold":
@@ -498,18 +503,17 @@ func _radio_case(id: String) -> void:
 			_accept(case_offer)
 		"report_farm":
 			survey.farm_reported = true
-			job.vehicle = "Blue sedan at N5104"
-			job.plate = County.KOLPACK_SEDAN.plate
-			job.vin = County.KOLPACK_SEDAN.vin
 			_record_visit()
-			_speak("DISPATCH","Copy N5104 and the VIN ending 510428. No checked tag on file. Leave the car there. You’re clear for another call. Fax the report next time you’re in.")
+			_speak("DISPATCH","Copy. Supper on the table and the car gone. I’ll let the milk hauler know. Fax it when you’re in.")
 			_clear_field_job()
 	_prepare_offers()
 	_save()
 
 func _accept(ticket: Dictionary) -> void:
 	job = ticket
-	if (not job.has("case_id") and job.kind in ["ditch","hazard"]) or (job.get("case_id") == "angie" and rotation_offer.get("vin") == job.vin):
+	if job.has("aftermath_key"):
+		sightings.claim_recovery(job)
+	if (not job.has("case_id") and job.kind in ["ditch","hazard","passenger"]) or (job.get("case_id") == "angie" and rotation_offer.get("vin") == job.vin):
 		rotation_offer = {}
 		_sync_waiting_hazard()
 	if job == case_offer:
@@ -541,6 +545,8 @@ func _directions() -> void:
 		_speak("DISPATCH",words)
 	elif mode == "available":
 		_speak("DISPATCH","Standing by when you're ready to take the contract.")
+	elif job.get("kind") == "passenger" and rig.phase == "passenger":
+		_speak("DISPATCH","Pull in by the pumps. Mai’s on the register.")
 	elif mode == "haul":
 		_say(rig.dropoff.radio)
 	elif mode in ["return","invoice"]:
@@ -550,7 +556,8 @@ func _directions() -> void:
 
 func _sync_survey_scene() -> void:
 	county.set_case_landmarks(campaign.landmarks())
-	rig.set_survey_passenger(campaign.evidence.has("passenger") and not campaign.released)
+	var summer: bool = job.get("kind") == "passenger" and rig.phase == "passenger"
+	rig.set_survey_passenger(summer or (campaign.evidence.has("passenger") and not campaign.released),summer)
 	county.set_survey_pickup_parked(not held and not campaign.released and job.get("kind") != "hold")
 	county.set_tripod_collected(held or packed_tripod or campaign.released)
 	county.set_rod_case_read(survey.notes.has("rod"))
@@ -561,18 +568,21 @@ func _survey() -> void:
 		campaign.evidence["unit_departed"] = rig.odo
 		_display_storage()
 		_save()
-	# Rebuild the southern roads between calls, with both operator and rig out of sight.
-	if completed >= 1 and mode == "available" and not county.lengthened and _near(SPAWN,85) and pos.distance_to(SPAWN) < 85:
-		county.set_kolpack_open(true)
-		# Keep an actual loaded carbon copy from the original road on the clipboard.
-		if kolpack_haul_filed and county.try_lengthen(pos):
-			_sync_waiting_hazard()
 	var street := _current_road_map().driven_road(Vector2(pos.x,pos.z))
 	if not street.is_empty() and not street in roads_driven:
 		roads_driven.append(street)
 	if completed >= 2 and not plow_heard and sub_time == 0 and pos.distance_to(SPAWN) > 110 and rig.in_cab:
 		plow_heard = true
 		_say("plow")
+	if job.get("kind") == "passenger" and rig.phase == "passenger" and rig.in_cab and rig.is_stopped() and pos.distance_to(PUMP) < 16.0:
+		drop_odo = rig.odo
+		drop_time = _clock()
+		_speak("DRIVER","I know this place. I can call my sister from inside. Thanks for the ride.")
+		_clear_field_job()
+		rig.end_job()
+		_sync_survey_scene()
+		_prepare_offers()
+		_save()
 	if mode == "return" and (pos.distance_to(SPAWN) < 27 or _near(FAX,4.4)):
 		mode = "invoice"
 		_save()
@@ -601,15 +611,16 @@ func _site_action() -> String:
 		return "unit"
 	if _facing(county.rod_case_point(),3.0):
 		return "rod"
-	if county.kolpack_open:
-		for item: String in ["house","vin","cap"]:
-			if _facing(county.story_point(item),2.8 if item == "cap" else 3.2):
-				return item
+	for item: String in ["house","farm_ring"]:
+		if _facing(county.story_point(item),3.2):
+			return item
 	if mode == "fieldwork" and job.get("kind") == "hold":
 		if not packed_tripod and _facing(county.hold_tripod_point(),3.9):
 			return "tripod"
 		if _facing(rig.get_witness_position(),4.3):
 			return "sign" if not signed_card else "deputy"
+	elif mode == "fieldwork" and job.get("kind") == "passenger" and rig.phase == "scene" and _facing(rig.get_witness_position(),3.9):
+		return "summer_ride"
 	elif mode == "fieldwork" and job.get("kind") == "ditch" and not talked and _facing(rig.get_witness_position(),3.9):
 		return "driver"
 	# The panel and doors can sit within reach of the fax, chain or field book.
@@ -644,17 +655,15 @@ func _interact() -> void:
 		_save()
 		return
 	match site:
-		"unit","rod","house","vin","cap":
+		"unit","rod","house","farm_ring":
 			survey.record(site,rig.odo)
 			if site == "rod":
 				county.set_rod_case_read(true)
-			var tape := "B.T. tape on the mirror." if campaign.evidence.has("checked_sedan") else "No tape on the mirror."
 			var entry := {
-				"unit":"County Survey · Unit 38. The check tape on the mirror is signed J. Kowalski. Boot prints lead away from the tripod.",
-				"rod":"Inside the gate. Under the clasp the stencil reads TAMARACK COUNTY SURVEY / UNIT 38.",
-				"house":"N5104 Kolpack. Warm air at the door. The lights are on. Nobody answers.",
-				"vin":"%s Copied the dash plate, %s." % [tape,County.KOLPACK_SEDAN.vin],
-				"cap":"Brass cap beyond the crossroad. Pencil rubbing reads S4 NE / T28N R7E."}
+				"unit":"Survey Unit 38. Engine’s running. Driver’s door wide open. Boot prints head north from the tripod.",
+				"rod":"Left boot, then nothing. Open snow all around. Tou’s rod case is dry enough to write on.",
+				"house":"N5104. All the lights on, the door open. Two places set for supper. Nobody answers.",
+				"farm_ring":"Bare, wet ground in a circle where the Hoffmanns parked. No tire tracks across the snow."}
 			_message("BRANDT",entry[site])
 		"tripod":
 			packed_tripod = true
@@ -669,8 +678,16 @@ func _interact() -> void:
 			_refresh()
 			desk.show_document("custody",state)
 		"deputy":
+			_say("light" if talked_twice else "kowalski_swamp")
 			talked_twice = true
-			_speak("KOWALSKI","I’ll leave the gate the way you found it. The pickup and tripod go on my card.")
+		"summer_ride":
+			if rig.get_truck_position().distance_to(rig.get_witness_position()) > 23.0:
+				_message("DRIVER","Can you bring the truck over here? I left my coat somewhere.")
+				return
+			rig.board_summer_driver()
+			pickup_time = _clock()
+			pickup_odo = rig.odo
+			_say("summer_driver")
 		"driver":
 			talked = true
 			_say(job.reply)
@@ -690,7 +707,11 @@ func _interact() -> void:
 			audio.effect("ratchet")
 			_message("BRANDT","Bay secured. Key back on the ring." if bay_locked else "Hold bay open.")
 		"field": _read_book()
-		"fuel": _open_shop()
+		"fuel":
+			if sightings.seen.has("streetlights_out") and not mai_lot_heard:
+				mai_lot_heard = true
+				_say("mai_lot")
+			_open_shop()
 		_:
 			if mode == "fieldwork" and job.get("case_id") == "angie" and not campaign.evidence.has("angie_consent") and rig.action_id() == "flare":
 				_message("BRANDT","The owner’s on the porch. I need her signature before I hook this car.")
@@ -723,7 +744,7 @@ func _recovered(kind: String) -> void:
 		_prepare_offers()
 	else:
 		mode = "haul"
-		_speak("DISPATCH","Copy, Brandt. Bring this one to %s." % rig.dropoff.sign)
+		_speak("DISPATCH",job.get("haul_line","Copy, Brandt. Bring this one to %s." % rig.dropoff.sign))
 	_refresh()
 	_save()
 
@@ -744,18 +765,26 @@ func _dropped() -> void:
 	_display_storage()
 	_save()
 
+func _turn_storage_north() -> void:
+	for i in stored.size():
+		if not stored[i] is Dictionary:
+			stored[i] = {"route":stored[i]}
+		stored[i].turned_north = true
+	_display_storage()
+
 func _display_storage() -> void:
 	for node in physical_cars:
 		if is_instance_valid(node):
 			node.queue_free()
 	physical_cars.clear()
 	if held or (campaign.released and not campaign.evidence.has("unit_departed")):
-		var car = rig.store_vehicle("hold",BAY,PI/2)
+		var car = rig.store_vehicle("hold",BAY,-PI/2)
 		if car is Node3D:
 			physical_cars.append(car)
 	for i in mini(stored.size(),PARKING.size()):
 		var entry: Dictionary = stored[i] if stored[i] is Dictionary else {"route":stored[i]}
-		var car = rig.store_vehicle(entry.route,PARKING[i],0,entry)
+		var facing := 0.0 if entry.get("turned_north",false) or int(entry.get("number",i)) % 2 == 0 else PI
+		var car = rig.store_vehicle(entry.route,PARKING[i],facing,entry)
 		if car is Node3D:
 			physical_cars.append(car)
 
@@ -766,7 +795,7 @@ func _read_book() -> void:
 	_save()
 
 func _current_slip() -> Dictionary:
-	var slip := Dispatch.issue_slip(job,dispatch_odo,pickup_odo,drop_odo,seconds_worked,drop_time if not drop_time.is_empty() else _clock())
+	var slip := Dispatch.issue_slip(job,dispatch_odo,pickup_odo,drop_odo,seconds_worked,drop_time if not drop_time.is_empty() else _clock(),campaign.released)
 	var case_id: String = job.get("case_id","")
 	if job.kind == "hold":
 		case_id = "unit"
@@ -839,8 +868,6 @@ func _file_slip(slip: Dictionary) -> void:
 	var case_id: String = slip.get("case_id","")
 	var lead := campaign.on_file(slip.kind,case_id)
 	slips.append(slip)
-	if slip.kind == "hazard" and slip.site == "farm":
-		kolpack_haul_filed = true
 	completed += 1
 	var prior_fuel_due := account.fuel_due
 	var payment := account.file_invoice(slip.pay,completed)
@@ -851,6 +878,8 @@ func _file_slip(slip: Dictionary) -> void:
 	fax_text = "TO  BRANDT TOWING & RECOVERY\nRE  SERVICE SLIP %04d\n\nReceived for county review.\nCall-out  $%d    Hookup  $%d\nWinch  $%d    Storage  $%d\nLoaded  %.1f mi @ $3.25" % [slip.number,slip.call_out,slip.hookup,slip.winch,slip.storage,slip.loaded]
 	if slip.heavy_fee > 0:
 		fax_text += "\nHeavy recovery  $%d" % slip.heavy_fee
+	if slip.get("rate_fee",0) > 0:
+		fax_text += "\n%s  $%.2f" % [slip.rate_name,slip.rate_fee]
 	fax_text += "\nNet invoice  $%.2f\n\nD. Pfaff  /  Accounts Payable" % slip.pay
 	if payment > 0:
 		fax_text += "\n\nBATCH PAYMENT ISSUED   $%.2f" % payment
@@ -859,9 +888,6 @@ func _file_slip(slip: Dictionary) -> void:
 		# A later tow may already be parked when an earlier invoice settles the batch.
 		stored = stored.filter(func(car): return car is Dictionary and car.get("number",0) > slip.number)
 		_display_storage()
-	if survey.queried_slip == 0 and case_id.is_empty() and slip.kind == "hazard" and slip.loaded > 0 and slip.schedule > 0 and absf(slip.loaded-float(slip.schedule)) >= 0.09:
-		survey.queried_slip = int(slip.number)
-		fax_text += "\n\nRE %04d   Pickup %.1f / drop %.1f. Your %.1f loaded mi, our schedule %.1f. When was the odometer calibrated? Pencil the date on our copy. — D. Pfaff" % [slip.number,slip.pickup_odo,slip.drop_odo,slip.loaded,slip.schedule]
 	if slip.has("receipt"):
 		fax_text += "\f" + str(slip.receipt)
 	if not lead.is_empty():
@@ -902,12 +928,14 @@ func _procedure() -> String:
 				return "Take the next call on the cab radio. Fax the finished slips next time you’re at the yard."
 			return "County dispatch is standing by. Answer on the cab radio."
 		"fieldwork":
+			if job.kind == "passenger":
+				return "Stop beside the pumps at Esker Fuel & Food to let the driver out." if rig.phase == "passenger" else "Pull up by the car and speak to the driver in the summer shirt."
 			if job.kind == "looksee":
 				if not survey.notes.has("house"):
 					return "Find the porch fire number beyond the Lindquist farm on Kolpack."
-				if not survey.notes.has("vin"):
-					return "Check the car in the drive. Copy the VIN at its windshield."
-				return "Use the cab radio to report the address and VIN to Arlene."
+				if not survey.notes.has("farm_ring"):
+					return "Look in the empty drive beside the Hoffmann house."
+				return "Use the cab radio to tell Arlene what you found."
 			if job.kind == "hold" and (not signed_card or not packed_tripod):
 				return "Meet Deputy Kowalski, sign the custody card and collect the tripod."
 			return rig.get_status().get("hint","Drive to the scene. Ask dispatch for a landmark if needed.")
@@ -951,6 +979,9 @@ func _contract_hint(site: String) -> Dictionary:
 				instruction = casework.procedure()
 				if not instruction.is_empty():
 					title = job.title
+			elif job.kind == "passenger":
+				title = "Passenger · Esker Fuel & Food"
+				instruction = _procedure()
 			elif job.kind == "looksee":
 				title = "Look-see · N5104 Kolpack"
 				instruction = _procedure()
@@ -992,7 +1023,7 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
-	var words := {"unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Read the fire number and knock","vin":"Copy the VIN at the windshield","cap":"Take a rubbing of the brass cap","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask about the gate","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1001,11 +1032,8 @@ func _custody_record() -> String:
 	return "TC-96-031  /  Survey Unit 38\nPickup  %s   ODO %.1f\nReceived by J. Kowalski / Brandt\nInstrument and tripod  %s\nHold bay  %s" % [pickup_time,pickup_odo,"in custody" if packed_tripod else "at scene",("%s   ODO %.1f" % [drop_time,drop_odo]) if held else "awaiting transfer"]
 
 func _current_road_map() -> RoadDirections:
-	var adopted: bool = county.case_landmarks.has("angie_house")
-	if road_directions.sections.is_empty() or directions_lengthened != county.lengthened or directions_adopted != adopted:
-		road_directions.build(county.map_roads(), county.resolve_point)
-		directions_lengthened = county.lengthened
-		directions_adopted = adopted
+	if road_directions.sections.is_empty():
+		road_directions.build(county.map_roads())
 	return road_directions
 
 func _road_note() -> Dictionary:
@@ -1018,8 +1046,8 @@ func _road_note() -> Dictionary:
 	var landmark := "Brandt’s yard"
 	var title := "Route slip   /   Brandt yard"
 	var unmapped := false
-	var heading: float = rig.get_status().heading
-	if county.alder_open and not county.case_landmarks.has("angie_house") and p.y < -410 and absf(p.x-441) < 43:
+	var heading: float = fposmod(-rad_to_deg(rig.heading),360.0)
+	if county.alder_open and p.y < -478 and absf(p.x-441) < 43:
 		if mode == "fieldwork" and job.get("case_id") in ["line","ride"]:
 			return {}
 		return {"title":"Pencil note   /   Alder Cut","instruction":"Follow the stakes south to Swamp Road. County K is west of the barricade."}
@@ -1027,12 +1055,15 @@ func _road_note() -> Dictionary:
 		var location: Vector3 = county.resolve_point(job.point) if job.kind == "looksee" else rig.job_site
 		target = Vector2(location.x, location.z)
 		unmapped = job.get("unmapped", false)
-		if p.distance_to(target) < 23.0:
-			return {}
 		landmark = str(job.location).get_slice(" · ", 1)
 		if landmark.is_empty():
 			landmark = job.location
 		title = "Route slip   /   %04d" % int(job.number)
+		if job.kind == "passenger" and rig.phase == "passenger":
+			target = Vector2(PUMP.x,PUMP.z)
+			landmark = "Esker Fuel & Food"
+		if p.distance_to(target) < 23.0:
+			return {}
 		if in_yard:
 			p = RoadDirections.DRIVEWAY
 			heading = 90.0
@@ -1064,18 +1095,16 @@ func _refresh() -> void:
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"feedback":rig.info if rig.info_timer > 0 else "",
-		"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
+		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
 		"job":ticket,"slips":slips,"pending_slips":pending_slips,"fax_count":_fax_count(),"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
-		"offer":rotation_offer,"radio_contact":_radio_contact(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
+		"offer":rotation_offer,"radio_contact":_radio_contact(),"can_report_sighting":sightings.can_report(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
 		"case_lead":Campaign.LEADS.get(campaign.chapter(),"") if _case_due() else "",
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
-		"adopted":county.case_landmarks.has("angie_house"),
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
-		"clipped_slips":survey.clipped_slips,
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
@@ -1097,16 +1126,17 @@ func _save() -> void:
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
-		"kolpack_open":county.kolpack_open,
+		"sightings":sightings.save_state(),"mai_lot_heard":mai_lot_heard,
 		"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
 		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,
-		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"longer":county.lengthened,"plow":plow_heard,"fps":Engine.max_fps}
+		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps,"spoken":audio.spoken}
 	if not test_session and not Ledger.write(saved_data):
 		push_warning("Could not save current tow ticket")
 
 func _restore(s: Dictionary) -> void:
+	casework.leave_tower()
 	completed = int(s.completed)
 	mode = s.mode
 	slips = s.slips
@@ -1134,8 +1164,8 @@ func _restore(s: Dictionary) -> void:
 	faxes = s.get("faxes",[])
 	filed_card = s.get("filed_card","")
 	plow_heard = s.plow
-	county.set_lengthened(s.longer)
-	county.set_kolpack_open(s.get("kolpack_open",s.longer))
+	mai_lot_heard = s.get("mai_lot_heard",false)
+	sightings.restore(s.get("sightings",{}),county)
 	var anchor := Dispatch.unpack(s.get("survey_anchor",{}))
 	county.set_survey_anchor(anchor.get("point",County.SURVEY_PICKUP),anchor.get("angle",County.SURVEY_YAW))
 	dispatch_seed = int(s.get("dispatch_seed",dispatch_seed))
@@ -1150,9 +1180,13 @@ func _restore(s: Dictionary) -> void:
 		case_offer.point = county.survey_point
 		case_offer.angle = county.survey_yaw
 	campaign.restore(s.get("campaign",{}),survey,slips)
-	_compare_carbons()
-	kolpack_haul_filed = slips.any(func(slip): return slip.get("site") == "farm" and slip.kind == "hazard")
-	var rig_state: Dictionary = s.rig.duplicate()
+	var rig_state: Dictionary = s.rig.duplicate(true)
+	if not s.has("sightings"):
+		if s.get("longer",false):
+			_restore_plat_positions(rig_state)
+			for departure: Dictionary in rig_state.get("departures",[]):
+				_restore_plat_positions(departure)
+		_migrate_case_ticket(rig_state)
 	if not job.is_empty() and not rig_state.has("identity"):
 		rig_state.identity = job
 	# Older shifts kept finished roadside work as the active ticket until the yard fax.
@@ -1161,9 +1195,36 @@ func _restore(s: Dictionary) -> void:
 	_sync_survey_scene()
 	_prepare_offers()
 	rig.restore_state(rig_state)
+	if job.get("kind") == "passenger" and rig.phase == "passenger":
+		rig.board_summer_driver()
 	_fit_equipment()
 	# Older saves could close the chain around the operator or a parked rig.
 	if bay_locked and not _chain_obstruction().is_empty():
 		bay_locked = false
 	county.set_bay_locked(bay_locked)
 	_display_storage()
+
+# The dispatch ticket always used plat coordinates. Old rig snapshots used world metres.
+func _restore_plat_positions(snapshot: Dictionary) -> void:
+	for key in ["truck","foot","site","car","witness","flare"]:
+		var point = snapshot.get(key)
+		if point is Array and point.size() == 3:
+			var z := float(point[2])
+			point[2] = z - 40.0 * clampf((z - 164.0) / 112.0,0,1)
+
+func _migrate_case_ticket(rig_state: Dictionary) -> void:
+	if case_offer.get("id") == "n5104":
+		case_offer = Dispatch.looksee(int(case_offer.number)-1001)
+	if job.get("id") == "n5104":
+		job = Dispatch.looksee(int(job.number)-1001)
+	var id: String = job.get("case_id","")
+	if not Campaign.DETAILS.has(id) or id != campaign.chapter():
+		return
+	var original_kind: String = job.kind
+	job = campaign.ticket(int(job.number))
+	if mode == "fieldwork" and original_kind == "looksee" and job.kind == "hazard":
+		# The former bridge and mailbox inspections now dispatch actual recoveries.
+		rig_state.merge({"kind":job.kind,"phase":"scene","site":[job.point.x,job.point.y,job.point.z],
+			"site_yaw":job.angle,"identity":job.duplicate(),"loaded":false,"line_end":-1},true)
+		for key in ["car","car_rot","flare"]:
+			rig_state.erase(key)

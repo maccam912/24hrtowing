@@ -46,6 +46,7 @@ void vertex() {
 	if (point.x > -60. && point.x < -42. && point.y > -51. && point.y < -38.3) {
 		density = 0.;
 	}
+	if (point.x > 440.8 && point.x < 449.2 && point.y > 321.0 && point.y < 331.1) { density = 0.; }
 	filaments = seed - storm_time * 2.4;
 	VERTEX = (VIEW_MATRIX * vec4(particle, 1.)).xyz;
 }

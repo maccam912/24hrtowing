@@ -1,71 +1,77 @@
 extends RefCounted
 
 # Each interval starts when the preceding case slip is filed.
+const Dispatch := preload("res://scripts/dispatch.gd")
 const ORDER := ["unit", "farm", "commission", "bridge", "mail", "line", "ride", "angie"]
 const GAPS := [5, 6, 5, 7, 6, 8, 5, 6]
 const LEADS := {
-	"unit":"HIGHWAY GARAGE / Arlene needs a door number off the white truck at the Section 3 turnout on Swamp Rd. Check for its equipment before you call.",
-	"farm":"TC-96-031 / The pickup is cleared for a records check. Read the field book in the hold bay. Mark Tou’s sketch or clip two different mileage readings from the same Kolpack run.",
-	"commission":"KOWALSKI / Bring a pencil to the brass cap east of N5104. Call me for the tape detail. The state plat puts that corner under water.",
-	"bridge":"COUNTY HIGHWAY / Our crew needs the brass inventory plates checked at both ends of the Highway 64 river bridge. Pick up the detail on your radio.",
-	"mail":"RURAL ROUTE 2 / Yesterday’s driver added a box to the Kolpack delivery sheet. The relief carrier says she’s been filling it for years. Arlene has the box check.",
-	"line":"COUNTY SURVEY / Mail for T. Vang came back with a turn penciled on it. Left before the barricade on Swamp Rd. Pick up the corner check on the radio.",
-	"ride":"DISPATCH / Tou checked in on the portable. He’s at the witness stake you logged. I told him you know the way. Call for the pickup.",
-	"angie":"COUNTY BOARD / Resolution 96-14 adopts T. Vang’s resurvey. File the Alder Cut supplement in Sheet 03. Ban extended pending conditions. Nurse at N5420 requests a tow. Sheriff authorizes.",
+	"unit":"HIGHWAY GARAGE / Get the door number off the white truck at the Section 3 turnout on Swamp. Look for the surveyor before you call.",
+	"farm":"MILK ROUTE / Every light is on at N5104 Kolpack. The hauler knocked twice. Tou circled the Hoffmann place in the field book in Unit 38.",
+	"commission":"KOWALSKI / Tou drew the Esker water tower in his book. Go up the tank ladder and take a look across Lindquist’s section.",
+	"bridge":"SHERIFF / Motor running on the flowage above the dam. No tracks from shore. Bring that sedan to storage.",
+	"mail":"RURAL ROUTE 2 / Relief carrier turned up in Marathon County. She’s fine and she’d like her car. Check the N5104 boxes.",
+	"line":"COUNTY SURVEY / Follow Tou’s line past the Kraemer place up Alder Cut. The logging road is on the 1936 plat. Fit chains.",
+	"ride":"DISPATCH / I picked up Tou’s portable out by the striped stakes. Drive up there and bring him home.",
+	"angie":"N5420 ALDER CUT / Angie Kraemer called for her own car to go to storage. Sheriff authorizes. She’ll meet you at the porch.",
 }
 const DETAILS := {
 	"commission":{
-		"title":"Kowalski’s tape detail", "label":"Take the tape detail", "road":"Kolpack Rd", "landmark":"N5104 crossroad",
-		"point":Vector3(445,0,326), "unmapped":true,
-		"dispatch":"Kowalski left a roll of checked tape in your door pocket. Rub the cap east of N5104, then check and initial the sedan yourself. Leave it there.",
-		"directions":"Kolpack past Lindquist’s. At N5104, the brass cap is between two posts just east of the porch.",
-		"report":"Copy S4 northeast. The printed corner is in the swamp. Siebert wants cars checked where they sit. People keep walking for those yard lights. That’s why the ban stays on.",
-		"receipt":"TC-96-031 / Added S4 NE rubbing. N5104 sedan checked B.T. Brandt authorized to check vehicles on the survey line."},
+		"title":"The view from the tank", "label":"Go up the Esker tank", "road":"Highway 64", "landmark":"Esker water tower",
+		"point":Vector3(48,0,-65),
+		"dispatch":"Get up the tank behind the Esker Co-op. Tou drew something on the dairy grid. See if it’s there.",
+		"directions":"Behind the co-op at 64 and County K. Park at the tank and look for the ladder on its east leg.",
+		"report":"A ring around Lindquist’s, nose to tail? Copy. That blue one sounds like the Hoffmanns’ car. Leave them where they are.",
+		"receipt":"TC-96-031 / Vehicles facing nose to tail around the Lindquist section. One blue Hoffmann sedan. No approach tracks."},
 	"bridge":{
-		"title":"Two ends of TC-14", "label":"Check the bridge plates", "road":"Highway 64", "landmark":"river bridge",
-		"point":Vector3(-447,0,0),
-		"dispatch":"Highway crew needs the TC-14 plates for a repair order. Park on the Esker side. Get the brass plate on the south rail, then walk it across and read the other.",
-		"directions":"West on Highway 64 to the river. Stay on the south rail between the two ends.",
-		"report":"Both say east? That explains why the west bearing never came with the parts order. I’ll have them use your pencil copies.",
-		"receipt":"HIGHWAY GARAGE / Two EAST ABUTMENT plates, same casting and job number. West bearing to be ordered by photograph."},
+		"title":"Headlights on the ice", "label":"Take the flowage recovery", "road":"Highway 64", "landmark":"dam landing",
+		"point":Vector3(-477,0,-135), "angle":PI, "kind":"hazard", "recovery":"ice", "running":true,
+		"vehicle":"Gray sedan", "plate":"GWK 741", "vin":"2G1WL52M2T9171043", "variant":2,
+		"dispatch":"Headlights shining at the dam. Car’s level on the ice. Set the truck on the east bank and take every foot of line.",
+		"directions":"West on 64 to the river. Before the bridge, follow the east bank north past the dam. Back down the marked landing to pay out the cable.",
+		"receipt":"KOWALSKI / The driver came to two counties over, three hours gone. The ones we can reach come home warm. A few are still out. The less traffic there is at night, the fewer it moves. That’s the tow ban."},
 	"mail":{
-		"title":"The relief carrier’s stop", "label":"Take the route check", "road":"Kolpack Rd", "landmark":"N5104 mailboxes",
-		"point":Vector3(437,0,331), "unmapped":true,
-		"dispatch":"Back to N5104. Carrier’s route has six stops after the dairy. She brought back a bundle for six-A. Read the band under the lid for me.",
-		"directions":"Turn into the N5104 lane south of Lindquist’s silo. Look for the pair of boxes between the road and the house.",
-		"report":"Tou had it held there. His wife says he never had a box out that way. I’ll get the highway garage to read the note he sent them.",
-		"receipt":"RURAL ROUTE 2 / Box 6A, HOLD AT BOX for T. Vang. The carrier’s substitute book has four winters of plow detours penciled beside that stop."},
+		"title":"The carrier’s last stop", "label":"Tow the Route 2 car", "road":"Kolpack Rd", "landmark":"N5104 mailboxes",
+		"point":Vector3(432,0,332), "angle":0.38, "kind":"hazard", "running":true, "mail":true,
+		"vehicle":"Relief carrier’s wagon", "plate":"RUH 220", "vin":"1G1BL83P4TR203096", "variant":2,
+		"dispatch":"Relief carrier says the last thing she saw was the N5104 boxes. Take her wagon in. Marathon County’s driving her back.",
+		"directions":"South on Kolpack past Lindquist’s. At the Hoffmann lane the wagon is beside the Route 2 boxes, mail on the seat.",
+		"receipt":"ROUTE 2 / Carrier reunited with wagon. Last delivery still on the front seat. Found forty miles from the route."},
 	"line":{
-		"title":"Tou’s last corner", "label":"Run the survey line", "road":"Swamp Rd", "landmark":"Alder Cut turn",
+		"title":"The old logging road", "label":"Follow Tou’s line", "road":"Swamp Rd", "landmark":"Alder Cut turn",
 		"point":Vector3(441,0,-400),
-		"dispatch":"Head for the east closure on Swamp. Just short of it there’s a left called Alder Cut. Follow it north to the witness stake. I need the full stamp off the cap.",
-		"directions":"North on K, right on Swamp. Turn left just before the east barricade. Red and white stakes mark the corner up Alder Cut.",
-		"report":"S3 northwest, 1936. Same corner on his first sheet. Garage found his figures: 5,280 feet the first night, 5,402.6 on the last pass. He asked for your tow slips by name.",
-		"receipt":"OFFICE OF THE SURVEYOR / Corner recovered. Original monument retained. T. Vang requested Brandt’s independent mileage readings before leaving the office."},
+		"dispatch":"Get the chains on. Past N5420 there’s an old logging road on the 1936 plat. Look for Tou at the striped stakes.",
+		"directions":"North on K, right on Swamp. Left before the barricade. Pass the Kraemer place and keep going to the striped witness stakes.",
+		"report":"His pencil on the cap? Stay on a minute, Brandt. I’ve got his portable coming through. Tou, county dispatch. Go again.",
+		"receipt":"COUNTY SURVEY / T. Vang’s pencil recovered at the 1936 cap. His portable came up on the county channel."},
 	"ride":{
 		"title":"A ride for the surveyor", "label":"Pick up Tou", "road":"Swamp Rd", "landmark":"Alder Cut turn",
 		"point":Vector3(441,0,-400),
-		"dispatch":"Brandt, one passenger, no hook. Tou’s by the lamp past the last cap. Pull the truck up and offer him the passenger seat. His pickup’s still at your yard.",
-		"directions":"Left before the east barricade on Swamp. Up Alder Cut, just beyond the red and white witness stake.",
-		"receipt":"TC-96-031 / Resurvey received at Brandt yard. Unit 38 released by J. Kowalski. T. Vang signed for truck and tripod."},
+		"dispatch":"One passenger, no hook. Tou’s at the end of Alder Cut. Bring the cab right up to him. He wants his truck.",
+		"directions":"Left before the east barricade on Swamp. Take the logging road past the house to the clearing beyond the stakes.",
+		"receipt":"TC-96-031 / Field book received. T. Vang signed for Unit 38 and tripod. J. Kowalski releases the hold.\fCOUNTY BOARD / Emergency session. Ban extended pending conditions. Sheriff may recover vehicles wherever found."},
 	"angie":{
-		"title":"Angie’s last tow", "label":"Answer N5420", "road":"Alder Cut Rd", "landmark":"N5420",
+		"title":"Angie at N5420", "label":"Answer N5420", "road":"Alder Cut Rd", "landmark":"N5420",
 		"point":Vector3(446.4,0,-466),
-		"dispatch":"N5420 Alder Cut. Angie Kraemer wants her old sedan hauled to storage. Talk to her at the porch before you hook it. Sheriff’s cleared the move.",
-		"directions":"North on K, right on Swamp, left just before the closure. Halfway up Alder Cut, N5420 is on the right.",
-		"receipt":"ACCOUNTS PAYABLE / From this slip forward, loaded miles paid as recorded. Prior overages accepted. The tow ban remains in effect. — D. Pfaff"},
+		"dispatch":"Angie Kraemer’s on her porch. Wants her sedan taken to storage. Talk to her first.",
+		"directions":"North on K, right on Swamp, left before the closure. N5420 is on your right.",
+		"receipt":"PUBLIC AUCTION / Unclaimed vehicles in county storage. Owners or representatives may collect before sale. Lot 3: blue sedan, Hoffmann household, N5104 Kolpack."},
 }
 const QUESTIONS := [
-	["Ask about the corners","The corners haven’t moved. I set that north one myself. Every time I chain the line there’s more ground to cross.","Tou · old corners still in place"],
-	["Ask about the drivers","They make it to the light. Stove works. There’s a bed. A fellow tried to walk back three times. Each time it took longer to reach his own gate.","Tou · the walk home gets longer"],
-	["Ask why he wanted your slips","Your odometer and mine were the only two things in this county that agreed. Doreen gave me the carbons. I kept every one.","Tou · Brandt’s slips match his log"],
-	["Ask if it stops","It isn’t speeding up. It isn’t slowing down. You can drop me by my truck. Somebody’s got to keep the corners.","Tou · rate of change steady"],
+	["Where were you?","Taking a shot on the corner. The wind quit. Forty minutes, maybe. It’s been how long? Then my book’s wrong.","Tou · thought he was gone forty minutes"],
+	["The sunburn?","It was warm where I was. That’s all I’ve got.","Tou · it was warm"],
+	["The rings?","The ones out in the fields all sit on section corners. It knows where the corners are. Took me twenty years to learn them.","Tou · rings on section corners"],
+	["The cars?","Not a dent on one of them. I don’t know if it’s taking them or trying to put them back.","Tou · cars set down undamaged"],
+	["The people?","Most come back. They’re all fine. That’s the part I don’t like.","Tou · most people come back"],
+	["Why does it follow me?","You’re the only other thing out here that moves cars.","Tou · the lights watch the wrecker"],
+	["Is it stopping?","It hasn’t hurried once since the snow started.","Tou · still here"],
+	["Why go back out?","Somebody ought to keep the corners.","Tou · will go back to the corners"],
 ]
 
 var stage := 0
 var ordinary_since := 0
 var evidence := {}
 var asked := []
+var angie_walked := 0.0
 var released := false
 
 func chapter() -> String:
@@ -91,54 +97,66 @@ func on_file(kind: String, case_id: String) -> String:
 	if not chapter().is_empty() and case_id == chapter():
 		stage += 1
 		ordinary_since = 0
-	elif kind in ["hazard","ditch"] and case_id.is_empty() and not due() and stage < ORDER.size():
+	elif kind in ["hazard","ditch","passenger"] and case_id.is_empty() and not due() and stage < ORDER.size():
 		ordinary_since += 1
 		if due():
 			return LEADS[chapter()]
 	return ""
 
-func ticket(number: int) -> Dictionary:
-	var id := chapter()
+func ticket(number: int, id := "") -> Dictionary:
+	if id.is_empty():
+		id = chapter()
 	var order: Dictionary = DETAILS[id].duplicate()
 	order.merge({"number":number,"id":id,"site":id,"route":id,"case_id":id,"angle":0.0,
 		"location":order.road+" · "+order.landmark,"kind":"looksee","vehicle":"Field service","plate":"—","vin":"—"})
-	if id == "angie":
+	if id == "ride":
+		order.receipt += "\fREVISED RATE SCHEDULE / D. Pfaff\nAdditional recovery charges, effective immediately."
+		for type: String in ["roof_car","ice_car","field_car"]:
+			var rate: Array = Dispatch.RECOVERIES[type]
+			order.receipt += "\n%s  $%.2f" % [rate[3],rate[4]]
+		order.receipt += "\nStorage as scheduled."
+	elif id == "angie":
 		var angie: Dictionary = preload("res://scripts/legacy_dispatch.gd").JOBS.angie
 		order.merge({"kind":"hazard","vehicle":angie.vehicle,"plate":angie.plate,"vin":angie.vin,"variant":0},true)
 	return order
 
 func landmarks() -> Array:
 	var result := []
-	if (stage == 3 and due()) or stage > 3:
-		result.append("bridge_plate")
+	if (stage == 2 and due()) or stage > 2:
+		result.append("car_ring")
+		result.append("auction_car" if stage == ORDER.size() else "hoffmann_ring")
 	if (stage == 4 and due()) or stage > 4:
-		result.append("mailboxes")
+		result.append("carrier_prints")
 	if (stage == 5 and due()) or stage > 5:
 		result.append("last_cap")
 	if stage == 6 and due() and not evidence.has("passenger"):
 		result.append("tou")
-	if (stage == 7 and due()) or stage > 7:
-		result.append("angie_house")
-		if stage == 7:
-			result.append("angie")
-	if evidence.has("mailboxes"):
-		result.append("mail_open")
-	if evidence.has("checked_sedan"):
-		result.append("checked_sedan")
+	if stage == 7 and due() and not evidence.has("angie_left"):
+		result.append("angie_walking" if evidence.has("angie_consent") else "angie")
 	return result
 
 func save_state() -> Dictionary:
-	return {"next":chapter(),"ordinary_since":ordinary_since,"evidence":evidence.duplicate(),
-		"asked":asked.duplicate(),"released":released}
+	return {"revision":2,"next":chapter(),"ordinary_since":ordinary_since,"evidence":evidence.duplicate(),
+		"asked":asked.duplicate(),"released":released,"angie_walked":angie_walked}
 
 func restore(data: Dictionary, survey: RefCounted, slips: Array) -> void:
+	angie_walked = maxf(0,float(data.get("angie_walked",0.0)))
 	if not data.is_empty():
 		stage = ORDER.find(data.get("next",""))
 		if stage < 0:
 			stage = ORDER.size()
 		ordinary_since = maxi(0,int(data.get("ordinary_since",0)))
 		evidence = data.get("evidence",{}).duplicate()
-		asked = data.get("asked",[]).map(func(n): return int(n))
+		asked = []
+		if int(data.get("revision",1)) >= 2:
+			for q in data.get("asked",[]):
+				if int(q) >= 0 and int(q) < QUESTIONS.size() and int(q) not in asked:
+					asked.append(int(q))
+		else:
+			for old_key: String in ["checked_sedan","bridge_plate","bridge_plate_far","mailboxes"]:
+				evidence.erase(old_key)
+			if stage > 2:
+				evidence["car_ring"] = 0
 		released = data.get("released",false)
 		return
 	stage = 2 if survey.farm_order == "filed" else (1 if survey.hold_order == "filed" else 0)
@@ -149,7 +167,7 @@ func restore(data: Dictionary, survey: RefCounted, slips: Array) -> void:
 	for i in range(slips.size()-1,-1,-1):
 		if slips[i].get("kind") in ["hold","looksee"]:
 			break
-		if slips[i].get("kind") in ["ditch","hazard"]:
+		if slips[i].get("kind") in ["ditch","hazard","passenger"]:
 			ordinary_since += 1
 	if not survey.pending_order().is_empty():
 		ordinary_since = GAPS[stage]

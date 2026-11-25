@@ -11,16 +11,14 @@ const FINISH := 1
 var graph := AStar2D.new()
 var sections: Array[Dictionary] = []
 
-func build(roads: Array, resolve: Callable) -> void:
+func build(roads: Array) -> void:
 	graph.clear()
 	sections.clear()
 	var streets: Array[Dictionary] = []
 	for road: Dictionary in roads:
 		var points: PackedVector2Array = road.points
 		for i in range(1, points.size()):
-			var p: Vector3 = resolve.call(Vector3(points[i-1].x, 0, points[i-1].y))
-			var q: Vector3 = resolve.call(Vector3(points[i].x, 0, points[i].y))
-			streets.append({"name":road.name, "a":Vector2(p.x,p.z), "b":Vector2(q.x,q.z)})
+			streets.append({"name":road.name, "a":points[i-1], "b":points[i]})
 	streets.append({"name":GATE, "a":DRIVEWAY, "b":JUNCTION})
 	var ids := {}
 	for street in streets:

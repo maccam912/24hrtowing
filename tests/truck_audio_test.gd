@@ -64,6 +64,13 @@ func run() -> void:
 		if player.stream == game.audio.samples.get("reverse"):
 			check(is_equal_approx(player.pitch_scale,1.0), "each backup beep has the same pitch")
 	check(pull.volume_db > -15, "the diesel pulls in reverse too")
+	game.audio.set_sighting(1,1)
+	for i in 120: game.audio.mix_truck(game.rig.get_status(),true,true,DT)
+	check(game.audio.engines.wind.volume_db < -60 and game.audio.engines.pulse.volume_db > -20,"the calm removes the wind and leaves a slow pulse in the cab")
+	check(pull.volume_db > -15,"the lights leave the working diesel audible")
+	game.audio.set_sighting(0,0)
+	for i in 120: game.audio.mix_truck(game.rig.get_status(),true,true,DT)
+	check(game.audio.engines.wind.volume_db > -34 and game.audio.engines.pulse.volume_db < -60,"wind and radio recover after the encounter")
 	if not failed:
 		print("CHECKS PASSED — idle, acceleration, shift, coast, pause, air release and reverse alarm")
 	quit(1 if failed else 0)

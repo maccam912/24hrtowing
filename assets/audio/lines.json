@@ -55,10 +55,6 @@
     "DISPATCH",
     "Brandt yard, west side of K. Bear left by the office. Back the pickup into the amber-lit EVIDENCE HOLD bay."
   ],
-  "clerk": [
-    "DISPATCH",
-    "Doreen left a note on your copy. She's looking for a calibration date."
-  ],
   "angie": [
     "ANGIE",
     "My tires were on the white line. I could see the steeples the whole time. Thank you for coming."
@@ -77,7 +73,7 @@
   ],
   "plow": [
     "COUNTY PLOW",
-    "Garage, can you check my speedometer when I'm in? Held forty from the silo to the dairy. Coffee was already put away."
+    "Garage, I’m going to sit here a minute."
   ],
   "clear": [
     "DISPATCH",
@@ -101,7 +97,7 @@
   ],
   "rural": [
     "DRIVER",
-    "I counted fence posts waiting for you. Must have lost count somewhere. Appreciate the pull."
+    "The plow went by just before you did. Took the loose snow off my hood. Thank you."
   ],
   "river_call": [
     "DISPATCH",
@@ -154,5 +150,45 @@
   "plow_shop": [
     "COUNTY PLOW",
     "Garage, put a passenger-side wiper blade on the counter for me. I'll pick it up on my way in."
+  ],
+  "displaced_driver": [
+    "DRIVER",
+    "I was on the four-lane outside Wausau. Where am I?"
+  ],
+  "gentle_driver": [
+    "DRIVER",
+    "It picked the whole car up. Set it down real gentle."
+  ],
+  "lost_hours": [
+    "DRIVER",
+    "I pulled over to look. Ten minutes, tops. The clock on the dash says three hours."
+  ],
+  "summer_driver": [
+    "DRIVER",
+    "It was warm where I was. Could you drop me at the Fuel & Food?"
+  ],
+  "bev_heifers": [
+    "BEV",
+    "The heifers have been standing like that since supper."
+  ],
+  "mai_lot": [
+    "MAI",
+    "Lot lights went out at ten after two again."
+  ],
+  "angie_sunburn": [
+    "ANGIE",
+    "Third sunburn this week. In January."
+  ],
+  "arlene_log": [
+    "DISPATCH",
+    "Got another one over Swamp Road. Lights, no action."
+  ],
+  "kowalski_swamp": [
+    "KOWALSKI",
+    "Swamp gas."
+  ],
+  "gary_heifers": [
+    "GARY",
+    "Bev says they’ve been standing in that circle since supper. Hasn’t lost one yet."
   ]
 }

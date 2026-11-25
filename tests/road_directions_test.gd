@@ -16,7 +16,7 @@ func _initialize() -> void:
 	county.add_child(county.drop_guide)
 	var nav := Directions.new()
 	var bridge := Vector2(-435, 6)
-	nav.build(county.map_roads(), county.resolve_point)
+	nav.build(county.map_roads())
 	check(nav.cue(Directions.DRIVEWAY, 90, bridge, "river bridge").instruction, ["yard gate", "right", "County K"])
 	check(nav.cue(Directions.DRIVEWAY, 90, Vector2(314,-409), "Section 3").instruction, ["left", "north"])
 	check(nav.cue(Vector2(0,-20), 180, bridge, "river bridge").instruction, ["right", "co-op", "Highway 64", "west"])
@@ -26,17 +26,15 @@ func _initialize() -> void:
 	check(nav.cue(Vector2(10.54,-64), 90, bridge, "river bridge").instruction, ["County K", "west", "back to the road"])
 	check(nav.cue(Vector2(0,-30), 0, Directions.DRIVEWAY, "Brandt yard").instruction, ["left", "Brandt sign"])
 	check(nav.cue(Vector2(0,-95), 180, Directions.DRIVEWAY, "Brandt yard").instruction, ["right", "Brandt sign"])
-	check(nav.cue(Vector2(400,80), 180, Vector2(445,326), "N5104", true).instruction, ["Kolpack", "fire plates", "missing"])
-	check(nav.cue(Vector2(400,0), 90, Vector2(445,326), "N5104", true).instruction, ["turn right", "Kolpack"])
-	check(nav.cue(Vector2(400,326), 180, Vector2(445,326), "N5104", true).instruction, ["fire plates", "missing"])
-	check(nav.cue(Vector2(425,330), 90, Vector2(445,326), "N5104", true).instruction, ["off my sheet", "fire plates"])
+	check(nav.driven_road(Vector2(423,336)), ["Hoffmann lane"])
+	check(nav.driven_road(Vector2(441,-463)), ["Alder Cut"])
+	if nav.driven_road(Vector2(441,-535)) != "":
+		failed = true
+		printerr("The old logging road beyond N5420 should stay off the modern map.")
 	if nav.cue(Vector2(0,-20), 180, bridge, "river bridge").maneuver != "right" or nav.cue(Vector2(0,32), 180, bridge, "river bridge").maneuver != "around":
 		failed = true
 		printerr("Pencil arrows should match the spoken turn and turnaround.")
-	county.set_lengthened(true)
-	nav.build(county.map_roads(), county.resolve_point)
-	check(nav.driven_road(Vector2(180,442)), ["Hendricks Rd"])
-	check(nav.cue(Vector2(0,420), 180, Vector2(112,434), "Brzezinski Dairy").instruction, ["left", "Hendricks", "east"])
+	check(nav.driven_road(Vector2(180,401)), ["Hendricks Rd"])
 	county.free()
 	if not failed:
 		print("CHECKS PASSED — route notes at the gate, junctions, missed turns, shoulders and unprinted land")

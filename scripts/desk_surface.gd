@@ -249,6 +249,7 @@ func _menu() -> void:
 			var current: int = int(drawn.get("frame_rate",desk.fps))
 			button("settings_30",Rect2(x,y+136,166,78 if touch else 52), "30 FPS", current==30)
 			button("settings_60",Rect2(x+178,y+136,166,78 if touch else 52), "60 FPS", current==60)
+			button("settings_voice",Rect2(x,y+225,width-56,78 if touch else 52),"Dialogue   /   %s" % ("Spoken" if drawn.get("spoken",false) else "Radio chatter"))
 			button("close",Rect2(x,y+332,155,78 if touch else 45),"Back")
 		"help":
 			var line_y := y+94

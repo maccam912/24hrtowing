@@ -1,6 +1,6 @@
 # 24 HR Towing
 
-You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow ban. When Arlene calls, take the heavy wrecker out, find the car by its road and landmarks, and bring the paperwork home.
+You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow ban. When Arlene calls, take the heavy wrecker out and find the car by its road and landmarks. Some nights three cold lights keep pace across a field. When they come close, the wind quits.
 
 **[Download the Android APK](https://github.com/maccam912/24hrtowing/releases/latest/download/24HRTowing-Android.apk)** · [SHA-256 checksums](https://github.com/maccam912/24hrtowing/releases/latest/download/SHA256SUMS.txt) · [Past releases and desktop downloads](https://github.com/maccam912/24hrtowing/releases)
 
@@ -8,7 +8,7 @@ You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow 
 
 Start the engine. Tap **RADIO**, then **Take contract**, or press **R** on desktop. Arlene starts you with a nearby ditch pull. Listen for the road, the landmark and the side the car went off. Your first call might take you past St. Hedwig’s, the co-op or the ginseng frames.
 
-The dash compass reads the direction the truck faces in both driving views. If you lose your way or forget the next step, pause and open **Directions & next action**. In the cab, the truck log gives the next turn from your current road. At the scene, it shows the recovery procedure and what you can do where you’re standing. You can also tap **RADIO → Ask for directions** or press **T** to hear Arlene’s talk-in. Past the edge of her map, use the plat, fire numbers and your own pencil marks.
+The dash compass is visible in both driving views. If you lose your way or forget the next step, pause and open **Directions & next action**. In the cab, the truck log gives the next turn from your current road. At the scene, it shows the recovery procedure and what you can do where you’re standing. You can also tap **RADIO → Ask for directions** or press **T** to hear Arlene’s talk-in. Past the edge of her map, use the plat, fire numbers and your own pencil marks.
 
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
 
@@ -44,21 +44,21 @@ Park in the yard and walk to the office fax to buy diesel or fit equipment. You 
 
 A **$175 snatch block** lets you rig a double line for loaded pickups. Once it’s fitted, Arlene can offer county utility trucks on rotation. Heavy recoveries pay an extra $36. **$95 tire chains** improve grip and braking and help the wrecker through deep snow. The office also services a worn winch for $24.
 
-Check the fax after your fifth ordinary job for the first lead in the county survey case. If something catches your eye on the road, park, walk over and press **E** or tap **USE** to examine it. Your observations stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
+The first two jobs give you time to learn the wrecker. On later drives you can keep working through a sighting, or use **RADIO → Call in the lights**. If Arlene sends you to a driver in a summer shirt, offer them the passenger seat and stop by the pumps at Esker Fuel & Food. Check the fax after your fifth ordinary job for the first lead in the county survey case. If something catches your eye on the road, park, walk over and press **E** or tap **USE** to examine it. Your observations stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
 
 The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip.
 
 <details>
 <summary>Walkthrough of all eight case calls (spoilers)</summary>
 
-1. **Secure Unit 38.** Read the pickup door at the Section 3 turnout on Swamp Road. Follow the prints to the rod case inside the gate, then report both to Arlene. Fit the snatch block at the yard before taking Kowalski’s hold order. Sign her card, stow the tripod and rig a double line for the pickup. Fit the dollies, tow the pickup to the evidence bay, and lock the chain before filing.
-2. **Find N5104.** Unlock the bay, read Tou’s field book and copy his sketch to the plat. You can also use **Clip for radio** on two slips from the same Kolpack shoulder with different loaded mileage. Bring either piece of evidence to Arlene on the radio. Take the look-see, read the house number and the sedan’s windshield VIN, call them in, and file at the yard.
-3. **Take Kowalski’s tape detail.** Rub the brass cap between the posts east of the N5104 porch. Walk up to the sedan’s windshield to check the car and initial the tape. Leave the car at the house, radio in from the cab, then file the report.
-4. **Walk the river bridge.** Park at the Esker end of the Highway 64 bridge. Copy the plate on the south rail, then walk to the River Lanes end and copy its plate. Read both back to Arlene and file the highway crew’s report.
-5. **Check the mail route.** Find the pair of mailboxes in the N5104 lane. Lift the lid on box 6A, read the band and tell Arlene who’s holding mail there. File the slip at the yard.
-6. **Follow Tou’s line.** Fit tire chains at the yard to take the icy Alder Cut run. Turn left just before the east barricade on Swamp Road. Follow Alder Cut north to the striped witness stakes, brush the snow from the cap, and radio in its full stamp. File your corner check.
-7. **Bring Tou home.** Return to the mercury lamp beyond the cap and pull up close enough for Tou to board. You can ask him about the drivers, the old corners and your tow slips on the ride home. At the yard, open the evidence bay, countersign his pickup’s release at the chain, and fax it to the county.
-8. **Answer Angie’s call.** The county board adopts Tou’s resurvey. At N5420 Alder Cut, speak to Angie at the porch before rigging her old sedan. Bring it to **STORAGE** and file the slip. Doreen’s fax says the county will pay loaded miles as recorded.
+1. **Secure Unit 38.** Find the white county pickup at the Section 3 turnout. Its driver’s door is open. Follow the prints from the tripod’s bare ring to the dry rod case where the prints stop. Read the door and examine the case, then report both from the cab. Fit the snatch block, meet Kowalski, sign her card and stow the tripod. Bring the pickup into the evidence bay on dollies and lock the corner chain before filing.
+2. **Look in on the Hoffmanns.** Tou’s field book has circles on section corners, N5104 marked and a drawing of the water tower. The milk hauler reports every light on at N5104. Take Arlene’s look-see, check the open door and the wet ring in the empty drive, then call it in.
+3. **Climb the Esker water tower.** Use the ladder behind the co-op. Look across Lindquist’s section from the tank. The cars are parked nose to tail in a ring. Climb down and tell Arlene.
+4. **Recover the flowage sedan.** Take Highway 64 west and approach from the dam landing. Leave the wrecker ashore and pay out the long cable to the running car on the ice. Kowalski explains the missing hours and the tow ban in her report.
+5. **Bring in the relief carrier’s wagon.** Find it at the Route 2 mailboxes with the mail still on the seat. Her footprints end in the field. Watch the mirror during the loaded haul.
+6. **Follow Tou’s line.** Fit tire chains. Turn onto Alder Cut before the Swamp Road barricade. The modern plat ends at N5420. Continue on the old logging road to the striped stakes. Look for Tou’s pencil and call Arlene when the portable comes through.
+7. **Bring Tou home.** Drive to the bare ring past the stakes. Bring the cab close and offer Tou the passenger seat. The radio menu opens eight optional questions on the ride back. Unlock the evidence bay, countersign his release at the chain and file it. The board extends the ban and Doreen issues new rates for cars recovered wherever found.
+8. **Answer Angie.** Speak to her at N5420. She wants the sedan taken to storage and intends to walk up Alder Cut. File the tow for the auction notice. On a later ordinary drive the lights set a running car on the shoulder ahead of you. Keep taking calls, including recoveries of cars the lights have left behind.
 
 </details>
 
@@ -84,4 +84,4 @@ To include desktop downloads in future releases, set the GitHub Actions reposito
 
 The game uses the bundled OFL copies of Overpass, IBM Plex Mono, Caveat, Architects Daughter, Public Sans and DSEG Classic. Licenses ship in `assets/ui/fonts/`. The material textures, touch-control artwork, evergreen sprite and Brandt sign were made with ImageGen. The title camera moves around the playable wrecker in the live county scene. The launcher icon is a still taken in Godot. The wrecker, vehicles, objects and township are built in Godot. The dash and gauges use original instrument artwork.
 
-Dialogue appears as speaker-tagged subtitles with short electronic pulses synthesized in Godot. The sound effects are local audio files. To generate missing effects, run `python3 tools/generate_audio.py` with an ElevenLabs API key in the environment or a private `~/.config/24hrtowing/elevenlabs.key` file. The tool also recognizes the existing Home Twenty key location. ElevenLabs generation uses API credits. The reverse alarm and the rattle of loose street signs are synthesized locally and encoded with FFmpeg. The installed game plays offline.
+Dialogue appears as speaker-tagged subtitles with short electronic pulses synthesized in Godot. Cab settings also offer spoken dialogue using an installed English system voice. The sound effects are local audio files. To generate missing effects, run `python3 tools/generate_audio.py` with an ElevenLabs API key in the environment or a private `~/.config/24hrtowing/elevenlabs.key` file. The tool also recognizes the existing Home Twenty key location. ElevenLabs generation uses API credits. The reverse alarm and the rattle of loose street signs are synthesized locally and encoded with FFmpeg. The installed game plays offline.

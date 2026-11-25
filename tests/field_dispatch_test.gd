@@ -6,7 +6,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	game.dispatch_seed = 84
 	# A county detail is also available while the operator runs rotation.
-	game.campaign.stage = game.Campaign.ORDER.find("bridge")
+	game.campaign.stage = game.Campaign.ORDER.find("commission")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
 	game.desk._touch_mode = true
 	game._action("play")
@@ -27,9 +27,9 @@ func run() -> void:
 	check(game.slips.is_empty() and game.account.earned == 0 and game.pending_slips.size() == 1, "resuming in the field leaves the slip unpaid")
 	press_key(KEY_R)
 	await tap_control("take_detail")
-	check(game.job.get("case_id") == "bridge" and game.job.number == 1002 and rig.truck.position.distance_to(ditch.point) < 5, "cab radio takes the next numbered call from the ditch")
-	follow_detail("bridge")
-	check(game.pending_slips.size() == 2 and game.campaign.chapter() == "bridge", "both field slips await the fax before the case advances")
+	check(game.job.get("case_id") == "commission" and game.job.number == 1002 and rig.truck.position.distance_to(ditch.point) < 5, "cab radio takes the next numbered call from the ditch")
+	follow_detail("commission")
+	check(game.pending_slips.size() == 2 and game.campaign.chapter() == "commission", "both field slips await the fax before the case advances")
 	resume_shift()
 	await tap_control("slip")
 	check(game.desk.slip_index == 1, "the clipboard opens on the latest completed field slip")
@@ -55,7 +55,7 @@ func run() -> void:
 	rig.in_cab = false
 	stand(game.FAX + Vector3.FORWARD,game.FAX)
 	game._action("interact")
-	check(game.completed == 2 and game.pending_slips.is_empty() and game.campaign.chapter() == "mail", "one trip to the office files both field slips")
+	check(game.completed == 2 and game.pending_slips.is_empty() and game.campaign.chapter() == "bridge", "one trip to the office files both field slips")
 	check(game.mode == "fieldwork" and game.job.vin == tow.vin and rig.car != null, "filing preserves the next active recovery")
 
 	game.desk.dismiss()
@@ -89,7 +89,7 @@ func run() -> void:
 			pay += slip.pay
 		var first: Dictionary = game.slips.front()
 		check(first.vin == ditch.vin and is_equal_approx(first.pickup_odo,pickup) and first.winch == 12 and first.loaded == 0, "the ditch retains its original identity, meter and winch time")
-		check(game.slips[1].get("case_id") == "bridge" and game.slips[2].vin == tow.vin and is_equal_approx(game.slips[2].loaded,1.3), "case and tow keep their own paperwork")
+		check(game.slips[1].get("case_id") == "commission" and game.slips[2].vin == tow.vin and is_equal_approx(game.slips[2].loaded,1.3), "case and tow keep their own paperwork")
 		check("BATCH PAYMENT ISSUED" in game.faxes.back() and game.account.pending == 0 and is_equal_approx(game.account.cash,game.ShopAccount.OPENING_CASH+pay), "the third invoice settles all three once")
 		game._action("fax")
 		check(game.completed == 3 and game.faxes.size() == 3 and is_equal_approx(game.account.earned,pay), "refaxing a submitted stack is harmless")

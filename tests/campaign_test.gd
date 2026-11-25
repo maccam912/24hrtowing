@@ -44,18 +44,20 @@ func run() -> void:
 				check(game.job.get("case_id") == id and game.mode == "fieldwork", "accepted " + id)
 				if failures:
 					break
-				follow_detail(id)
+				await follow_detail(id)
 				file_at_office()
 		check(game.slips.back().get("case_id") == id and game.campaign.ordinary_since == 0, "case slip advances exactly one chapter and resets its interval for " + id)
 		if failures:
 			break
 	if not failures:
 		check(game.completed == 57 and game.campaign.chapter().is_empty(), "48 scheduled ordinary calls, one deferred call, eight case slips")
-		check("as recorded" in game.faxes.back() and game.slips.back().vin == game.Dispatch.Legacy.JOBS.angie.vin, "final fax and Angie's original identity on file")
+		check("Lot 3" in game.faxes.back() and game.slips.back().vin == game.Dispatch.Legacy.JOBS.angie.vin, "final fax and Angie's original identity on file")
 		resume_shift()
+		await process_frame
 		check(game.campaign.released and not game.held and "RELEASE" in game.filed_card, "released custody survives the ending")
-		check(game.state.pencil_notes.has(game.Casework.NOTES.bridge_plate_far) and game.state.pencil_notes.has(game.Casework.NOTES.angie_consent), "field evidence remains in the plat")
+		check(game.state.pencil_notes.has(game.Casework.NOTES.car_ring) and game.state.pencil_notes.has(game.Casework.NOTES.angie_consent), "field evidence remains in the plat")
 		check(game._radio_contact().is_empty() and not game.county.survey_pickup.visible, "settled case stays closed")
+		check(not game.county.case_models.has("hoffmann_ring") and game.county.case_models.auction_car.get_node("HoffmannSedan").get_meta("plate")=="WLP 504","the empty space in the ring belongs to the blue sedan now at auction")
 		file_rotation()
 		check(game.completed == 58 and not game.slips.back().has("case_id"), "ordinary dispatch pays after the last case")
 	game.free()
@@ -65,10 +67,19 @@ func run() -> void:
 
 func file_rotation() -> void:
 	game.desk._activate("respond")
-	check(game.mode == "fieldwork" and game.job.get("kind") in ["ditch","hazard"] and not game.job.has("case_id"), "radio accepted an ordinary recovery")
+	check(game.mode == "fieldwork" and game.job.get("kind") in ["ditch","hazard","passenger"] and not game.job.has("case_id"), "radio accepted an ordinary recovery")
 	if game.job.is_empty():
 		return
-	game._recovered(game.job.kind)
+	if game.job.kind == "passenger":
+		var driver: Vector3 = rig.get_witness_position()
+		rig.set_spawn(driver+Vector3(3,0,4))
+		inspect_at("summer_ride",driver)
+		rig.in_cab = true
+		rig.set_spawn(game.PUMP+Vector3(0,0,5))
+		game._survey()
+		check(game.mode == "available", "the displaced driver made it to Esker Fuel & Food")
+	else:
+		game._recovered(game.job.kind)
 	if game.mode == "haul":
 		rig.odo += 1.2
 		game._dropped()
@@ -154,7 +165,7 @@ func fit_equipment(id: String) -> void:
 func file_farm() -> void:
 	use_contact("ask_farm")
 	use_contact("take_case")
-	for id: String in ["house","vin"]:
+	for id: String in ["house","farm_ring"]:
 		inspect_at(id,game.county.story_point(id))
 	use_contact("report_farm")
 	file_at_office()
@@ -163,15 +174,33 @@ func follow_detail(id: String) -> void:
 	check(game._radio_contact().is_empty(), "taking the call alone cannot report " + id)
 	match id:
 		"commission":
-			inspect_at("cap",game.county.story_point("cap"))
-			inspect_at("checked_sedan",game.county.story_point("vin"))
-		"bridge":
-			inspect_at("bridge_plate",game.county.story_point("bridge_plate"))
+			inspect_at("tower_ladder",game.county.story_point("tower_ladder"))
+			check(is_instance_valid(game.casework.tower_view) and game.casework.tower_view.current and game._site_action()=="tower_down","the ladder opens the view from the tank and has a return action")
+			for tick in 210:
+				game.casework.tower_climb.custom_step(1.0/60.0)
+			game._action("interact")
+			check(game.rig.get_camera().current and game.campaign.evidence.has("car_ring"),"dismount returns the view to Brandt with the ring observed")
+		"bridge","mail":
+			if id == "bridge":
+				check(game.job.get("recovery")=="ice" and game.rig.car.position.distance_to(Vector3(-477,-2,-135))<2,"the running sedan sits in the middle of the flowage")
+			else:
+				inspect_at("carrier_prints",game.county.story_point("carrier_prints"))
 			resume_shift()
-			rig.in_cab = true
-			check(game.job.case_id == id and game.campaign.evidence.has("bridge_plate") and game._radio_contact().is_empty(), "resume keeps first plate and still requires the second")
-			inspect_at("bridge_plate_far",game.county.story_point("bridge_plate_far"))
-		"mail": inspect_at("mailboxes",game.county.story_point("mailboxes"))
+			check(game.job.case_id==id and game.job.kind=="hazard" and is_instance_valid(rig.car),"reload retains the active physical case recovery")
+			var car: Vector3 = rig.car.position
+			rig.set_spawn(car+Vector3(0,0,10))
+			rig.in_cab = false
+			rig.phase = "at_lift"
+			var panel: Vector3 = rig._panel()
+			stand(panel-rig.truck.global_basis.x,panel)
+			game._action("interact")
+			check(rig.loaded and game.mode=="haul","the case vehicle goes on the wheel-lift")
+			park_tow(game.YardDrop.STORAGE.center+Vector3(4,0,0),PI/2)
+			panel = rig._panel()
+			stand(panel-rig.truck.global_basis.x,panel)
+			game._action("interact")
+			check(game.mode=="invoice" and not rig.loaded,"case recovery requires a physical storage delivery")
+			return
 		"line": inspect_at("last_cap",game.county.story_point("last_cap"))
 		"ride":
 			pick_up_tou()
@@ -184,6 +213,17 @@ func follow_detail(id: String) -> void:
 			game._action("interact")
 			check(rig.phase == "scene" and not game.campaign.evidence.has("angie_consent"), "cannot start rigging before getting the owner's signature")
 			inspect_at("angie",game.county.story_point("angie"))
+			game.casework.advance_departure(20.0)
+			var walked: float = game.campaign.angie_walked
+			resume_shift()
+			await process_frame
+			game.casework.advance_departure(0.0)
+			check(is_equal_approx(game.campaign.angie_walked,walked) and game.county.case_models.angie_walking.get_node("AngieKraemer").position.z < -470.0,"Angie resumes up Alder Cut, past the porch")
+			game.casework.advance_departure(90.0)
+			resume_shift()
+			await process_frame
+			check(game.campaign.evidence.has("angie_left") and not game.county.case_landmarks.has("angie_walking"),"Angie stays gone after leaving the clearing")
+			rig.in_cab = false
 			stand(car+Vector3(2,0,0),car)
 			game._action("interact")
 			check(rig.phase == "flared" and game.campaign.evidence.has("angie_consent"), "owner consent unlocks the recovery")
@@ -210,10 +250,10 @@ func pick_up_tou() -> void:
 	inspect_at("tou",point)
 	use_contact("talk_tou")
 	check(game.desk.page == "passenger", "passenger questions open in the cab")
-	game.desk._activate("tou_2")
-	check(game.speaker == "TOU" and "odometer" in game.subtitle, "Tou answers the question about the carbons")
+	game.desk._activate("tou_5")
+	check(game.speaker == "TOU" and "moves cars" in game.subtitle, "Tou answers why the lights follow the wrecker")
 	resume_shift()
-	check(game.mode == "return" and game.campaign.asked == [2] and game._radio_contact().get("id") == "talk_tou", "resume keeps Tou on the ride and remembers the question")
+	check(game.mode == "return" and game.campaign.asked == [5] and game._radio_contact().get("id") == "talk_tou", "resume keeps Tou on the ride and remembers the question")
 	check(is_instance_valid(rig.survey_passenger) and rig.survey_passenger.is_visible_in_tree(), "Tou is physically in the passenger seat after resuming")
 	rig.set_spawn(game.SPAWN,-PI/2)
 	rig.in_cab = false
@@ -222,3 +262,9 @@ func pick_up_tou() -> void:
 	check(game.job.get("case_id") == "ride" and game.held, "the fax still requires the signed release")
 	inspect_at("release",game.county.bay_latch_point())
 	check(game.campaign.released and not game.held, "operator signed for Unit 38's release")
+	check(is_instance_valid(game.casework.released_pickup),"Tou takes the same pickup out of the evidence bay")
+	if is_instance_valid(game.casework.released_pickup):
+		var bay: Vector3 = game.casework.released_pickup.position
+		for n in 75:
+			game.casework.advance_departure(.1)
+		check(game.casework.released_pickup.position.distance_to(bay)>8,"the released pickup drives away under its running lights")

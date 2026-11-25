@@ -99,9 +99,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 			note += "    /    %s shoulder" % shoulder.capitalize()
 		if float(active_job.get("heavy_fee",0)) > 0:
 			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
-		var clipped: Array = s.get("clipped_slips",[])
-		if archived and not clipped.is_empty():
-			note += "\nPaper clip    " + "  /  ".join(clipped.map(func(n): return str(int(n))))
+		if float(active_job.get("rate_fee",0)) > 0:
+			note += "\n%s   +$%.2f" % [active_job.rate_name,active_job.rate_fee]
 	else:
 		note = str(s.get("progress",""))
 		if note.is_empty():
@@ -120,9 +119,6 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		c.text(Vector2(x,p.end.y-29),"COPY  2    /    OPERATOR",c.MONO,14,FADED)
 	if s.get("can_fax",false) and not archived:
 		c.button("send_fax",Rect2(p.end.x-185,p.end.y-(87 if touch else 56),154,80 if touch else 41),_fax_label(s),true)
-	if archived and active_job.get("loaded",0) > 0:
-		var attached: bool = int(active_job.number) in s.get("clipped_slips",[])
-		c.button("clip_slip",Rect2(p.end.x-214,footer_top,182,archive_button.y),"Unclip carbon" if attached else "Clip for radio")
 
 func _entry(c, r: Rect2, title: String, value: String) -> void:
 	c.text(r.position+Vector2(0,12),title,c.MONO,12,FADED)
@@ -194,14 +190,20 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	elif s.get("fuel_help",false):
 		c.button("roadside_fuel",key,"Request a fuel can  ·  $%.2f" % ShopAccount.CAN_PRICE,true)
 	else:
+		var buttons: Array[Array] = []
+		if available:
+			buttons.append(["respond","Keep me on rotation" if s.get("pending_case",false) else "Take contract"])
+		else:
+			buttons.append(["directions","Ask for directions"])
 		var contact: Dictionary = s.get("radio_contact",{})
 		if not contact.is_empty():
-			key.size.x = (w-10)*.48
-			c.button(contact.id,Rect2(key.end.x+10,key.position.y,w-key.size.x-10,key.size.y),contact.label,true)
-		if available:
-			c.button("respond",key,"Keep me on rotation" if s.get("pending_case",false) else "Take contract",true)
-		else:
-			c.button("directions",key,"Ask for directions",true)
+			buttons.append([contact.id,contact.label])
+		if s.get("can_report_sighting",false):
+			buttons.append(["report_sighting","Call in the lights"])
+		key.size.x = (w-10*(buttons.size()-1))/buttons.size()
+		for choice in buttons:
+			c.button(choice[0],key,choice[1],true)
+			key.position.x += key.size.x+10
 
 func _passenger(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,TISSUE)
@@ -209,10 +211,11 @@ func _passenger(c, p: Rect2, s: Dictionary) -> void:
 	var width := (p.size.x-84)*.5
 	var asked: Array = s.get("tou_asked",[])
 	for i in Campaign.QUESTIONS.size():
-		var at := p.position + Vector2(32 + (i%2)*(width+20),135 + floori(i/2.0)*118)
-		c.button("tou_%d" % i,Rect2(at,Vector2(width,84)),Campaign.QUESTIONS[i][0],i not in asked)
+		var at := p.position + Vector2(32 + (i%2)*(width+20),103 + floori(i/2.0)*92)
+		var label := str(Campaign.QUESTIONS[i][0])
 		if i in asked:
-			c.text(at+Vector2(5,102),"IN THE FIELD NOTES",c.MONO,12,FADED)
+			label += "  ✓"
+		c.button("tou_%d" % i,Rect2(at,Vector2(width,80)),label,i not in asked)
 
 func _fax(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#e4e4d8"))
@@ -277,22 +280,38 @@ func _field(c, p: Rect2, s: Dictionary) -> void:
 	var x := p.position.x+39
 	var y := p.position.y+37
 	c.text(Vector2(x,y),"FIELD NOTES   /   TAMARACK COUNTY",c.MONO,13,FADED)
-	c.text(Vector2(x,y+45),"S3 / S4 section line",c.FIELD,35,FORM_BLUE)
+	c.text(Vector2(x,y+45),"Corners along Kolpack",c.FIELD,35,FORM_BLUE)
 	var w := p.size.x-72
 	for i in range(13):
 		c.rule(x,y+67+i*25,w,Color("#a7b9a3"))
 	for i in range(int(w/25)):
 		c.draw_line(Vector2(x+i*25,y+67),Vector2(x+i*25,y+367),Color("#b9c5b0"))
-	var rows := [["11 / 06","5,280.0 ft"],["11 / 09","5,293.8 ft"],["11 / 12","5,337.1 ft"],["11 / 16","5,402.6 ft"]]
-	for i in rows.size():
-		c.text(Vector2(x+8,y+104+i*45),rows[i][0],c.FIELD,22,FORM_BLUE)
-		c.text(Vector2(x+116,y+104+i*45),rows[i][1],c.FIELD,25,FORM_BLUE)
-	var nx := x+w*.55
-	c.draw_polyline(PackedVector2Array([Vector2(nx,y+110),Vector2(nx+35,y+130),Vector2(nx+57,y+154),Vector2(nx+102,y+148),Vector2(nx+141,y+172)]),FORM_BLUE,1.8,true)
-	c.draw_polyline(PackedVector2Array([Vector2(nx-8,y+191),Vector2(nx+61,y+194),Vector2(nx+97,y+179),Vector2(nx+157,y+179)]),FORM_BLUE,1.3,true)
-	c.draw_arc(Vector2(nx+57,y+154),6,0,TAU,20,FORM_BLUE,1,true)
-	c.text(Vector2(nx+52,y+223),"no road on plat",c.FIELD,17,FORM_BLUE)
-	c.text(Vector2(x+7,y+331),"S3/S4 line 5,402.6 — again.",c.FIELD,26,FORM_BLUE)
+	# Pencil over the printed grid. All the wet circles fall on intersections.
+	var grid := Vector2(x+27,y+94)
+	var cell := Vector2(w*.124,47)
+	for col in 4:
+		c.draw_line(grid+Vector2(col*cell.x,0),grid+Vector2(col*cell.x,cell.y*3),FADED,1.8)
+	for row in 4:
+		c.draw_line(grid+Vector2(0,row*cell.y),grid+Vector2(cell.x*3,row*cell.y),FADED,1.8)
+	for corner: Vector2 in [Vector2(1,0),Vector2(0,2),Vector2(2,1),Vector2(3,2)]:
+		var mark := grid + corner*cell
+		c.draw_arc(mark,10.2,.12,TAU+.17,23,FORM_BLUE,2,true)
+		c.draw_arc(mark+Vector2(-1,1),12.1,.2,4.4,21,FORM_BLUE,1,true)
+	c.text(grid+Vector2(1,cell.y*3+33),"Wet ground at each corner.",c.FIELD,21,FORM_BLUE)
+	var address := grid+Vector2(cell.x*1.65,cell.y*2.85)
+	c.text(address,"N5104",c.FIELD,22,FORM_BLUE)
+	var circle := PackedVector2Array()
+	for i in 36:
+		var angle := i*TAU/35.0
+		circle.append(address+Vector2(28,-7)+Vector2(cos(angle)*44,sin(angle)*18).rotated(-.08))
+	c.draw_polyline(circle,FORM_BLUE,1.6,true)
+	var tank := Vector2(x+w*.71,y+150)
+	c.draw_arc(tank,40,PI,TAU,30,FORM_BLUE,2,true)
+	c.draw_polyline(PackedVector2Array([tank+Vector2(-40,0),tank+Vector2(-36,27),tank+Vector2(0,39),tank+Vector2(36,27),tank+Vector2(40,0),tank+Vector2(-40,0)]),FORM_BLUE,1.8,true)
+	for side: float in [-1,1]:
+		c.draw_line(tank+Vector2(26*side,30),tank+Vector2(41*side,113),FORM_BLUE,2,true)
+		c.draw_line(tank+Vector2(26*side,38),tank+Vector2(-38*side,103),FORM_BLUE,1.4,true)
+	c.text(tank+Vector2(-72,147),"see from the tank",c.FIELD,23,FORM_BLUE)
 	c.text(Vector2(x,p.end.y-33),"T. Vang",c.FIELD,24,FORM_BLUE)
 	if s.get("can_mark_sketch",false):
 		c.button("mark_sketch",Rect2(p.end.x-292,p.end.y-90,260,80),"Copy sketch to plat")
@@ -341,7 +360,7 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	var scale_factor := minf(frame.size.x/bounds.size.x,frame.size.y/bounds.size.y)
 	var center := frame.get_center()-bounds.get_center()*scale_factor
 	var project := func(v: Vector2) -> Vector2: return center+v*scale_factor
-	# Engraved parcel lines and lot numbers stay put when a road changes.
+	# Engraved parcel lines and lot numbers on the county plat.
 	for xi in range(-2,5):
 		for zi in range(-1,4):
 			var parcel := Rect2(project.call(Vector2(xi*200,zi*200)), Vector2(200,200)*scale_factor)
@@ -394,7 +413,7 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	c.draw_rect(box,Color("#87917a"),false,1)
 	if detailed:
 		var observed: Dictionary = s.get("observations",{})
-		for mark in [["rod",Vector2(331,-460),"gate / 38"],["sketch",Vector2(400,336),"T.V. ?"],["house",Vector2(446,332),"5104"]]:
+		for mark in [["rod",Vector2(331,-460),"prints stop"],["sketch",Vector2(400,336),"T. Vang"]]:
 			if observed.has(mark[0]):
 				var note_at: Vector2 = project.call(mark[1])
 				c.draw_arc(note_at,6.3,0,TAU,15,FORM_BLUE,1.3,true)
@@ -405,10 +424,11 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 			var stake: Vector2 = project.call(Vector2(447,-536))
 			c.draw_arc(stake,4,0,TAU,12,FORM_BLUE,1.2,true)
 			c.text(stake+Vector2(6,4),"S3 NW",c.HAND,14,FORM_BLUE)
-		if s.get("adopted",false):
-			var turn: Vector2 = project.call(Vector2(441,-466))
-			c.text(turn+Vector2(10,0),"ALDER CUT RD",c.MONO,9,GREEN)
-			c.text(turn+Vector2(10,13),"N5420 · A. Kraemer",c.print_face,11,GREEN)
+		var turn: Vector2 = project.call(Vector2(441,-466))
+		c.text(turn+Vector2(10,0),"ALDER CUT RD",c.MONO,9,GREEN)
+		c.text(turn+Vector2(10,13),"N5420 · A. Kraemer",c.print_face,11,GREEN)
+		var hoffmann: Vector2 = project.call(Vector2(445,326))
+		c.text(hoffmann+Vector2(8,-4),"N5104 · Hoffmann",c.print_face,10,GREEN)
 		var n := box.position+Vector2(16,23)
 		c.text(n,"N",c.scaled,15,GREEN)
 		c.draw_colored_polygon(PackedVector2Array([n+Vector2(4,4),n+Vector2(0,16),n+Vector2(4,13),n+Vector2(8,16)]),GREEN)

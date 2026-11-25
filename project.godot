@@ -19,6 +19,10 @@ window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
 
+[audio]
+
+general/text_to_speech=true
+
 [input_devices]
 pointing/emulate_mouse_from_touch=true
 pointing/emulate_touch_from_mouse=false
@@ -42,4 +46,9 @@ headlamp_right={
 headlamp_direction={
 "type": "vec3",
 "value": Vector3(0, 0, 0)
+}
+
+headlamp_power={
+"type": "float",
+"value": 1.0
 }

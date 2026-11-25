@@ -1,4 +1,4 @@
-"""Build the three winter roadside characters and their shared texture atlas.
+"""Build the roadside characters and their shared texture atlas.
 
 Run with python3 tools/build_characters.py. The output GLBs are editable in Blender
 and import directly into Godot. Contour coordinates are metres in Godot/glTF
@@ -262,10 +262,11 @@ class Model:
             for (x, y, z), col in zip(mesh.positions, mesh.colors):
                 if col.startswith("face_"):
                     skin = col.removeprefix("face_")
-                    origin = 256 if skin == "ba927f" else 384
+                    origin = 256 if skin in ("ba927f", "summer") else 384
+                    row = 128 if skin == "summer" else 0
                     u = max(0, min(1, (x + 0.105) / 0.210))
                     v = max(0, min(1, 1 - (y - 1.449) / 0.21))
-                    uv.append(((origin + 4 + 120 * u) / 512, (4 + 120 * v) / 256))
+                    uv.append(((origin + 4 + 120 * u) / 512, (row + 4 + 120 * v) / 256))
                     continue
                 tx, ty = SWATCHES[col]
                 # Project local cloth and skin detail inside the painted swatch with a two-pixel gutter.
@@ -634,7 +635,33 @@ def torso_and_arms(deputy, farm):
     return t
 
 
-def face(deputy, farm):
+def summer_shirt():
+    t = Mesh()
+    cotton = "b9ac91"
+    skin = "ba927f"
+    t.loft([
+        (.85, 0, .01, .198, .111), (.88, 0, .01, .202, .115),
+        (1.08, 0, .01, .184, .112), (1.24, 0, -.002, .215, .132),
+        (1.35, 0, -.012, .20, .117), (1.404, 0, -.021, .082, .072),
+    ], cotton, 16)
+    t.loft([(1.38,0,-.02,.065,.065),(1.454,0,-.032,.054,.051),
+            (1.47,0,-.034,.055,.049)], skin)
+    for side in (-1,1):
+        t.path([((side*.164,1.323,-.008),.059,.072),
+                ((side*.21,1.294,-.010),.074,.075),
+                ((side*.237,1.198,-.008),.061,.064)], cotton)
+        t.path([((side*.237,1.21,-.008),.05,.052),
+                ((side*.254,1.073,-.025),.042,.044),
+                ((side*.263,1.018,-.062),.046,.045),
+                ((side*.237,.90,-.090),.029,.032),
+                ((side*.23,.85,-.094),.033,.03),
+                ((side*.224,.808,-.084),.02,.017)], skin)
+    # A faded horizontal stripe wraps the short-sleeve tee.
+    t.loft([(1.237,0,-.002,.216,.133),(1.268,0,-.005,.216,.133)],"58676b",16)
+    return t
+
+
+def face(deputy, farm, summer=False):
     t = Mesh()
     skin = "ad8570" if (deputy or farm) else "ba927f"
     cheek = "bd8875" if (deputy or farm) else "c48d77"
@@ -685,7 +712,7 @@ def face(deputy, farm):
 
     t.rings(
         [[pt(x * w, y, zc + z * d) for x, z in widths] for y, w, d, zc in head],
-        "face_" + skin,
+        "face_summer" if summer else "face_" + skin,
         0.95,
     )
     # Profiles of the cheekbones, ear rim and inner cartilage.
@@ -859,7 +886,13 @@ def face(deputy, farm):
             hair,
             8,
         )
-    if deputy:
+    if summer:
+        t.loft([(base+.148,0,shift+.003,.094,.091),
+                (base+.181,0,shift+.004,.096,.095),
+                (base+.221,-.003,shift+.008,.083,.083),
+                (base+.254,-.008,shift+.010,.052,.048),
+                (base+.261,-.009,shift+.014,.021,.018)], hair, 14)
+    elif deputy:
         t.loft(
             [
                 (base + 0.149, 0, shift + 0.004, 0.097, 0.101),
@@ -930,12 +963,13 @@ def face(deputy, farm):
     return t
 
 
-def model(deputy=False, farm=False):
+def model(deputy=False, farm=False, summer=False):
     m = Model()
     m.node("Deputy" if deputy else "Motorist")
     legs = [leg(m, s, deputy) for s in (-1, 1)]
-    spine = m.node("Jacket", (0.00, 0.865, 0.012), 0, torso_and_arms(deputy, farm))
-    head = m.node("Head", (0, 1.443, -0.023), spine, face(deputy, farm))
+    torso = summer_shirt() if summer else torso_and_arms(deputy, farm)
+    spine = m.node("Shirt" if summer else "Jacket", (0.00, 0.865, 0.012), 0, torso)
+    head = m.node("Head", (0, 1.443, -0.023), spine, face(deputy, farm, summer))
     # Small asymmetric posture replaces the rigid, square standing pose.
     head_pose = (-0.07, 0.13, -0.047) if not deputy else (-0.028, -0.13, 0.024)
 
@@ -1002,8 +1036,8 @@ def model(deputy=False, farm=False):
             )
         )
     m.clip("walk", [0, 0.19, 0.38, 0.57, 0.76], ch)
-    if farm:
-        # Tou settles his boots in the cab footwell and occasionally glances at Brandt.
+    if farm or summer:
+        # The passenger settles his boots in the cab footwell and occasionally glances at Brandt.
         seated = [
             (spine, "rotation", [quat(p, 0, 0.012) for p in (-0.04, -0.052, -0.04, -0.046, -0.04)]),
             (head, "rotation", [headrot(-0.02, y) for y in (0.12, 0.17, 0.28, 0.15, 0.12)]),
@@ -1021,6 +1055,8 @@ def model(deputy=False, farm=False):
             if deputy
             else "farm_driver.glb"
             if farm
+            else "summer_driver.glb"
+            if summer
             else "stranded_driver.glb"
         )
     )
@@ -1084,6 +1120,15 @@ def make_palette():
                 i = 3 * (py * 512 + origin + px)
                 pixels[i : i + 3] = bytes(round(v - shadow + n) for v in pigment)
 
+    # Repeat one face below its original swatch, with windless sun on the right cheek.
+    for py in range(128):
+        for px in range(128):
+            i = 3 * (py*512 + 256 + px)
+            burned = 3 * ((py+128)*512 + 256 + px)
+            wash = min(1.0, max(0.0, (px-57)/21))
+            r, g, b = pixels[i:i+3]
+            pixels[burned:burned+3] = bytes((min(255,round(r+26*wash)),round(g-29*wash),round(b-22*wash)))
+
     def chunk(tag, data):
         return (
             struct.pack(">I", len(data))
@@ -1107,3 +1152,4 @@ if __name__ == "__main__":
     model()
     model(deputy=True)
     model(farm=True)
+    model(summer=True)

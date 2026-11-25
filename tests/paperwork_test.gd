@@ -77,12 +77,6 @@ func run() -> void:
 	check(hold.kind == "hold" and hold.number == 1023 and hold.vin == Dispatch.Legacy.JOBS.hold.vin, "A requested hold uses the original county truck and current slip number")
 	var visit := Dispatch.issue_slip(Dispatch.looksee(23),19240,19241,19242,0,"04:30")
 	check(visit.pay == 38 and visit.loaded == 0 and visit.storage == 0 and visit.winch == 0 and visit.hookup == 0, "A look-see pays the visit only")
-	var pair := [
-		{"kind":"hazard","site":"farm","run":"farm/east","number":1012,"loaded":2.0},
-		{"kind":"hazard","site":"farm","run":"farm/west","number":1022,"loaded":2.1}]
-	check(Dispatch.matching_kolpack_slips(pair).is_empty(), "Different shoulders cannot establish a repeated run")
-	pair.append({"kind":"hazard","site":"farm","run":"farm/east","number":1041,"loaded":2.1})
-	check(Dispatch.matching_kolpack_slips(pair) == [pair[0],pair[2]], "The differences refer back to two real carbon copies")
 	test_waiting_hazard(game)
 	if not failed:
 		print("CHECKS PASSED — local rotation, invoicing, generated directions, identity and case paperwork")
@@ -95,7 +89,6 @@ func test_waiting_hazard(game) -> void:
 	game.completed = 1
 	game.slips = [Dispatch.issue_slip(game.rotation_offer,19240,19241,19241,24,"04:30")]
 	game.rotation_offer = {}
-	game.county.set_lengthened(true)
 	game._prepare_offers()
 	var offer: Dictionary = game.rotation_offer.duplicate()
 	var parked: Node3D = game.waiting_hazard

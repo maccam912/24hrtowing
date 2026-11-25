@@ -11,6 +11,11 @@ var chatter := AudioStreamPlayer.new()
 var effects: Array[AudioStreamPlayer] = []
 var cursor := 0
 var radio_tail := false
+var spoken := false
+var native_voices := PackedStringArray()
+var utterance := 0
+var calm := 0.0
+var pulse := 0.0
 var audible := DisplayServer.get_name() != "headless"
 
 func _ready() -> void:
@@ -32,6 +37,13 @@ func _ready() -> void:
 		var player := AudioStreamPlayer.new()
 		add_child(player)
 		effects.append(player)
+	var receiver := AudioStreamPlayer.new()
+	receiver.stream = Chatter.radio_pulse()
+	receiver.bus = &"County radio"
+	receiver.volume_db = -80
+	add_child(receiver)
+	engines.pulse = receiver
+	if audible: receiver.play()
 	for id: String in ["wind","diesel","diesel_pull","heater","winch"]:
 		var loop_player := AudioStreamPlayer.new()
 		var stream = _sample(id).duplicate()
@@ -43,6 +55,37 @@ func _ready() -> void:
 			loop_player.play()
 		engines[id] = loop_player
 
+func set_sighting(wind_calm: float, radio_interference: float) -> void:
+	calm = clampf(wind_calm,0,1)
+	pulse = clampf(radio_interference,0,1)
+
+func set_spoken(enabled: bool) -> void:
+	spoken = enabled
+	if not audible: return
+	if spoken:
+		native_voices = DisplayServer.tts_get_voices_for_language("en")
+		DisplayServer.tts_set_utterance_callback(DisplayServer.TTS_UTTERANCE_ENDED,_spoken_finished)
+	else:
+		if utterance > 0: DisplayServer.tts_stop()
+
+func _try_spoken(who: String, words: String) -> bool:
+	if not spoken or native_voices.is_empty():
+		return false
+	chatter.stop()
+	radio_tail = who in ["DISPATCH","COUNTY PLOW"]
+	utterance += 1
+	var pitch: float = clampf(float(Chatter.SPEAKER_HZ.get(who,320))/320,.78,1.16)
+	var voice := native_voices[posmod(who.hash(),native_voices.size())]
+	DisplayServer.tts_speak(words,voice,84,pitch,.95,utterance,true)
+	return true
+
+func _spoken_finished(id: int) -> void:
+	if id == utterance and spoken:
+		_chatter_finished()
+
+func _exit_tree() -> void:
+	if audible and utterance > 0: DisplayServer.tts_stop()
+
 func _sample(id: String) -> AudioStream:
 	if not samples.has(id):
 		samples[id] = load(FOLDER + id + ".mp3")
@@ -50,11 +93,13 @@ func _sample(id: String) -> AudioStream:
 
 func say(id: String) -> void:
 	var line: Array = lines[id]
+	if _try_spoken(line[0],line[1]): return
 	if not chatter_streams.has(id):
 		chatter_streams[id] = Chatter.render(line[0], line[1])
 	_play_chatter(line[0], chatter_streams[id])
 
 func speak(who: String, words: String) -> void:
+	if _try_spoken(who,words): return
 	# Generated tickets vary indefinitely. Keep only the utterance on the radio.
 	_play_chatter(who, Chatter.render(who, words))
 
@@ -86,7 +131,10 @@ func effect(id: String) -> void:
 func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: float, gust: float = 0.0) -> void:
 	var cab: bool = s.get("in_cab",true)
 	var wind_db := (-28.0 if cab else -15.0) if player_active else -21.0
-	_volume("wind", wind_db + gust * (4.0 if cab and player_active else 6.0), delta)
+	_volume("wind", lerpf(wind_db + gust * (4.0 if cab and player_active else 6.0),-76.0,calm), delta)
+	var signal_level := pulse if cab and controls_live else 0.0
+	if chatter.playing: signal_level *= .24
+	_volume("pulse",linear_to_db(maxf(.0001,signal_level*.42)),delta)
 	_volume("heater", -29.0 if cab and player_active else -65.0, delta)
 	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
 	engines.winch.pitch_scale = 0.80 + 0.56 * float(s.get("tension",0.0))

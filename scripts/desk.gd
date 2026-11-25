@@ -243,14 +243,12 @@ func _activate(id: String) -> void:
 		"respond", "directions", "send_fax":
 			_change_page("")
 			action.emit({"respond":"rotation", "directions":"talk_in", "send_fax":"fax"}[id])
-		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "roadside_fuel":
+		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "report_sighting", "roadside_fuel":
 			_change_page("")
 			action.emit(id)
 		"mark_sketch":
 			atlas_notes = true
 			notes_page = 0
-			action.emit(id)
-		"clip_slip":
 			action.emit(id)
 		"atlas_notes":
 			if not atlas_notes:
@@ -280,5 +278,5 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"interact", "camera", "quit", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)

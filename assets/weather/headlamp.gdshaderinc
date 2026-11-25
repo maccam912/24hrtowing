@@ -2,6 +2,7 @@
 global uniform vec3 headlamp_left;
 global uniform vec3 headlamp_right;
 global uniform vec3 headlamp_direction;
+global uniform float headlamp_power;
 
 float beam_scatter(vec3 offset) {
 	float ahead = dot(offset, headlamp_direction);
@@ -12,5 +13,5 @@ float beam_scatter(vec3 offset) {
 }
 
 float headlamp_scatter(vec3 world_position) {
-	return max(beam_scatter(world_position - headlamp_left), beam_scatter(world_position - headlamp_right));
+	return headlamp_power * max(beam_scatter(world_position - headlamp_left), beam_scatter(world_position - headlamp_right));
 }

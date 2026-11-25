@@ -28,6 +28,8 @@ static func snatch_block(parent: Node3D) -> Node3D:
 
 static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
 	var is_hold:=kind=="hold"
+	var open_door: bool = is_hold and identity.get("open_door",false)
+	var mail: bool = identity.get("mail",false)
 	var utility := variant == UTILITY_VARIANT and not is_hold
 	var pickup := is_hold or utility
 	var wagon:=not pickup and variant==2
@@ -47,7 +49,18 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 	var base:=size.y
 	var tint:=body.darkened(.27)
 	g.box(Vector3(0,base,0),Vector3(width*1.83,.35,length*1.95),tint)
-	g.box(Vector3(0,base+.24,-.04),Vector3(width*2,.34,length*1.94),body)
+	if open_door:
+		# The cutout runs from the A-pillar to the seat back.
+		g.box(Vector3(0,base+.24,-1.65),Vector3(width*2,.34,1.37),body)
+		g.box(Vector3(0,base+.24,1.40),Vector3(width*2,.34,1.98),body)
+		g.box(Vector3(.10,base+.18,-.28),Vector3(width*1.74,.26,1.42),BLACK)
+		g.box(Vector3(0,base+.50,-.05),Vector3(1.47,.20,.56),Color("#68645a"))
+		g.box(Vector3(0,base+.71,.24),Vector3(1.47,.56,.14),Color("#68645a"))
+		g.box(Vector3(.47,base+.612,-.01),Vector3(.28,.032,.40),Color("#394b3e"),Vector3(0,-.14,0))
+		g.box(Vector3(.47,base+.628,-.01),Vector3(.26,.014,.38),Color("#e4dfc7"),Vector3(0,-.14,0))
+		_survey_door(p,width,base)
+	else:
+		g.box(Vector3(0,base+.24,-.04),Vector3(width*2,.34,length*1.94),body)
 	g.box(Vector3(0,base+.44,-1.40),Vector3(width*1.89,.10,1.08),body,Vector3(-.065,0,0))
 	g.box(Vector3(-.09,base+.509,-1.34),Vector3(width*1.40,.018,.69),SNOW,Vector3(-.065,0,.017))
 	var cab_end:=.49 if pickup else (1.86 if wagon else 1.04)
@@ -70,13 +83,15 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 			g.tube(Vector3(x+s*.111,radius,z),Vector3(x+s*.12,radius,z),radius*.25,Color("#535955"),8)
 		g.beam(Vector3(x*.956,base+.48,-.98),Vector3(x*.81,head_y,-.56),.064,.076,body)
 		g.beam(Vector3(x*.95,base+.48,cab_end),Vector3(x*.81,head_y,top_end),.078,.087,body)
-		g.box(Vector3(x*.869,base+.80,(top_end-.56)*.50),Vector3(.063,.58,top_end+.56),GLASS,Vector3(0,0,s*.14))
-		g.box(Vector3(x*.912,base+.79,.06),Vector3(.069,.62,.067),body,Vector3(0,0,s*.15))
-		g.box(Vector3(x,base+.28,.0),Vector3(.03,.032,length*1.73),tint)
-		for z in [-.04,.73]:
-			if z>cab_end: continue
-			g.box(Vector3(x+s*.018,base+.37,z),Vector3(.041,.032,.145),STEEL)
-		g.box(Vector3(x*1.08,base+.64,-.82),Vector3(.22,.112,.16),body)
+		if s>0 or not (open_door or mail):
+			g.box(Vector3(x*.869,base+.80,(top_end-.56)*.50),Vector3(.063,.58,top_end+.56),GLASS,Vector3(0,0,s*.14))
+		if s>0 or not open_door:
+			g.box(Vector3(x*.912,base+.79,.06),Vector3(.069,.62,.067),body,Vector3(0,0,s*.15))
+			g.box(Vector3(x,base+.28,.0),Vector3(.03,.032,length*1.73),tint)
+			for z in [-.04,.73]:
+				if z>cab_end: continue
+				g.box(Vector3(x+s*.018,base+.37,z),Vector3(.041,.032,.145),STEEL)
+			g.box(Vector3(x*1.08,base+.64,-.82),Vector3(.22,.112,.16),body)
 		g.box(Vector3(x*.77,base+.24,-length*.984),Vector3(.31,.136,.063),Color("#bfc6b8"))
 		g.box(Vector3(x*.82,base+.25,length*.976),Vector3(.23,.17,.062),Color("#a64342"))
 	if pickup:
@@ -85,7 +100,8 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 			g.box(Vector3(s*.91,base+.57,1.45),Vector3(.14,.31,1.76),body)
 			g.box(Vector3(s*.90,base+.736,1.45),Vector3(.136,.022,1.66),SNOW)
 			var lettering := "TAMARACK COUNTY\nHIGHWAY DEPT." if utility else "TAMARACK COUNTY\nSURVEY UNIT 38"
-			K.label(p,lettering,Vector3(s*(width+.031),base+.24,-.46),.104,Color("#283a32"),Vector3(0,s*PI/2,0))
+			if not open_door or s>0:
+				K.label(p,lettering,Vector3(s*(width+.031),base+.24,-.46),.104,Color("#283a32"),Vector3(0,s*PI/2,0))
 			if utility:
 				# Full-height service lockers and the ladder over the bed.
 				g.box(Vector3(s*.78,base+.75,1.46),Vector3(.46,.63,1.84),body)
@@ -124,8 +140,16 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		var vin_strip := Vector3(-.38,base+.59,-.928)
 		g.box(vin_strip,Vector3(.37,.054,.012),BLACK,Vector3(windshield_tilt,0,0))
 		K.label(p,vin,vin_strip+Vector3(0,.003,-.008),.03,SNOW,Vector3(-windshield_tilt,PI,0),"plex_mono")
+	if mail:
+		g.box(Vector3(-.38,base+.48,-.10),Vector3(.71,.12,.64),BLACK)
+		for i in 4:
+			var at := Vector3(-.40+i*.035,base+.56+i*.022,-.14+i*.029)
+			g.box(at,Vector3(.45,.018,.24),Color("#ebe4c7"),Vector3(0,i*.07,0))
+			g.box(at+Vector3(.13,.011,-.075),Vector3(.054,.004,.04),Color("#8a4c40"))
 	g.finish()
-	if kind in ["hazard","hold"]:
+	if open_door and identity.get("untaped",false):
+		car_lamps(p,"running",-1)
+	if kind in ["hazard","hold"] and not identity.get("untaped",false):
 		sheriff_tape(p,width,base)
 	for s in [-1,1]:
 		var z:float=s*length*1.016
@@ -134,6 +158,26 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		e.ring(Vector3.ZERO,.046,.069,Color("#ac8d63"),Vector3(PI/2,0,0))
 		e.finish()
 	return p
+
+static func _survey_door(vehicle: Node3D, width: float, base: float) -> void:
+	var hinge:=K.joint(vehicle,Vector3(-width,base,-.91),"DriverDoor")
+	hinge.rotation.y=-1.04
+	var door:=K.new(hinge)
+	door.box(Vector3(0,.24,.61),Vector3(.10,.48,1.24),HOLD_BODY)
+	door.box(Vector3(.062,.24,.61),Vector3(.035,.37,1.08),Color("#584e44"))
+	door.box(Vector3(.034,.75,.65),Vector3(.05,.51,.88),GLASS)
+	door.beam(Vector3(.01,.46,.02),Vector3(.05,1.12,.35),.05,.05,HOLD_BODY)
+	door.beam(Vector3(.05,1.12,.35),Vector3(.05,1.12,1.18),.05,.05,HOLD_BODY)
+	door.beam(Vector3(.05,1.12,1.18),Vector3(.02,.46,1.21),.05,.05,HOLD_BODY)
+	door.box(Vector3(-.078,.37,1.05),Vector3(.042,.032,.14),STEEL)
+	door.box(Vector3(-.16,.63,.12),Vector3(.22,.11,.16),HOLD_BODY)
+	K.label(hinge,"TAMARACK COUNTY\nSURVEY UNIT 38",Vector3(-.06,.24,.57),.103,Color("#283a32"),Vector3(0,-PI/2,0))
+	door.finish()
+
+static func close_driver_door(vehicle: Node3D) -> void:
+	var door := vehicle.get_node_or_null("DriverDoor") as Node3D
+	if door:
+		door.rotation.y=0
 
 static func sheriff_tape(vehicle: Node3D, width: float, base: float, initials := "") -> Node3D:
 	var tape: Node3D = K.joint(vehicle,Vector3.ZERO,"SheriffTape")
@@ -177,17 +221,64 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 			beam.spot_range=38
 			beam.spot_angle=29
 	kit.finish()
+	if mode=="running":
+		_exhaust(lamps, Vector3(-width*.57,.34,length+.06))
 	return lamps
+
+static var vapor_material: StandardMaterial3D
+static var surveyor_skin: ShaderMaterial
+
+static func _exhaust(lamps: Node3D, outlet: Vector3) -> void:
+	if vapor_material==null:
+		vapor_material=StandardMaterial3D.new()
+		vapor_material.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
+		vapor_material.transparency=BaseMaterial3D.TRANSPARENCY_ALPHA
+		vapor_material.vertex_color_use_as_albedo=true
+		vapor_material.albedo_color=Color(.83,.86,.83,.16)
+	var vapor:=CPUParticles3D.new()
+	vapor.name="TailpipeVapor"
+	vapor.amount=9
+	vapor.lifetime=1.6
+	vapor.direction=Vector3(.18,.12,1)
+	vapor.spread=18
+	vapor.initial_velocity_min=.65
+	vapor.initial_velocity_max=1.1
+	vapor.gravity=Vector3(.37,.82,.12)
+	vapor.scale_amount_min=.5
+	vapor.scale_amount_max=1.0
+	var fade:=Gradient.new()
+	fade.colors=PackedColorArray([Color(1,1,1,.72),Color(1,1,1,0)])
+	vapor.color_ramp=fade
+	var puff:=SphereMesh.new()
+	puff.radius=.18
+	puff.height=.25
+	puff.radial_segments=6
+	puff.rings=2
+	puff.material=vapor_material
+	vapor.mesh=puff
+	vapor.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	lamps.add_child(vapor)
+	vapor.position=outlet
 
 static func person(parent: Node3D, deputy: bool, variant: int = 0) -> Node3D:
 	var scene := preload("res://assets/characters/stranded_driver.glb")
 	if deputy:
 		scene = preload("res://assets/characters/deputy.glb")
-	elif variant == 1:
+	elif variant == 2:
+		scene = preload("res://assets/characters/summer_driver.glb")
+	elif variant in [1,3]:
 		scene = preload("res://assets/characters/farm_driver.glb")
 	var witness := scene.instantiate() as Node3D
 	witness.name = "Deputy" if deputy else "Driver"
 	parent.add_child(witness)
+	if variant==3 and not deputy:
+		var head:=witness.find_child("Head",true,false) as MeshInstance3D
+		if head:
+			if not surveyor_skin:
+				surveyor_skin=ShaderMaterial.new()
+				surveyor_skin.shader=preload("res://assets/characters/surveyor_face.gdshader")
+				surveyor_skin.set_shader_parameter("palette",preload("res://assets/characters/winter_palette.png"))
+			head.material_override=surveyor_skin
 	var animation: AnimationPlayer = witness.get_node("AnimationPlayer")
 	animation.get_animation("idle").loop_mode = Animation.LOOP_LINEAR
 	animation.get_animation("walk").loop_mode = Animation.LOOP_LINEAR

@@ -18,7 +18,7 @@ func old_save() -> Dictionary:
 	data.version = 1
 	data.paid = game.account.cash
 	data.pending = game.account.pending
-	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign","account","pending_slips"]:
+	for key in ["offer","case_offer","ticket","survey","dispatch_seed","survey_anchor","campaign","account","pending_slips","sightings"]:
 		data.erase(key)
 	data.rig.erase("identity")
 	data.rig.erase("snatch_block")
@@ -128,6 +128,22 @@ func run() -> void:
 	game.rig.in_cab = true
 	game._action("take_case")
 	check(game.job.get("kind") == "hold" and not game.job.get("heavy_recovery",false) and not game.account.owns("snatch_block"), "an already authorized county hold still opens at its old rate without a purchase, even after a second resume")
+	# Resume a version-four operator sent to copy bridge plates. Keep the slip
+	# number and custody, switch the work order and put the casualty on the ice.
+	var detail := archived.duplicate(true)
+	detail.version = 4
+	detail.mode = "fieldwork"
+	detail.ticket = {"id":"bridge","case_id":"bridge","kind":"looksee","number":1042}
+	detail.campaign = {"next":"bridge","ordinary_since":7}
+	detail.rig.kind = ""
+	detail.rig.truck = [400,0,440]
+	load_shift(detail)
+	check(game.held and not game.county.survey_pickup.visible, "resuming a detail preserves the existing hold")
+	check(game.job.number == 1042 and game.job.get("recovery") == "ice" and game.rig.car != null, "the active old bridge detail becomes the numbered flowage recovery")
+	check(game.rig.truck.position.z == 400 and game.rig.job_site == game.job.point, "legacy rig and new casualty occupy the fixed grid")
+	game._save()
+	load_shift(JSON.parse_string(JSON.stringify(game.saved_data)))
+	check(game.rig.truck.position.z == 400 and game.rig.job_site == game.job.point and game.rig.phase == "scene", "a second load preserves the migrated scene")
 	game.free()
 	if not failed:
 		print("CHECKS PASSED — version-one active rigging, payable bridge ticket, existing custody and later lead")

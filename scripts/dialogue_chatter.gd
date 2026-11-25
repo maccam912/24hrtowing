@@ -3,7 +3,7 @@ extends RefCounted
 const MIX_RATE := 16000
 const SPEAKER_HZ := {
 	"DISPATCH": 420.0, "COUNTY PLOW": 245.0, "ANGIE": 365.0,
-	"GARY": 195.0, "KOWALSKI": 285.0, "DRIVER": 325.0,
+	"TOU": 223.0, "MAI": 395.0, "BEV": 296.0, "GARY": 195.0, "KOWALSKI": 285.0, "DRIVER": 325.0,
 }
 
 static func render(speaker: String, text: String) -> AudioStreamWAV:
@@ -42,3 +42,23 @@ static func _append_pulse(pcm: PackedByteArray, hz: float, seconds: float) -> vo
 		var wave := clampf((1.0 - 4.0 * absf(phase - 0.5)) * 2.4, -1.0, 1.0)
 		var envelope := minf(1.0, minf(i / (0.005 * MIX_RATE), (frames - 1 - i) / (0.012 * MIX_RATE)))
 		pcm.encode_s16(start + i * 2, roundi(16000 * wave * envelope))
+
+static func radio_pulse() -> AudioStreamWAV:
+	# Low, even pulses in the receiver. The lights themselves have no sound.
+	var pcm := PackedByteArray()
+	var frames := roundi(2.4*MIX_RATE)
+	var noise := RandomNumberGenerator.new()
+	noise.seed = 38
+	pcm.resize(frames*2)
+	for i in frames:
+		var t := float(i)/MIX_RATE
+		var beat := pow(maxf(0,sin(t*TAU/1.2)),4)
+		var wave := sin(t*TAU*176.0)*.38+sin(t*TAU*352.0)*.12+noise.randf_range(-.16,.16)
+		pcm.encode_s16(i*2, roundi(15000.0*beat*wave))
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = MIX_RATE
+	stream.data = pcm
+	stream.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	stream.loop_end = frames
+	return stream

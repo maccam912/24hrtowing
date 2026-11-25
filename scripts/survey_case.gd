@@ -6,16 +6,6 @@ var unit_reported := false
 var hold_order := ""
 var farm_order := ""
 var farm_reported := false
-var queried_slip := 0
-var clipped_slips := []
-
-func toggle_carbon(number: int) -> void:
-	if number in clipped_slips:
-		clipped_slips.erase(number)
-	else:
-		if clipped_slips.size() == 2:
-			clipped_slips.pop_front()
-		clipped_slips.append(number)
 
 func record(item: String, odo: float) -> void:
 	if not notes.has(item):
@@ -45,21 +35,18 @@ func notebook() -> Array:
 	if notes.has("unit"):
 		rows.append("Sec. 3 turnout · Survey Unit 38")
 	if notes.has("rod"):
-		rows.append("Rod case 38 · inside gate north of tripod")
+		rows.append("Sec. 3 · prints quit in open snow, rod case dry")
 	if notes.has("sketch"):
-		rows.append("Kolpack · junction from T. Vang’s sketch")
+		rows.append("Tou’s field book · N5104 circled; see from the tank")
 	if notes.has("house"):
-		rows.append("N5104 · porch light on, house empty")
-	if notes.has("vin"):
-		rows.append("At N5104 · VIN 1BTAL52C8TJ510428")
-	if notes.has("cap"):
-		rows.append("East of house · S4 NE / T28N R7E")
+		rows.append("Hoffmann place · supper set, lights on, nobody home")
+	if notes.has("farm_ring"):
+		rows.append("N5104 · bare ring in an empty drive")
 	return rows
 
 func save_state() -> Dictionary:
 	return {"notes":notes.duplicate(), "unit_reported":unit_reported, "hold_order":hold_order,
-		"farm_order":farm_order, "farm_reported":farm_reported, "queried_slip":queried_slip,
-		"clipped_slips":clipped_slips.duplicate()}
+		"farm_order":farm_order, "farm_reported":farm_reported}
 
 func restore(data: Dictionary, held: bool, active_kind: String) -> void:
 	notes = data.get("notes", {}).duplicate()
@@ -68,5 +55,5 @@ func restore(data: Dictionary, held: bool, active_kind: String) -> void:
 	unit_reported = data.get("unit_reported", false)
 	farm_order = data.get("farm_order", "")
 	farm_reported = data.get("farm_reported", false)
-	queried_slip = int(data.get("queried_slip", 0))
-	clipped_slips = data.get("clipped_slips",[]).map(func(number): return int(number))
+	notes.erase("vin")
+	notes.erase("cap")
