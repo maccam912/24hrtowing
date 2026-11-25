@@ -7,6 +7,7 @@ const Audio := preload("res://scripts/radio_audio.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const Ledger := preload("res://scripts/ledger.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
+const FuelPlow := preload("res://scripts/fuel_plow.gd")
 const Campaign := preload("res://scripts/county_case.gd")
 const Casework := preload("res://scripts/casework.gd")
 const SurveyCase := preload("res://scripts/survey_case.gd")
@@ -68,6 +69,8 @@ var drop_odo := 0.0
 var pickup_time := ""
 var drop_time := ""
 var account := ShopAccount.new()
+var fuel_wait_left := 0.0
+var fuel_plow: FuelPlow
 var shop_receipt := ""
 var seconds_worked := 0.0
 var fax_text := "TAMARACK COUNTY HIGHWAY DEPARTMENT\nTOW BAN IN EFFECT UNTIL FURTHER NOTICE.\nSheriff-requested removals only. Record both odometer readings."
@@ -211,7 +214,6 @@ func _physics_process(dt: float) -> void:
 			move = Vector2.ZERO
 			look = Vector2.ZERO
 		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working,brake,dt)
-		shift_seconds += dt
 		if rig.get_status().get("working",false):
 			seconds_worked += dt
 		save_timer += dt
@@ -219,8 +221,11 @@ func _physics_process(dt: float) -> void:
 			_save()
 		direction_timer += dt
 		if direction_timer > 0.9:
-			direction_timer = 0.0
 			_survey()
+			_check_lead_reminder(direction_timer)
+			direction_timer = 0.0
+	if playing or (active and desk.page == "radio" and fuel_wait_left > 0.0):
+		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
 	county.follow_camera(world_view.get_camera_3d().global_position)
 	if active and not desk.is_title() and desk.page not in ["pause", "guidance"]:
@@ -265,6 +270,9 @@ func _input(event: InputEvent) -> void:
 
 func _action(id: String) -> void:
 	match id:
+		"confirm_yard_recovery":
+			if active and desk.page == "yard_recovery":
+				_recover_to_yard()
 		"guidance":
 			desk.road_note = _road_note()
 			desk.show_document("guidance",state)
@@ -289,7 +297,7 @@ func _action(id: String) -> void:
 			get_tree().physics_frame.connect(_frame_parked_truck,CONNECT_ONE_SHOT)
 		"radio":
 			if rig.get_status().in_cab:
-				if _needs_fuel_can() or sightings.can_report() or not _radio_contact().is_empty() or (mode == "available" and _case_due()):
+				if fuel_wait_left > 0.0 or _needs_fuel_can() or sightings.can_report() or not _radio_contact().is_empty() or _can_track_lead() or (mode == "available" and _case_due()):
 					desk.show_document("radio",state)
 				elif mode == "available":
 					_take_rotation()
@@ -298,18 +306,27 @@ func _action(id: String) -> void:
 			else:
 				_message("BRANDT","The county radio is in the cab.")
 		"rotation": _take_rotation()
-		"report_unit","take_case","ask_farm","report_farm":
+		"toggle_lead":
+			if _can_track_lead():
+				if survey.tracked_lead.is_empty():
+					survey.tracked_lead = campaign.chapter()
+					if rig.in_cab and not _needs_fuel_can() and fuel_wait_left <= 0:
+						if casework.lead_site().is_empty():
+							_speak("DISPATCH",casework.lead_instruction())
+						else:
+							_directions()
+					else:
+						_message("BRANDT","Marked %s as my next stop. %s" % [casework.lead_label(),casework.lead_instruction()])
+				else:
+					survey.tracked_lead = ""
+					_message("BRANDT","I'll leave that lead on file." if job.is_empty() else "Back to slip %04d." % int(job.number))
+				_save()
+		"report_unit","take_case","ask_farm","report_farm","report_detail","report_notes":
 			_radio_case(id)
-		"take_detail","report_detail","talk_tou":
+		"take_detail","talk_tou":
 			if _radio_contact().get("id") == id:
 				match id:
 					"take_detail": _accept(campaign.ticket(1001 + completed + pending_slips.size()))
-					"report_detail":
-						_record_visit()
-						_speak("DISPATCH",job.report)
-						_clear_field_job()
-						_prepare_offers()
-						_save()
 					"talk_tou": desk.show_document("passenger",state)
 		"tou_0","tou_1","tou_2","tou_3","tou_4","tou_5","tou_6","tou_7":
 			if _radio_contact().get("id") == "talk_tou":
@@ -352,9 +369,9 @@ func _action(id: String) -> void:
 		"buy_chains","buy_snatch_block","service_winch","buy_fuel": _shop_purchase(id)
 		"roadside_fuel":
 			if _needs_fuel_can():
-				rig.fuel = minf(1.0,rig.fuel + account.roadside_can())
-				shift_seconds += 18 * 60
-				_speak("COUNTY PLOW","Put the can in for you, Brandt. That’ll get you back to the yard.")
+				_clear_fuel_plow()
+				fuel_wait_left = ShopAccount.CAN_ETA_MINUTES
+				_speak("COUNTY PLOW","Copy, Brandt. I've got a can on the plow. Give me %d minutes." % ShopAccount.CAN_ETA_MINUTES)
 				_save()
 		"quit":
 			_save()
@@ -362,7 +379,42 @@ func _action(id: String) -> void:
 	_refresh()
 
 func _needs_fuel_can() -> bool:
-	return rig.in_cab and rig.is_stopped() and rig.fuel <= 0.0002
+	return fuel_wait_left <= 0.0 and rig.in_cab and rig.is_stopped() and rig.fuel <= 0.0
+
+func _advance_shift_clock(dt: float) -> void:
+	shift_seconds += dt
+	if fuel_wait_left <= 0.0:
+		if is_instance_valid(fuel_plow) and fuel_plow.leave(dt,rig.get_truck_position()):
+			_clear_fuel_plow()
+		return
+	if not is_instance_valid(fuel_plow):
+		fuel_plow = FuelPlow.new()
+		fuel_plow.setup(county,rig.get_truck_position())
+	# Dispatch time runs at one shift minute per second until the plow arrives.
+	var elapsed := minf(dt, fuel_wait_left)
+	shift_seconds += elapsed * 59.0
+	fuel_wait_left -= elapsed
+	fuel_plow.approach(fuel_wait_left)
+	if fuel_wait_left > 0.0:
+		return
+	var previous_due := account.fuel_due
+	rig.fuel = minf(1.0, rig.fuel + account.roadside_can())
+	rig.info_timer = 0.0
+	var iou := snappedf(account.fuel_due - previous_due, 0.01)
+	var receipt := "$%.2f paid." % (ShopAccount.CAN_PRICE - iou)
+	if iou > 0.0:
+		receipt += " $%.2f on the county IOU." % iou
+	_speak("COUNTY PLOW","Can's in, Brandt. You've got a fifth of a tank. " + receipt)
+	_save()
+
+func _clear_fuel_plow() -> void:
+	if is_instance_valid(fuel_plow):
+		fuel_plow.hide()
+		fuel_plow.queue_free()
+		fuel_plow = null
+
+func _fuel_eta() -> String:
+	return "County plow en route · %d min to fuel delivery" % ceili(fuel_wait_left)
 
 func _at_office() -> bool:
 	return not rig.in_cab and _near(FAX,4.4)
@@ -391,6 +443,9 @@ func _shop_purchase(id: String) -> void:
 		if sale.cost <= 0:
 			return
 		rig.fuel = sale.fuel_after
+		if fuel_wait_left > 0.0:
+			fuel_wait_left = 0.0
+			_speak("DISPATCH","Copy, you found diesel. I'll call off the plow.")
 		shop_receipt = "Diesel   $%.2f   ·   Tank %d%%" % [sale.cost,roundi(rig.fuel*100)]
 	elif not _at_office() or not _truck_in_yard():
 		return
@@ -446,11 +501,67 @@ func _take_rotation() -> void:
 	if not rig.in_cab or mode != "available":
 		return
 	_prepare_offers()
+	if _can_track_lead() and survey.tracked_lead.is_empty():
+		campaign.calls_past_lead += 1
 	survey.defer_order()
 	_accept(rotation_offer)
 
+func _favor_request() -> String:
+	var chapter := campaign.chapter()
+	if (chapter == "unit" and survey.notes.has("unit")) or (chapter == "farm" and survey.notes.has("house")):
+		return casework.lead_instruction()
+	return Campaign.FAVOR_REQUESTS[chapter]
+
+func _dispatch_lead_briefing() -> String:
+	if not _can_track_lead():
+		return Campaign.LEADS.get(campaign.chapter(),"") if mode == "available" and _case_due() else ""
+	var unpaid := not casework.lead_site().is_empty()
+	var label := "Optional unpaid favor" if unpaid else "Optional county case"
+	var words := _favor_request() if unpaid else casework.lead_instruction()
+	if not survey.tracked_lead.is_empty():
+		return "Tracking %s. %s" % [casework.lead_label(),casework.lead_instruction()]
+	match campaign.reminder_level():
+		2: return "%s / %s Track the lead for directions to your next step." % [label,casework.lead_instruction()]
+		1: return "%s / %s %s" % [label,words,"Track this stop to follow up on the survey case." if unpaid else "Track this call to pick up the case."]
+	return "%s / %s" % [label,words]
+
+func _check_lead_reminder(elapsed: float) -> void:
+	if not rig.in_cab or _needs_fuel_can() or fuel_wait_left > 0 or not survey.tracked_lead.is_empty() or not _can_track_lead():
+		return
+	if not rig.is_stopped():
+		campaign.lead_drive_seconds += elapsed
+	if sub_time > 0 or not sightings.active.is_empty() or (campaign.calls_past_lead == 0 and campaign.lead_drive_seconds < 120):
+		return
+	var level := campaign.reminder_level()
+	if level <= campaign.last_reminder:
+		return
+	campaign.last_reminder = level
+	var words := casework.lead_instruction()
+	if not casework.lead_site().is_empty():
+		match level:
+			0: words = "Small favor if you’re out that way. " + _favor_request()
+			1: words = "Still have that unpaid stop at %s. Track it on the radio and I’ll talk you in." % casework.lead_label()
+			2: words = "If you want to follow up on the county case, here’s your next step. " + words
+	else:
+		words = "County case is still open. " + words
+	_speak("DISPATCH",words)
+	_save()
+
 func _case_due() -> bool:
 	return campaign.due() and not pending_slips.any(func(slip): return slip.get("case_id") == campaign.chapter())
+
+func _can_track_lead() -> bool:
+	if not _case_due():
+		return false
+	if campaign.chapter() == "unit":
+		return not held and job.get("kind") != "hold"
+	if campaign.chapter() == "farm":
+		return job.get("id") != "n5104"
+	return job.get("case_id","") != campaign.chapter()
+
+func _finish_favor(chapter: String) -> void:
+	if survey.tracked_lead == chapter and casework.lead_site().is_empty():
+		survey.tracked_lead = ""
 
 func _radio_contact() -> Dictionary:
 	if not rig.in_cab:
@@ -459,11 +570,14 @@ func _radio_contact() -> Dictionary:
 		return {"id":"report_unit","label":"Report Unit 38 and rod case"}
 	if not _case_lock().is_empty():
 		return {}
+	var report := casework.report_label(campaign.chapter())
+	if _case_due() and mode == "available" and not report.is_empty():
+		return {"id":"report_notes","label":report}
 	if not survey.pending_order().is_empty() and mode == "available":
 		if survey.pending_order() == "hold":
 			return {"id":"take_case","label":"Meet Kowalski at Unit 38"}
 		return {"id":"take_case","label":"Take the N5104 look-see"}
-	if campaign.chapter() == "farm" and _case_due() and survey.can_request_farm():
+	if campaign.chapter() == "farm" and _case_due() and survey.can_request_farm() and report.is_empty():
 		return {"id":"ask_farm","label":"Ask about N5104 Kolpack"}
 	if mode == "fieldwork" and job.get("id") == "n5104" and survey.notes.has("house") and survey.notes.has("farm_ring"):
 		return {"id":"report_farm","label":"Report the empty Hoffmann place"}
@@ -489,6 +603,7 @@ func _radio_case(id: String) -> void:
 	match id:
 		"report_unit":
 			survey.unit_reported = true
+			survey.tracked_lead = ""
 			survey.hold_order = "offered"
 			_speak("DISPATCH","Copy. Prints stop in open snow. Nothing from Tou on the county channel. Kowalski opened TC-96-031. Call for her hold when you’re clear.")
 		"ask_farm":
@@ -501,10 +616,24 @@ func _radio_case(id: String) -> void:
 			else:
 				survey.farm_order = "accepted"
 			_accept(case_offer)
-		"report_farm":
-			survey.farm_reported = true
+		"report_farm","report_detail","report_notes":
+			if id == "report_notes":
+				# Issue the usual field-service slip against the operator's observations.
+				# The paid order and its fax are still recorded once, in order.
+				var issued := completed + pending_slips.size()
+				if campaign.chapter() == "farm":
+					survey.farm_order = "accepted"
+					case_offer = {}
+					job = Dispatch.looksee(issued)
+				else:
+					job = campaign.ticket(1001 + issued)
+				_start_fieldwork()
 			_record_visit()
-			_speak("DISPATCH","Copy. Supper on the table and the car gone. I’ll let the milk hauler know. Fax it when you’re in.")
+			if job.get("id") == "n5104":
+				survey.farm_reported = true
+				_speak("DISPATCH","Copy. Supper on the table and the car gone. I’ll let the milk hauler know. Fax it when you’re in.")
+			else:
+				_speak("DISPATCH",job.report)
 			_clear_field_job()
 	_prepare_offers()
 	_save()
@@ -518,7 +647,20 @@ func _accept(ticket: Dictionary) -> void:
 		_sync_waiting_hazard()
 	if job == case_offer:
 		case_offer = {}
+	_start_fieldwork()
+	var call_text: String = job.dispatch
+	if not survey.tracked_lead.is_empty() and not casework.lead_site().is_empty():
+		call_text += " I’ll hold that pickup for you. Your next stop is still %s." % casework.lead_label()
+	elif Rig.uses_warning_triangle(job.kind,job):
+		call_text += " Look for the red triangle."
+	_speak("DISPATCH",call_text)
+	speaker = "DISPATCH  ·  CONTRACT %d ACCEPTED" % job.number
+	_save()
+
+func _start_fieldwork() -> void:
 	mode = "fieldwork"
+	if not _can_track_lead():
+		survey.tracked_lead = ""
 	dispatch_odo = rig.get_status().odo
 	pickup_odo = dispatch_odo
 	drop_odo = dispatch_odo
@@ -532,18 +674,43 @@ func _accept(ticket: Dictionary) -> void:
 		packed_tripod = false
 	if job.kind != "looksee":
 		rig.start_job(job.kind,county.resolve_point(job.point),job.angle,job)
+	else:
+		rig.end_job()
 	_sync_survey_scene()
-	var call_text: String = job.dispatch
-	if Rig.uses_warning_triangle(job.kind,job):
-		call_text += " Look for the red triangle."
-	_speak("DISPATCH",call_text)
-	speaker = "DISPATCH  ·  CONTRACT %d ACCEPTED" % job.number
+
+func _restart_on_recovery() -> bool:
+	return mode in ["fieldwork","haul"] or (job.get("case_id") == "ride" and not campaign.released)
+
+func _recover_to_yard() -> void:
+	casework.leave_tower()
+	sightings.finish(self)
+	rig.recover_to_yard(SPAWN,-PI/2)
+	fuel_wait_left = 0.0
+	_clear_fuel_plow()
+	var message := "You and the wrecker are back at Brandt’s yard."
+	if _restart_on_recovery():
+		if job.get("case_id") == "ride":
+			campaign.evidence.erase("passenger")
+		_start_fieldwork()
+		message += " Contract %04d restarts at the original call." % job.number
+	var unpaid := account.pay_yard_recovery()
+	message += " Yard tow $%.2f." % ShopAccount.YARD_RECOVERY_PRICE
+	if unpaid > 0.0:
+		message += " $%.2f on account." % unpaid
+	desk.start_play()
+	_message("COUNTY GARAGE",message)
 	_save()
 
 func _directions() -> void:
+	if fuel_wait_left > 0.0:
+		_speak("DISPATCH",_fuel_eta())
+		return
+	if _needs_fuel_can():
+		_speak("DISPATCH","Duane can bring diesel. Request a fuel can on the cab radio.")
+		return
 	var words: String = _road_note().get("instruction","")
 	if not words.is_empty():
-		if mode == "haul" and not words.contains(rig.dropoff.sign):
+		if mode == "haul" and survey.tracked_lead.is_empty() and not words.contains(rig.dropoff.sign):
 			words += " You're delivering to %s." % rig.dropoff.sign
 		_speak("DISPATCH",words)
 	elif mode == "available":
@@ -605,7 +772,7 @@ func _facing(point: Vector3, radius: float) -> bool:
 	return d.length() < 1.45 or d.normalized().dot(Vector2(axis.x,axis.z).normalized()) > 0.30
 
 func _site_action() -> String:
-	if rig.get_status().in_cab:
+	if rig.in_cab or rig.at_dry_rig_door():
 		return ""
 	var detail_site := casework.site()
 	if not detail_site.is_empty():
@@ -660,6 +827,8 @@ func _interact() -> void:
 	match site:
 		"unit","rod","house","farm_ring":
 			survey.record(site,rig.odo)
+			if site in ["house","farm_ring"]:
+				_finish_favor("farm")
 			if site == "rod":
 				county.set_rod_case_read(true)
 			var entry := {
@@ -873,6 +1042,7 @@ func _file_slip(slip: Dictionary) -> void:
 	slips.append(slip)
 	completed += 1
 	var prior_fuel_due := account.fuel_due
+	var prior_recovery_due := account.recovery_due
 	var payment := account.file_invoice(slip.pay,completed)
 	if case_id == "unit":
 		survey.hold_order = "filed"
@@ -888,6 +1058,8 @@ func _file_slip(slip: Dictionary) -> void:
 		fax_text += "\n\nBATCH PAYMENT ISSUED   $%.2f" % payment
 		if prior_fuel_due > account.fuel_due:
 			fax_text += "\nLess county fuel can   $%.2f" % (prior_fuel_due-account.fuel_due)
+		if prior_recovery_due > account.recovery_due:
+			fax_text += "\nLess yard recovery   $%.2f" % (prior_recovery_due-account.recovery_due)
 		# A later tow may already be parked when an earlier invoice settles the batch.
 		stored = stored.filter(func(car): return car is Dictionary and car.get("number",0) > slip.number)
 		_display_storage()
@@ -895,7 +1067,9 @@ func _file_slip(slip: Dictionary) -> void:
 		fax_text += "\f" + str(slip.receipt)
 	if not lead.is_empty():
 		fax_text += "\f" + lead
-		if not campaign.required_equipment().is_empty() and not account.owns(campaign.required_equipment()):
+		if campaign.chapter() == "unit":
+			fax_text += "\n\nThis is an unpaid check. Your regular slip stays open. Radio the garage with what you find."
+		elif not campaign.required_equipment().is_empty() and not account.owns(campaign.required_equipment()):
 			fax_text += "\n\n" + campaign.equipment_note()
 	faxes.append(fax_text)
 
@@ -953,8 +1127,14 @@ func _procedure() -> String:
 func _contract_hint(site: String) -> Dictionary:
 	var title := ""
 	var instruction := ""
+	if fuel_wait_left > 0.0:
+		return {"hint_title":"Roadside fuel requested","hint_action":_fuel_eta()}
 	if _needs_fuel_can():
 		return {"hint_title":"Out of diesel","hint_action":"Tap RADIO for a county fuel can." if desk.is_touch_mode() else "Press R to call for a county fuel can."}
+	if rig.is_chocked() and rig.fuel <= 0.0:
+		return {"hint_title":"Out of diesel","hint_action":Rig.DRY_RIG_HINT}
+	if not survey.tracked_lead.is_empty():
+		return {"hint_title":"Next stop · " + casework.lead_label(),"hint_action":casework.lead_instruction()}
 	match mode:
 		"available":
 			title = "First contract available"
@@ -1040,6 +1220,33 @@ func _current_road_map() -> RoadDirections:
 	return road_directions
 
 func _road_note() -> Dictionary:
+	if fuel_wait_left > 0.0:
+		return {}
+	if not survey.tracked_lead.is_empty() and active and rig.in_cab and not _needs_fuel_can():
+		var stop := casework.lead_site()
+		var lead_note := {"title":"Next stop   /   " + casework.lead_label(),"instruction":casework.lead_instruction()}
+		if not stop.is_empty():
+			if stop == "last_cap":
+				var at: Vector3 = rig.get_truck_position()
+				var entrance := casework.lead_point(stop)
+				if at.z <= entrance.z and absf(at.x-County.CaseSites.ALDER_X) < 43.0:
+					lead_note.title = "Pencil note   /   Old logging road"
+					lead_note.instruction = "Past N5420, follow the striped stakes north along the old logging road."
+					if at.distance_to(county.story_point("last_cap")) < 23.0:
+						lead_note.instruction = "Park at the striped stakes. Step out and check the corner cap for Tou’s pencil."
+					return lead_note
+			var route := _route_note(stop)
+			if not route.is_empty():
+				lead_note = route
+			lead_note.instruction += " The red triangle and amber lamps mark %s." % casework.lead_label()
+			return lead_note
+		# An observed lead can be called in from wherever the operator parked.
+		if mode == "available" or survey.can_report_unit():
+			if not _case_lock().is_empty():
+				var yard_route := _route_note()
+				if not yard_route.is_empty():
+					lead_note.instruction += " " + str(yard_route.instruction)
+			return lead_note
 	var note := _route_note()
 	if not active or mode != "fieldwork" or rig.phase != "scene" or _needs_fuel_can():
 		return note
@@ -1055,7 +1262,7 @@ func _road_note() -> Dictionary:
 	note.instruction += " " + identity
 	return note
 
-func _route_note() -> Dictionary:
+func _route_note(favor_site := "") -> Dictionary:
 	if not active or not rig.in_cab or _needs_fuel_can():
 		return {}
 	var at: Vector3 = rig.get_truck_position()
@@ -1070,7 +1277,12 @@ func _route_note() -> Dictionary:
 		if mode == "fieldwork" and job.get("case_id") in ["line","ride"]:
 			return {}
 		return {"title":"Pencil note   /   Alder Cut","instruction":"Follow the stakes south to Swamp Road. County K is west of the barricade."}
-	if mode == "fieldwork" and not job.is_empty():
+	if not favor_site.is_empty():
+		var location: Vector3 = casework.lead_point(favor_site)
+		target = Vector2(location.x,location.z)
+		landmark = casework.lead_label()
+		title = "Unpaid stop   /   " + landmark
+	elif mode == "fieldwork" and not job.is_empty():
 		var location: Vector3 = county.resolve_point(job.point) if job.kind == "looksee" else rig.job_site
 		target = Vector2(location.x, location.z)
 		unmapped = job.get("unmapped", false)
@@ -1081,6 +1293,7 @@ func _route_note() -> Dictionary:
 		if job.kind == "passenger" and rig.phase == "passenger":
 			target = Vector2(PUMP.x,PUMP.z)
 			landmark = "Esker Fuel & Food"
+	if not favor_site.is_empty() or (mode == "fieldwork" and not job.is_empty()):
 		if p.distance_to(target) < 23.0:
 			return {}
 		if in_yard:
@@ -1108,32 +1321,46 @@ func _refresh() -> void:
 			ticket.loaded = 0.0 if job.kind == "ditch" else snappedf(maxf(0,drop_odo-pickup_odo),0.1)
 	var bearing := posmod(roundi(float(s.heading)/45.0),8)
 	var card := filed_card if held or campaign.released else (_custody_record() if signed_card else "")
-	county.drop_guide.visible = mode == "haul" and rig.loaded
+	var favor_site := casework.lead_site() if not survey.tracked_lead.is_empty() else ""
+	var favor_point := casework.lead_point(favor_site)
+	county.set_favor_guide(favor_point,0.0 if favor_site == "last_cap" else PI*.5)
+	if rig.warning_triangle:
+		rig.warning_triangle.visible = favor_site.is_empty()
+	county.drop_guide.visible = mode == "haul" and rig.loaded and favor_site.is_empty()
 	if county.drop_guide.visible:
 		county.drop_guide.position = rig.dropoff.center
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
-		"feedback":rig.info if rig.info_timer > 0 else "",
+		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
 		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
-		"can_enter_cab":rig.action_id() == "enter" and site.is_empty(),
+		"can_enter_cab":rig.action_id() == "enter" and (not rig.is_chocked() or rig.fuel <= 0.0) and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
 		"job":ticket,"slips":slips,"pending_slips":pending_slips,"fax_count":_fax_count(),"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
 		"offer":rotation_offer,"radio_contact":_radio_contact(),"can_report_sighting":sightings.can_report(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
-		"case_lead":Campaign.LEADS.get(campaign.chapter(),"") if _case_due() else "",
+		"case_lead":_dispatch_lead_briefing(),
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
 		"can_refuel":_can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":_needs_fuel_can(),
+		"fuel_eta":ceili(fuel_wait_left),
 		"case_lock":_case_lock(),"shop_receipt":shop_receipt,
 		"chains":rig.tire_chains,"snatch_block":rig.snatch_block,"wear":s.wear,
 		"paid":account.cash,"pending":account.pending,"earned":account.earned,"fuel_due":account.fuel_due,
-		"progress":_procedure(),"phase":s.phase,"work_available":rig.action_id()=="winch",
+		"progress":_procedure(),"phase":s.phase,"work_available":s.fuel > 0.0 and rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
+	state["can_track_lead"] = _can_track_lead()
+	state["tracked_lead"] = survey.tracked_lead
+	state["lead_label"] = casework.lead_label()
+	state["case_chapter"] = campaign.chapter()
+	state["favor_point"] = favor_point
+	state["favor_available"] = state.can_track_lead and not casework.lead_site().is_empty()
+	state["recovery_restarts_job"] = _restart_on_recovery()
+	state["recovery_due"] = account.recovery_due
 	state["heading_degrees"] = s.heading
 	desk.update_view(state)
 
@@ -1149,7 +1376,7 @@ func _save() -> void:
 		"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
-		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,
+		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_wait_left,
 		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps,"spoken":audio.spoken}
 	if not test_session and not Ledger.write(saved_data):
 		push_warning("Could not save current tow ticket")
@@ -1177,6 +1404,8 @@ func _restore(s: Dictionary) -> void:
 	pickup_time = s.pickup_time
 	drop_time = s.drop_time
 	account.restore(s)
+	_clear_fuel_plow()
+	fuel_wait_left = clampf(s.get("fuel_wait_left", 0.0), 0.0, ShopAccount.CAN_ETA_MINUTES)
 	shop_receipt = ""
 	seconds_worked = s.work
 	fax_text = s.fax
@@ -1199,6 +1428,8 @@ func _restore(s: Dictionary) -> void:
 		case_offer.point = county.survey_point
 		case_offer.angle = county.survey_yaw
 	campaign.restore(s.get("campaign",{}),survey,slips)
+	if survey.tracked_lead != campaign.chapter() or not _can_track_lead():
+		survey.tracked_lead = ""
 	var rig_state: Dictionary = s.rig.duplicate(true)
 	if not s.has("sightings"):
 		if s.get("longer",false):

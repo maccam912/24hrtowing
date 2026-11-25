@@ -11,6 +11,7 @@ func check(ok: bool, message: String) -> void:
 
 func _initialize() -> void:
 	var account := Account.new()
+	check(is_equal_approx(Account.CAN_PRICE, Account.TANK_PRICE * Account.CAN_FILL * 2) and Account.CAN_PRICE == 19.2, "a county can costs exactly double the same volume at the pump")
 	check(account.earned == 0 and account.cash == Account.OPENING_CASH, "opening till is separate from earned income")
 	check(account.file_invoice(60.0, 1) == 0.0 and not account.buy("chains"), "pending money cannot buy parts")
 	account.file_invoice(76.23, 2)
@@ -36,7 +37,7 @@ func _initialize() -> void:
 	check(is_equal_approx(restored.earned, 376.23), "spending and county advances never reduce gross earned")
 	restored.restore({"paid":11.25, "pending":63.25, "slips":[{"pay":130.0},{"pay":63.25}], "rig":{"chains":true}})
 	check(restored.cash == 11.25 and restored.pending == 63.25 and restored.earned == 193.25 and restored.owns("chains") and not restored.owns("snatch_block"), "migrate historic income from invoices, keeping actual available cash and fitted gear")
-	check(restored.roadside_can() == Account.CAN_FILL and restored.cash == 0.0 and restored.fuel_due == 6.75, "roadside fuel first uses remaining cash")
+	check(restored.roadside_can() == Account.CAN_FILL and restored.cash == 0.0 and is_equal_approx(restored.fuel_due,7.95), "roadside fuel first uses remaining cash")
 	test_heavy_dispatch()
 	if not failures:
 		print("CHECKS PASSED — earned, batched and spent dollars, fuel advances, save migration and heavy rotation premiums")

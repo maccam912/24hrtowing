@@ -8,6 +8,7 @@ const FIELD = preload("res://assets/ui/fonts/architects_daughter.ttf")
 const LCD = preload("res://assets/ui/fonts/dseg14.ttf")
 const Documents = preload("res://scripts/desk_paper.gd")
 const CabControls = preload("res://scripts/cab_controls.gd")
+const ShopAccount = preload("res://scripts/shop_account.gd")
 
 const WHITE := Color("#e8ebe0")
 const INK := Color("#323e3d")
@@ -145,7 +146,7 @@ func _draw() -> void:
 	match desk.page:
 		"title":
 			_title()
-		"pause", "guidance", "help", "options":
+		"pause", "guidance", "help", "options", "yard_recovery":
 			_menu()
 		"":
 			_hud()
@@ -227,7 +228,7 @@ func _menu() -> void:
 	var x := p.position.x+28
 	var y := p.position.y+28
 	text(Vector2(x,y), "BRANDT TOWING & RECOVERY   /   ESKER, WIS.", MONO, 12, BLUE)
-	var heading: String = {"pause":"Truck log","guidance":"Directions & next action","options":"Cab settings","help":"Operator guide"}[desk.page]
+	var heading: String = {"pause":"Truck log","guidance":"Directions & next action","options":"Cab settings","help":"Operator guide","yard_recovery":"Recover to yard?"}[desk.page]
 	text(Vector2(x,y+47),heading,scaled,40,INK)
 	rule(x,y+62,width-56,OXBLOOD,2.5)
 	rule(x,y+67,width-56,OXBLOOD)
@@ -237,10 +238,26 @@ func _menu() -> void:
 			var button_height := 78 if touch else 52
 			button("close", Rect2(x,y+91,width-56,button_height),"Return to work",true)
 			button("guidance", Rect2(x,y+91+row,width-56,button_height),"Directions & next action")
-			button("help", Rect2(x,y+91+row*2,width-56,button_height),"Operator guide")
 			var half := (width-56-12)*0.5
+			button("help", Rect2(x,y+91+row*2,half,button_height),"Operator guide")
+			button("yard_recovery", Rect2(x+half+12,y+91+row*2,half,button_height),"Stuck? Recover to yard")
 			button("options", Rect2(x,y+109+row*3,half,button_height),"Cab settings")
 			button("title", Rect2(x+half+12,y+109+row*3,half,button_height),"Title screen")
+		"yard_recovery":
+			var charge := ShopAccount.YARD_RECOVERY_PRICE
+			text(Vector2(x,y+105),"COUNTY GARAGE   /   WRECKER CALL",MONO,15,BLUE)
+			var trip := "The county will bring you and the wrecker back to Brandt’s yard."
+			if drawn.get("recovery_restarts_job",false):
+				trip += " Contract %04d restarts at the original scene." % drawn.job.number
+			if drawn.get("fuel_eta",0) > 0:
+				trip += " Dispatch will cancel the fuel delivery."
+			multiline(Vector2(x,y+150),trip,print_face,23,INK,width-56)
+			multiline(Vector2(x,y+239),"The tow costs $%.2f. Any unpaid balance comes out of your next county payments. Completed slips and notes stay in your log." % charge,print_face,21,INK,width-56)
+			var half := (width-68)*0.5
+			var h := 78 if touch else 52
+			var top := p.end.y-28-h
+			button("close",Rect2(x,top,half,h),"Cancel")
+			button("confirm_yard_recovery",Rect2(x+half+12,top,half,h),"Recover   ·   $%.2f" % charge,true)
 		"guidance":
 			_guidance(Vector2(x,y+98),width-56)
 			button("close",Rect2(x,p.end.y-(100 if touch else 68),148,78 if touch else 44),"Back")

@@ -3,14 +3,17 @@ extends RefCounted
 const OPENING_CASH := 35.0
 const PRICES := {"chains":95.0, "snatch_block":175.0}
 const REPAIR_PRICE := 24.0
+const YARD_RECOVERY_PRICE := 24.0
 const TANK_PRICE := 48.0
-const CAN_PRICE := 18.0
 const CAN_FILL := 0.20
+const CAN_PRICE := snappedf(TANK_PRICE * CAN_FILL * 2.0, 0.01)
+const CAN_ETA_MINUTES := 18
 
 var cash := OPENING_CASH
 var pending := 0.0
 var earned := 0.0
 var fuel_due := 0.0
+var recovery_due := 0.0
 var equipment := {}
 
 func owns(id: String) -> bool:
@@ -23,8 +26,10 @@ func file_invoice(pay: float, completed_after: int) -> float:
 		return 0.0
 	var batch := pending
 	var withheld := minf(batch, fuel_due)
-	cash = snappedf(cash + batch - withheld, 0.01)
+	var recovery_payment := minf(batch - withheld, recovery_due)
+	cash = snappedf(cash + batch - withheld - recovery_payment, 0.01)
 	fuel_due = snappedf(fuel_due - withheld, 0.01)
+	recovery_due = snappedf(recovery_due - recovery_payment, 0.01)
 	pending = 0.0
 	return batch
 
@@ -33,6 +38,16 @@ func _spend(price: float) -> bool:
 		return false
 	cash = snappedf(cash - price, 0.01)
 	return true
+
+func charge_with_credit(price: float) -> float:
+	var paid := minf(cash, price)
+	_spend(paid)
+	return snappedf(price - paid, 0.01)
+
+func pay_yard_recovery() -> float:
+	var unpaid := charge_with_credit(YARD_RECOVERY_PRICE)
+	recovery_due = snappedf(recovery_due + unpaid, 0.01)
+	return unpaid
 
 func buy(id: String) -> bool:
 	if not PRICES.has(id) or owns(id) or not _spend(PRICES[id]):
@@ -58,22 +73,22 @@ func buy_fuel(fuel: float) -> Dictionary:
 	return sale
 
 func roadside_can() -> float:
-	var charge := minf(cash, CAN_PRICE)
-	_spend(charge)
-	fuel_due = snappedf(fuel_due + CAN_PRICE - charge, 0.01)
+	fuel_due = snappedf(fuel_due + charge_with_credit(CAN_PRICE), 0.01)
 	return CAN_FILL
 
 func save_state() -> Dictionary:
 	return {"cash":cash, "pending":pending, "earned":earned, "fuel_due":fuel_due,
-		"equipment":equipment.duplicate()}
+		"equipment":equipment.duplicate(), "recovery_due":recovery_due}
 
 func restore(save: Dictionary) -> void:
 	equipment.clear()
+	recovery_due = 0.0
 	if save.has("account"):
 		var account: Dictionary = save.account
 		cash = snappedf(float(account.cash), 0.01)
 		pending = snappedf(float(account.pending), 0.01)
 		earned = snappedf(float(account.earned), 0.01)
+		recovery_due = snappedf(float(account.get("recovery_due", 0.0)), 0.01)
 		fuel_due = snappedf(float(account.get("fuel_due", 0.0)), 0.01)
 		for id: String in PRICES:
 			if account.get("equipment", {}).get(id, false):

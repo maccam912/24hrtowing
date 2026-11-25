@@ -4,6 +4,13 @@ extends RefCounted
 const Dispatch := preload("res://scripts/dispatch.gd")
 const ORDER := ["unit", "farm", "commission", "bridge", "mail", "line", "ride", "angie"]
 const GAPS := [5, 6, 5, 7, 6, 8, 5, 6]
+const FAVOR_REQUESTS := {
+	"unit":"The highway garage wants the door number off the white survey truck on Swamp Road.",
+	"farm":"The milk hauler asked if you could look in at the Hoffmann place on Kolpack.",
+	"commission":"Kowalski wants another pair of eyes at the Esker water tower.",
+	"mail":"The relief carrier mentioned tracks at the Route 2 boxes. Can you take a look?",
+	"line":"County Survey wants someone to check Tou’s old line up Alder Cut.",
+}
 const LEADS := {
 	"unit":"HIGHWAY GARAGE / Get the door number off the white truck at the Section 3 turnout on Swamp. Look for the surveyor before you call.",
 	"farm":"MILK ROUTE / Every light is on at N5104 Kolpack. The hauler knocked twice. Tou circled the Hoffmann place in the field book in Unit 38.",
@@ -13,6 +20,18 @@ const LEADS := {
 	"line":"COUNTY SURVEY / Follow Tou’s line past the Kraemer place up Alder Cut. The logging road is on the 1936 plat. Fit chains.",
 	"ride":"DISPATCH / I picked up Tou’s portable out by the striped stakes. Drive up there and bring him home.",
 	"angie":"N5420 ALDER CUT / Angie Kraemer called for her own car to go to storage. Sheriff authorizes. She’ll meet you at the porch.",
+}
+# Faxes are kept verbatim in the ledger. Earlier copies of the same memo
+# still open the current case even when the county's wording has changed.
+const EARLIER_MEMOS := {
+	"unit":"HIGHWAY GARAGE / Arlene needs a door number",
+	"farm":"TC-96-031 / The pickup is cleared for a records check",
+	"commission":"KOWALSKI / Bring a pencil to the brass cap",
+	"bridge":"COUNTY HIGHWAY / Our crew needs the brass inventory plates",
+	"mail":"RURAL ROUTE 2 / Yesterday’s driver added a box",
+	"line":"COUNTY SURVEY / Mail for T. Vang came back",
+	"ride":"DISPATCH / Tou checked in on the portable",
+	"angie":"COUNTY BOARD / Resolution 96-14 adopts T. Vang",
 }
 const DETAILS := {
 	"commission":{
@@ -69,16 +88,29 @@ const QUESTIONS := [
 
 var stage := 0
 var ordinary_since := 0
+var calls_past_lead := 0
+var lead_drive_seconds := 0.0
+var last_reminder := -1
 var evidence := {}
 var asked := []
 var angie_walked := 0.0
 var released := false
+
+static func matches_memo(id: String, sheet: String) -> bool:
+	return LEADS.has(id) and (sheet.begins_with(LEADS[id]) or (EARLIER_MEMOS.has(id) and sheet.begins_with(EARLIER_MEMOS[id])))
 
 func chapter() -> String:
 	return ORDER[stage] if stage < ORDER.size() else ""
 
 func due() -> bool:
 	return stage < ORDER.size() and ordinary_since >= GAPS[stage]
+
+func reminder_level() -> int:
+	if calls_past_lead >= 5 or lead_drive_seconds >= 600:
+		return 2
+	if calls_past_lead >= 3 or lead_drive_seconds >= 300:
+		return 1
+	return 0
 
 func required_equipment() -> String:
 	match chapter():
@@ -97,6 +129,9 @@ func on_file(kind: String, case_id: String) -> String:
 	if not chapter().is_empty() and case_id == chapter():
 		stage += 1
 		ordinary_since = 0
+		calls_past_lead = 0
+		lead_drive_seconds = 0.0
+		last_reminder = -1
 	elif kind in ["hazard","ditch","passenger"] and case_id.is_empty() and not due() and stage < ORDER.size():
 		ordinary_since += 1
 		if due():
@@ -137,9 +172,13 @@ func landmarks() -> Array:
 
 func save_state() -> Dictionary:
 	return {"revision":2,"next":chapter(),"ordinary_since":ordinary_since,"evidence":evidence.duplicate(),
-		"asked":asked.duplicate(),"released":released,"angie_walked":angie_walked}
+		"asked":asked.duplicate(),"released":released,"angie_walked":angie_walked,
+		"calls_past_lead":calls_past_lead,"lead_drive_seconds":lead_drive_seconds,"last_reminder":last_reminder}
 
 func restore(data: Dictionary, survey: RefCounted, slips: Array) -> void:
+	calls_past_lead = maxi(0, int(data.get("calls_past_lead",0)))
+	lead_drive_seconds = maxf(0.0, float(data.get("lead_drive_seconds",0.0)))
+	last_reminder = clampi(int(data.get("last_reminder",-1)),-1,2)
 	angie_walked = maxf(0,float(data.get("angie_walked",0.0)))
 	if not data.is_empty():
 		stage = ORDER.find(data.get("next",""))

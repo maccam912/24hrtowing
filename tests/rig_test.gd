@@ -286,8 +286,15 @@ func test_impossible_recoveries() -> void:
 		aim_at(rig._panel())
 		if raised or rolling:
 			for tick in 150: rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+			var reserve: float = rig.fuel
+			rig.fuel = Rig.WINCH_FUEL_PER_SECOND * STEP * .5
+			rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
 			var before: float = rig.special_work
 			var pose: Transform3D = rig.car.transform
+			for tick in 90: rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+			require(rig.fuel == 0.0 and not rig.working and rig.tension == 0.0 and rig.special_work == before and pose.is_equal_approx(rig.car.transform),
+				recovery+" stops and holds the casualty when the PTO runs dry")
+			rig.fuel = reserve
 			rig.restore_state(rig.save_state())
 			require(before>0 and rig.special_work==before and pose.is_equal_approx(rig.car.transform),
 				recovery+" resumes partway through rigging with its pose intact")

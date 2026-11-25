@@ -3,6 +3,7 @@ extends RefCounted
 # Entries in the operator's pencil notes are the odometer at the first observation.
 var notes := {}
 var unit_reported := false
+var tracked_lead := ""
 var hold_order := ""
 var farm_order := ""
 var farm_reported := false
@@ -13,6 +14,13 @@ func record(item: String, odo: float) -> void:
 
 func can_report_unit() -> bool:
 	return notes.has("unit") and notes.has("rod") and not unit_reported and hold_order == ""
+
+func stop_instruction(in_cab: bool) -> String:
+	if not notes.has("unit"):
+		return "Read the door number on the white survey pickup at the Section 3 turnout on Swamp Road."
+	if not notes.has("rod"):
+		return "Follow the boot prints north from the tripod. Check what the surveyor left at the end."
+	return "Report the door number and rod case on the radio." if in_cab else "Return to your cab to radio in the door number and rod case."
 
 func can_request_farm() -> bool:
 	return hold_order == "filed" and farm_order == ""
@@ -45,7 +53,7 @@ func notebook() -> Array:
 	return rows
 
 func save_state() -> Dictionary:
-	return {"notes":notes.duplicate(), "unit_reported":unit_reported, "hold_order":hold_order,
+	return {"notes":notes.duplicate(), "unit_reported":unit_reported, "tracked_lead":tracked_lead, "hold_order":hold_order,
 		"farm_order":farm_order, "farm_reported":farm_reported}
 
 func restore(data: Dictionary, held: bool, active_kind: String) -> void:
@@ -53,6 +61,7 @@ func restore(data: Dictionary, held: bool, active_kind: String) -> void:
 	# Older operators already entrusted with the truck keep the deputy's authorization.
 	hold_order = data.get("hold_order", "accepted" if active_kind == "hold" else ("filed" if held else ""))
 	unit_reported = data.get("unit_reported", false)
+	tracked_lead = str(data.get("tracked_lead", ""))
 	farm_order = data.get("farm_order", "")
 	farm_reported = data.get("farm_reported", false)
 	notes.erase("vin")

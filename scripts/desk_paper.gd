@@ -129,6 +129,11 @@ func _fax_label(s: Dictionary) -> String:
 	var count := int(s.get("fax_count",1))
 	return "Fax %d slips" % count if count > 1 else "Fax slip"
 
+func _track_label(s: Dictionary) -> String:
+	if not str(s.get("tracked_lead","")).is_empty():
+		return "Defer stop"
+	return "Track unpaid stop" if s.get("favor_available",false) else "Track county case"
+
 func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var steel := Color("#33413f")
 	c.switch_face(p,steel)
@@ -156,17 +161,27 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var offer: Dictionary = s.get("offer",{})
 	var available: bool = s.get("mode","") == "available"
 	c.text(Vector2(x,ry),"ON ROTATION    /    SLIP %d" % int(offer.get("number",1001)) if available else "LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
-	var lead: String = s.get("case_lead","") if available else ""
+	var lead: String = s.get("case_lead","")
 	var case_lock := str(s.get("case_lock",""))
 	if available and not case_lock.is_empty():
 		lead = case_lock
-	if s.get("fuel_help",false):
-		lead = "OUT OF DIESEL / County plow carries a %d%% reserve can. Dispatch charges $%.2f. Any unpaid amount comes out of your next batch." % [roundi(ShopAccount.CAN_FILL*100),ShopAccount.CAN_PRICE]
+	var fuel_eta := int(s.get("fuel_eta",0))
+	if fuel_eta > 0:
+		lead = "COUNTY PLOW / Duane is bringing a can to your wrecker."
+	elif s.get("fuel_help",false):
+		lead = "OUT OF DIESEL / Duane can bring %d%% of a tank in %d minutes. Roadside diesel is double the pump price." % [roundi(ShopAccount.CAN_FILL*100),ShopAccount.CAN_ETA_MINUTES]
+		var due := maxf(0.0, ShopAccount.CAN_PRICE - float(s.get("paid",0)))
+		if due > 0.0:
+			lead += " $%.2f on delivery. The county takes the $%.2f IOU from your next payment." % [ShopAccount.CAN_PRICE-due,due]
+		else:
+			lead += " $%.2f on delivery." % ShopAccount.CAN_PRICE
 	var lines: Array = records.duplicate()
+	var trackable: bool = s.get("can_track_lead",false) and s.get("can_radio",true) and fuel_eta == 0 and not s.get("fuel_help",false)
+	var track_width := 200.0
 	if available and not offer.is_empty():
 		lines.append(offer.dispatch)
 	if not lead.is_empty():
-		c.multiline(Vector2(x,ry+31),lead,c.subtle,19,c.CREAM,w,4)
+		c.multiline(Vector2(x,ry+31),lead,c.subtle,19,c.CREAM,w-track_width-18 if trackable else w,4)
 		ry += 108
 		lines = lines.slice(maxi(0,lines.size()-1))
 	else:
@@ -187,13 +202,15 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
 	if not s.get("can_radio",s.get("in_cab",true)):
 		c.fitted(key,"Get in the cab to use the radio.",c.subtle,23,c.CREAM)
+	elif fuel_eta > 0:
+		c.fitted(key,"Fuel delivery in %d min" % fuel_eta,c.subtle,23,c.CREAM)
 	elif s.get("fuel_help",false):
 		c.button("roadside_fuel",key,"Request a fuel can  ·  $%.2f" % ShopAccount.CAN_PRICE,true)
 	else:
 		var buttons: Array[Array] = []
 		if available:
 			buttons.append(["respond","Keep me on rotation" if s.get("pending_case",false) else "Take contract"])
-		else:
+		if not available or not str(s.get("tracked_lead","")).is_empty():
 			buttons.append(["directions","Ask for directions"])
 		var contact: Dictionary = s.get("radio_contact",{})
 		if not contact.is_empty():
@@ -204,6 +221,8 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		for choice in buttons:
 			c.button(choice[0],key,choice[1],true)
 			key.position.x += key.size.x+10
+		if trackable:
+			c.button("toggle_lead",Rect2(x+w-track_width,y+126,track_width,button_height),_track_label(s),true)
 
 func _passenger(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,TISSUE)
@@ -242,6 +261,7 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 		var next := "Read invoice" if page == sheets.size()-1 else "Read case memo"
 		c.button("fax_sheet",Rect2(p.end.x-222,p.position.y+8,190,80 if touch else 62),next)
 	var body := sheets[page]
+	var trackable: bool = s.get("can_track_lead",false) and Campaign.matches_memo(s.get("case_chapter",""),body)
 	var font_size := 18
 	while font_size>14 and c.MONO.get_multiline_string_size(body,HORIZONTAL_ALIGNMENT_LEFT,width,font_size).y > footer_top-13-body_y:
 		font_size -= 1
@@ -260,7 +280,12 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 		c.button("next_fax",Rect2(Vector2(x+key_size.x+8,footer_top),key_size),"›")
 		caption_x += 2*key_size.x+22
 		caption = "FILED FAX  %d / %d" % [number+1,archive.size()]
-	c.text(Vector2(caption_x,p.end.y-28),caption,c.MONO,14,FADED)
+	if trackable:
+		var end := p.end.x-(198 if s.get("can_fax",false) else 32)
+		var action_width := minf(250,end-caption_x)
+		c.button("toggle_lead",Rect2(end-action_width,footer_top,action_width,key_size.y),_track_label(s),true)
+	else:
+		c.text(Vector2(caption_x,p.end.y-28),caption,c.MONO,14,FADED)
 
 func _custody(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d8ccab"))
@@ -410,6 +435,12 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 			c.fitted(Rect2(v-Vector2(7,8),Vector2(14,16)),KEY_PLACES[i][0],c.scaled,11,c.WHITE)
 		else:
 			c.draw_circle(v,2.2,GREEN)
+	var stop: Vector3 = s.get("favor_point",Vector3.INF)
+	if stop.is_finite():
+		var marked: Vector2 = project.call(Vector2(stop.x,stop.z))
+		c.draw_arc(marked,12 if detailed else 5,0,TAU,24,c.OXBLOOD,2,true)
+		if detailed:
+			c.text(marked+Vector2(-85,-13),"Next stop",c.HAND,21,c.OXBLOOD)
 	c.draw_rect(box,Color("#87917a"),false,1)
 	if detailed:
 		var observed: Dictionary = s.get("observations",{})
@@ -467,11 +498,13 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		["AVAILABLE",money],["PENDING PAYMENT",float(s.get("pending",0))],
 		["LIFETIME EARNED",float(s.get("earned",0))]]
 	if float(s.get("fuel_due",0)) > 0:
-		totals.append(["ROADSIDE DUE",float(s.fuel_due)])
+		totals.append(["FUEL IOU",float(s.fuel_due)])
+	if float(s.get("recovery_due",0)) > 0:
+		totals.append(["YARD TOW IOU",float(s.recovery_due)])
 	var column := width/totals.size()
 	for i in totals.size():
 		var left := x+i*column
-		c.text(Vector2(left,p.position.y+119),totals[i][0],c.MONO,13,FADED)
+		c.fitted(Rect2(left,p.position.y+101,column-8,25),totals[i][0],c.MONO,13,FADED,HORIZONTAL_ALIGNMENT_LEFT)
 		c.fitted(Rect2(left,p.position.y+123,column-10,27),"$%.2f" % totals[i][1],c.MONO,23,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 	var gap := 12.0
 	var size := Vector2((width-gap)*0.5,126)

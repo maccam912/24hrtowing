@@ -159,6 +159,17 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		e.finish()
 	return p
 
+static func county_plow(parent: Node3D, identity := {}) -> Node3D:
+	var plow := car(parent,"unattended",UTILITY_VARIANT,identity)
+	car_lamps(plow,"running",-1)
+	var blade := K.new(plow)
+	blade.box(Vector3(0,.49,-2.89),Vector3(3.12,.84,.24),Color("#997249"),Vector3(.17,.24,.05))
+	blade.finish()
+	var duane := person(plow,false,1)
+	duane.position = Vector3(-.45,.45,-.13)
+	duane.get_node("AnimationPlayer").play("seated")
+	return plow
+
 static func _survey_door(vehicle: Node3D, width: float, base: float) -> void:
 	var hinge:=K.joint(vehicle,Vector3(-width,base,-.91),"DriverDoor")
 	hinge.rotation.y=-1.04

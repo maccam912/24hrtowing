@@ -13,6 +13,8 @@ const YardDrop = preload("res://scripts/yard_drop.gd")
 const GAME_MILE := 400.0
 const CABLE_REACH := 37.0
 const ICE_LINE := 52.0
+const WINCH_FUEL_PER_SECOND := 0.00013
+const DRY_RIG_HINT := "Out of diesel. Get in the cab and radio for a fuel can. The rigging can stay in place."
 const BOOM_REACH := 15.0
 const WALK_EYES := 1.68
 const FOOTSTEP_DISTANCE := 2.1
@@ -196,6 +198,28 @@ func set_spawn(at:Vector3, yaw:=0.0) -> void:
 	walked=0.0
 	_update_eyes()
 
+func recover_to_yard(at: Vector3, yaw: float) -> void:
+	in_cab = true
+	_stop_motion()
+	camera_yaw = 0.0
+	camera_pitch = -.067
+	info_timer = 0.0
+	_reset_chase()
+	set_spawn(at,yaw)
+	eyes.make_current()
+
+func _stop_motion() -> void:
+	speed = 0.0
+	motion = Vector3.ZERO
+	acceleration = 0.0
+	steering = 0.0
+	pitch = 0.0
+	roll = 0.0
+	drive_gear = 0
+	engine_load = 0.0
+	engine_rpm = IDLE_RPM if fuel > 0 else 0.0
+	reverse_timer = 0.0
+
 func _ground(p:Vector3) -> float:
 	if world and world.has_method("ground_height"):
 		return world.ground_height(p.x,p.z)
@@ -315,14 +339,17 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 		snow_speed *= 1.30
 	var load_factor := 0.80 if loaded and vehicle_identity.get("heavy_recovery",false) else 1.0
 	var max_forward := lerpf(packed_speed,snow_speed,offroad) * load_factor
-	var pumping:=fuel>0 and not phase in ["cable","rigged","at_lift","dollies"]
 	var tire_grip:float=1.29 if tire_chains else 1.0
 	var coast_decel := .56 + offroad*.78 + speed*speed*.0018
 	var demand := 0.0
-	if handbrake:
+	if is_chocked():
+		speed = 0.0
+		if fuel > 0.0 and absf(throttle) > .04 and info_timer <= 0:
+			_note("Wheels chocked. Step out and finish or stow the rigging.",4)
+	elif handbrake:
 		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip*load_factor)
 		if absf(speed)<.20 and absf(prev)>=.20: sound_event.emit("air_brake")
-	elif absf(throttle)>.04 and pumping:
+	elif absf(throttle)>.04 and fuel > 0.0:
 		var reversing:=speed*throttle<-.20
 		var target:float=throttle*(max_forward if throttle>0 else 5.15)
 		var accel := 2.44
@@ -344,7 +371,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 				demand = minf(1.0, demand * 1.2)
 	else:
 		speed=move_toward(speed,0,coast_decel*dt)
-	if not pumping and fuel<=0 and info_timer<=0: _note("Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
+	if fuel<=0 and info_timer<=0: _note("Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
 	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
 	var lock_angle := minf(MAX_STEER_ANGLE, atan2(Truck.WHEELBASE*cornering_grip, speed*speed))
@@ -593,6 +620,7 @@ func end_job() -> void:
 	loaded=false
 	working=false
 	tension=0
+	line_end=-1
 	free_line=0
 	special_work=0.0
 	second_line=false
@@ -739,9 +767,17 @@ func wrecker_overlaps(area: Rect2) -> bool:
 func is_stopped() -> bool:
 	return speed == 0.0
 
+func is_chocked() -> bool:
+	return phase in ["cable","rigged","at_lift","dollies"]
+
+func at_dry_rig_door() -> bool:
+	return not in_cab and fuel <= 0.0 and is_chocked() and _at_door()
+
 func action_id() -> String:
 	if in_cab:
 		return "exit" if is_stopped() else ""
+	if at_dry_rig_door():
+		return "enter"
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
@@ -784,6 +820,10 @@ func _at_door() -> bool:
 
 func context_text() -> String:
 	var action:=action_id()
+	if action in ["winch","lift","sling"] and fuel <= 0.0:
+		return DRY_RIG_HINT
+	if action == "enter" and is_chocked() and fuel > 0.0:
+		return "Finish or stow the rigging before entering the cab."
 	if action == "haul":
 		return "Take the vehicle to %s" % dropoff.sign
 	if action == "winch" and special_work < 1.0:
@@ -805,6 +845,8 @@ func context_text() -> String:
 	return prompts.get(action,"")
 
 func _hint() -> String:
+	if not in_cab and is_chocked() and fuel <= 0.0:
+		return DRY_RIG_HINT
 	if kind=="passenger":
 		return "Take the passenger to Esker Fuel & Food." if phase=="passenger" else "Pull up beside the driver, step down and ask if they need a lift."
 	if phase == "scene" and _boom_job():
@@ -827,6 +869,9 @@ func _hint() -> String:
 
 func interact() -> void:
 	var a:=action_id()
+	if a in ["lift","sling","winch"] and fuel <= 0.0:
+		_note(DRY_RIG_HINT,6.0)
+		return
 	match a:
 		"exit":
 			# A bay wall or a closed chain can be flush against the driver's door.
@@ -851,8 +896,7 @@ func interact() -> void:
 			in_cab=false
 			sound_event.emit("door")
 		"enter":
-			# In a chocked wrecker the line is stowed before moving.
-			if phase in ["cable","rigged","at_lift","dollies"]:
+			if is_chocked() and fuel > 0.0:
 				_note("Finish or stow the rigging first.",2.5)
 				return
 			# Looking down at the exterior door handle should not leave the
@@ -945,11 +989,21 @@ func _fit_dollies() -> void:
 func _winch(operate:bool,dt:float) -> void:
 	var prev_work:=working
 	slip_cooldown=maxf(0,slip_cooldown-dt)
-	working=phase=="rigged" and not in_cab and operate and _in_range(_panel(),2.7,false) and slip_cooldown<=0
+	working=phase=="rigged" and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
+	if working and vehicle_identity.heavy_recovery and not snatch_block:
+		working = false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
 		return
 	if not prev_work: sound_event.emit("winch_start")
+	# A partial last stroke uses only the diesel still in the tank.
+	if fuel <= dt * WINCH_FUEL_PER_SECOND:
+		dt = fuel / WINCH_FUEL_PER_SECOND
+		fuel = 0.0
+		working = false
+		_note(DRY_RIG_HINT,6.0)
+	else:
+		fuel -= dt * WINCH_FUEL_PER_SECOND
 	if special_work < 1.0 and (_roll_job() or _boom_job()):
 		_work_casualty(dt)
 		return
@@ -970,15 +1024,11 @@ func _winch(operate:bool,dt:float) -> void:
 	if vehicle_identity.heavy_recovery:
 		# The utility load needs more than one part of line. The block shares
 		# that load across two strands and halves travel per turn of the drum.
-		if not snatch_block:
-			working=false
-			return
 		resistance=(resistance+.68)*.5
 		shortening*=.5
 	free_line=maxf(.30,free_line-shortening)
 	var taut:=maxf(0,gap-free_line)
 	tension=move_toward(tension,resistance*clampf(taut/.34,0,1),dt*(.23+taut*.38))
-	fuel=maxf(0,fuel-dt*.00013)
 	if tension>=.99:
 		slip_cooldown=1.14
 		_note("Cable slipped · let the drum settle",slip_cooldown)
@@ -1013,7 +1063,6 @@ func _work_casualty(dt: float) -> void:
 	var duration := 9.0 if _boom_job() else 7.0
 	special_work = move_toward(special_work,1.0,dt/duration)
 	tension = move_toward(tension,.57+.15*sin(PI*special_work),dt*.32)
-	fuel = maxf(0,fuel-dt*.00013)
 	if _roll_job():
 		var angle := PI*(1.0-smoothstep(0.0,1.0,special_work))
 		if _recovery()=="roll":
@@ -1120,7 +1169,9 @@ func _cable_curve() -> void:
 		_cable_strand(a,pulley.global_position)
 		if phase=="rigged": _cable_strand(body.to_global(Vector3(.67,1.34,4.09)),_side_eye(1.0))
 		return
-	var b:=_eyelet(line_end) if phase!="cable" else eyes.global_transform*Vector3(.25,-.32,-.46)
+	var b:=_eyelet(line_end)
+	if phase=="cable":
+		b = foot + Vector3.UP*.15 if in_cab else eyes.global_transform*Vector3(.25,-.32,-.46)
 	if snatch_block and vehicle_identity.heavy_recovery:
 		pulley.global_position=b+Vector3.UP*.12
 		pulley.rotation.y=atan2(b.x-a.x,b.z-a.z)
@@ -1270,12 +1321,7 @@ func restore_state(d:Dictionary) -> void:
 			body.lift.position.y=d.get("lift_height",.39)
 			_set_car_lamps("tow")
 			_track_underlift()
-	speed=0
-	motion=Vector3.ZERO
-	drive_gear=0
-	engine_load=0.0
-	engine_rpm=IDLE_RPM if fuel>0 else 0.0
-	reverse_timer=0.0
+	_stop_motion()
 	if in_cab:
 		_frame_nearby_car()
 	_update_eyes()

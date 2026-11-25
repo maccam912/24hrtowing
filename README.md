@@ -36,17 +36,21 @@ When you’re back at the yard, walk to the fax under the **OFFICE / FAX** sign 
 
 The first drive starts in chase view. Your chosen view returns when you get back in the truck or continue a saved route. Pull over for the full-size plat. Opening it while moving gives a small lap view. The truck and operator save automatically, including a line that's already attached. The operator guide and 30/60 fps setting are in the truck log.
 
+If you or the wrecker get wedged, open **Pause → Stuck? Recover to yard**. The county charges $24 to bring you both back. Confirming restarts unfinished fieldwork at the original scene, including any car on the hook. Completed deliveries, slips and case notes stay on file. The county carries any unpaid tow charge until your checks come in.
+
 ## The county rotation
 
 Arlene draws ditch pulls and checked hazards from seven sites at first. After eight ordinary jobs, she can also send you across the bridge to River Lanes, out to the dairy barn on County FF, or east to the Tamarack county offices. Old slips and county faxes stay on the clipboard.
 
 Open the **Shop** tab to check your account. A new operator starts with $35. Filing a slip adds its pay to **Lifetime earned** and **Pending payment**. Every third slip clears the batch for spending. Buying diesel or parts comes out of **Available**.
 
-Park in the yard and walk to the office fax to buy diesel or fit equipment. You can also park beside either pump at Esker Fuel & Food and use it on foot. An empty-to-full tank costs $48. The shop quotes the top-up, including a partial fill if cash is tight. If you run dry on the road, stop and call for a can on the cab radio. The plow brings a fifth of a tank in 18 game minutes for $18. The county deducts any unpaid portion from your next batch.
+Park in the yard and walk to the office fax to buy diesel or fit equipment. You can also park beside either pump at Esker Fuel & Food and use it on foot. An empty-to-full tank costs $48. The shop quotes the top-up, including a partial fill if cash is tight. If you run dry, stop and request a fuel can on the cab radio. The county plow brings a fifth of a tank for **$19.20**, double the pump price. Its 18-minute radio ETA takes about 18 seconds of play. If you're short, the balance goes on an IOU and comes out of future county payments.
 
 A **$175 snatch block** lets you rig a double line for loaded pickups. Once it’s fitted, Arlene can offer county utility trucks on rotation. Heavy recoveries pay an extra $36. **$95 tire chains** improve grip and braking and help the wrecker through deep snow. The office also services a worn winch for $24.
 
 The first two jobs give you time to learn the wrecker. On later drives you can keep working through a sighting, or use **RADIO → Call in the lights**. If Arlene sends you to a driver in a summer shirt, offer them the passenger seat and stop by the pumps at Esker Fuel & Food. Check the fax after your fifth ordinary job for the first lead in the county survey case. If something catches your eye on the road, park, walk over and press **E** or tap **USE** to examine it. Your observations stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
+
+Choose **Track unpaid stop** on the favor’s fax or on the cab radio. You can make it your next stop even with a paying slip open. Arlene will give you turns, and **Directions & next action** in the truck log tells you what to do on arrival. Look for the red triangle between two amber lamps at a marked stop. You can switch back to the tow at any time. If a lead sits for several calls or a long drive, Arlene gets more specific about where to look. When the favor leads to a paid county assignment, take that call on the radio.
 
 The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip.
 

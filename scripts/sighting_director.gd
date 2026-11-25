@@ -326,7 +326,9 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		var yaw := PI if id=="ice_car" else atan2(-forward.x,-forward.z)
 		_record(id,shoulder,yaw,game.completed,fixed_at.y,street_name)
 
-func _finish(game) -> void:
+func finish(game) -> void:
+	if active.is_empty():
+		return
 	var yaw := atan2(-forward.x,-forward.z)
 	var side := forward.cross(Vector3.UP)
 	match active:
@@ -417,7 +419,7 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 				game.rig.set_spawn(jump,game.rig.heading)
 				game.shift_seconds += 40.*60.
 				game._speak("DISPATCH","There you are. I’ve been calling for forty minutes, Brandt.")
-	if t >= 1.0: _finish(game)
+	if t >= 1.0: finish(game)
 
 func advance(dt: float,game) -> void:
 	if not is_instance_valid(scene): return
@@ -440,7 +442,7 @@ func advance(dt: float,game) -> void:
 	if not active.is_empty():
 		# Tou can get in before the full minute of clear sky has elapsed.
 		if active=="storm_hole" and game.job.get("case_id")=="ride" and game.campaign.evidence.has("passenger"):
-			_finish(game)
+			finish(game)
 		else:
 			_advance_live(dt,game,at)
 			return

@@ -43,10 +43,79 @@ func contact() -> Dictionary:
 	return {}
 
 func ready_to_report() -> bool:
-	match game.job.get("case_id",""):
-		"commission": return campaign.evidence.has("car_ring")
-		"line": return campaign.evidence.has("last_cap")
-	return false
+	return not report_label(game.job.get("case_id","")).is_empty()
+
+func report_label(chapter: String) -> String:
+	match chapter:
+		"farm":
+			if game.survey.notes.has("house") and game.survey.notes.has("farm_ring"):
+				return "Report the empty Hoffmann place"
+		"commission":
+			if campaign.evidence.has("car_ring"):
+				return "Report the ring of cars"
+		"line":
+			if campaign.evidence.has("last_cap"):
+				return "Call in Tou’s pencil"
+	return ""
+
+# These observations are possible on the same trip as an ordinary call. A tow,
+# passenger or custody transfer still needs its own dispatch ticket.
+func lead_site() -> String:
+	match campaign.chapter():
+		"unit":
+			if not game.survey.unit_reported and game.survey.hold_order.is_empty() and not game.survey.can_report_unit():
+				return "survey_pickup"
+		"farm":
+			if not game.survey.notes.has("house") or not game.survey.notes.has("farm_ring"):
+				return "house"
+		"commission":
+			if not campaign.evidence.has("car_ring"):
+				return "tower_ladder"
+		"mail":
+			if not campaign.evidence.has("carrier_prints"):
+				return "carrier_prints"
+		"line":
+			if game.account.owns("chains") and not campaign.evidence.has("last_cap"):
+				return "last_cap"
+	return ""
+
+func lead_label() -> String:
+	match campaign.chapter():
+		"unit": return "Section 3 turnout" if game.survey.hold_order.is_empty() else "Unit 38 evidence hold"
+		"farm": return "N5104 Kolpack"
+		"line": return "N5420 on Alder Cut"
+	return str(Campaign.DETAILS.get(campaign.chapter(),{}).get("landmark",""))
+
+func lead_point(site_id: String) -> Vector3:
+	match site_id:
+		"survey_pickup": return game.county.resolve_point(game.county.survey_point) + Vector3(-3.6,0,3.4)
+		"house": return game.county.story_point("house") + Vector3(-2.8,0,4.0)
+		"tower_ladder": return game.county.story_point("tower_ladder") + Vector3(2.6,0,1.8)
+		"carrier_prints": return game.county.story_point("mailboxes") + Vector3(-1.5,0,3.4)
+		"last_cap": return Vector3(Sites.ALDER_X-4.2,0,-466)
+	return Vector3.INF
+
+func lead_instruction() -> String:
+	var chapter := campaign.chapter()
+	if chapter == "unit" and game.survey.hold_order.is_empty():
+		return game.survey.stop_instruction(game.rig.in_cab)
+	match lead_site():
+		"house":
+			return "Check the open door at N5104 Kolpack." if not game.survey.notes.has("house") else "Inspect the bare ring in the Hoffmanns’ drive."
+		"tower_ladder": return "Climb the ladder on the east leg of the Esker tank and look across Lindquist’s section."
+		"carrier_prints": return "At the Route 2 boxes, follow the prints into the field. Examine the last footprint."
+		"last_cap": return "Follow Alder Cut north beyond N5420 on chains. Check the striped stakes for Tou’s pencil."
+	if chapter == "line" and not game.account.owns("chains"):
+		return campaign.equipment_note()
+	if not report_label(chapter).is_empty():
+		if game.mode == "available":
+			return "Your observations are in the notebook. Call in your report on the cab radio."
+		return "Your observations are in the notebook. Finish slip %04d, then radio in the report." % int(game.job.number)
+	if game.mode != "available":
+		return "Finish slip %04d, then call dispatch for %s." % [int(game.job.number),lead_label()]
+	if not game._case_lock().is_empty():
+		return game._case_lock()
+	return "Use the cab radio to take the county assignment for %s." % lead_label()
 
 func site() -> String:
 	if is_instance_valid(tower_view):
@@ -57,6 +126,10 @@ func site() -> String:
 	if id == "ride" and game.mode in ["return","invoice"] and not campaign.released:
 		if not game.bay_locked and game.rig.get_truck_position().distance_to(game.BAY) < 60 and game._facing(game.county.bay_latch_point(),3.0):
 			return "release"
+	if not game.survey.tracked_lead.is_empty():
+		var stop := lead_site()
+		if stop in ["carrier_prints","last_cap"] and game._facing(game.county.story_point(stop),3.3):
+			return stop
 	if game.mode != "fieldwork":
 		return ""
 	var item: String = {"mail":"carrier_prints","line":"last_cap","ride":"tou","angie":"angie"}.get(id,"")
@@ -90,6 +163,7 @@ func _climb_tank() -> void:
 func _see_ring() -> void:
 	if not campaign.evidence.has("car_ring"):
 		campaign.evidence["car_ring"] = game.rig.odo
+		game._finish_favor("commission")
 		game._message("BRANDT","There’s the Hoffmanns’ blue car. Every hood points at the trunk ahead of it.")
 		game._save()
 
@@ -104,6 +178,7 @@ func leave_tower() -> void:
 func inspect(item: String) -> void:
 	if INSPECTIONS.has(item):
 		campaign.evidence[item] = game.rig.odo
+		game._finish_favor("mail" if item == "carrier_prints" else "line")
 		game._message("BRANDT",INSPECTIONS[item])
 	elif item == "tower_ladder":
 		_climb_tank()

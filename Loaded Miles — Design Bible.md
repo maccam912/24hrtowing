@@ -71,12 +71,14 @@ Most of the time you just run the loop. Strange things happen around it, and the
 | Meter | Drains when | Restored by | When it runs out |
 | --- | --- | --- | --- |
 | Warmth | You're outside the cab, the heater is off, a window is cracked | Cab heater, coffee, the heated bay | Frost creeps in at the screen's edges and rigging slows. You climb back in the cab; nobody dies |
-| Fuel | Driving, idling, running the PTO for the boom and winch | Buy diesel at the yard office or Esker Fuel & Food from the first shift | Call Arlene from the stopped cab. A county plow brings a fifth of a tank for $18 and the clock advances 18 minutes. Accounts payable collects any shortfall from the next batch |
+| Fuel | Driving, idling, running the PTO for the boom and winch | Buy diesel at the yard office or Esker Fuel & Food from the first shift | Call Arlene from the stopped cab. A county plow brings a fifth of a tank for $19.20, double the pump price. Its 18-minute ETA counts down over 18 seconds of play. Accounts payable carries any shortfall as an IOU |
 | Wear | Hard hits, an overloaded winch, dragging a car on its belly | Parts at the yard | One system degrades, such as the light bar or the winch speed, until you fix it |
 
 ### Pay
 
 The county schedule pays for call-out, hookup, winch time, loaded miles and storage. Heavy recoveries add $36. Each filed slip counts toward lifetime earnings. The clerk clears pending invoices every third slip and faxes the batch to the yard. New operators start with $35 in the till. Diesel costs $48 for a full tank, and the counter can sell a partial fill. Servicing a worn winch costs $24.
+
+If the operator or wrecker is stuck, the truck log can call the county garage for a $24 tow back to Brandt’s yard. The operator confirms the charge and restarts unfinished fieldwork on the same ticket. Finished slips, observations, fuel and equipment carry over. The next county payments cover any unpaid balance.
 
 ### What grows
 
@@ -224,6 +226,8 @@ The totals below count ordinary slips when Brandt takes each case as soon as it 
 | 48 | Answer N5420 Alder Cut | Angie wants her car taken to storage. She's walking up Alder Cut to wait for them and doesn't want a ride. While you rig, the lights settle over the trees ahead of her |
 
 ### Unit 38, from roadside sighting to evidence hold
+
+The highway garage’s fax offers an unpaid stop. Tracking the fax or selecting the favor on the radio makes the turnout the next destination. Arlene talks the operator in, and a red triangle between two amber lamps marks the selected stop. The operator keeps the paying slip and can switch back to it at any time. Later contacts offer the same choice. Field observations carry forward into the county assignment. A contact who needs a free truck explains how to take the order when the current job is clear. Over several skipped calls or a long drive, Arlene goes from mentioning the favor to naming the next place or object to check.
 
 1. An ordinary job takes you along Swamp Road. Its customer has their own car and their own slip. At the Section 3 turnout sits a white county pickup, clear of the lane, engine idling, headlights on, driver's door standing open. You can read **Survey Unit 38** on the door. Twenty feet away a tripod stands over the corner in a ring of bare, wet ground. You can finish the paying job and leave.
 2. Boot prints head north from the tripod toward the swamp. A hundred steps out they stop mid-stride in open snow. Tou's rod case lies at the end of them, dry, with no snow on it. Walk out on your own, on this call or a later one. The pickup, prints and rod case stay between calls. Arlene knows only what you tell her.

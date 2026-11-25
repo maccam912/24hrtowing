@@ -310,6 +310,15 @@ func drop_guide() -> void:
 		for z: float in [-1.0, 1.0]:
 			beam(Vector3(x + 1.0, .065, z * 1.5), Vector3(x - .6, .065, 0), .045, .38, "safety_yellow")
 
+func favor_lamps() -> void:
+	# Portable amber lamps flank the folding reflector at the marked shoulder.
+	for x: float in [-.95,.95]:
+		b(x,.13,0,.37,.26,.34,"dark")
+		cyl(x,.46,0,.12,.44,"safety_yellow")
+		cyl(x,.77,0,.28,.21,"amber_lens")
+		for yaw: float in [0.0,PI*.5]:
+			draw.add("quad",p(x,.78,0),Vector3(2.1,2.1,1),"sodium",Vector3(0,yaw,0))
+
 func fuel() -> void:
 	site(-71,18)
 	b(-4,2.10,8.0,18.,4.2,7.5,"brick",true)

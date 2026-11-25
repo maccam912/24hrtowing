@@ -60,7 +60,7 @@ func show_document(id: String, next_state: Dictionary) -> void:
 	if page == id and id not in ["title", "pause"]:
 		dismiss()
 		return
-	if id in ["options", "help", "guidance"]:
+	if id in ["options", "help", "guidance", "yard_recovery"]:
 		_return_page = "pause" if started else "title"
 	_change_page(id)
 	if id == "slip" and state.get("job",{}).is_empty() and not state.get("pending_slips",[]).is_empty():
@@ -69,7 +69,7 @@ func show_document(id: String, next_state: Dictionary) -> void:
 		glance = true
 
 func dismiss() -> void:
-	if page in ["options", "help", "guidance"]:
+	if page in ["options", "help", "guidance", "yard_recovery"]:
 		_change_page(_return_page)
 	elif started:
 		_change_page("")
@@ -234,16 +234,24 @@ func _activate(id: String) -> void:
 			toggle_pause()
 		"guidance":
 			action.emit("guidance")
+		"yard_recovery":
+			if page == "pause":
+				show_document(id,state)
+		"confirm_yard_recovery":
+			action.emit(id)
 		"title":
 			started = false
 			_change_page("title")
 			action.emit("title")
 		"options", "help", "map", "slip", "radio", "fax", "custody", "field", "parts":
 			show_document(id, state)
+		"toggle_lead":
+			_change_page("")
+			action.emit(id)
 		"respond", "directions", "send_fax":
 			_change_page("")
 			action.emit({"respond":"rotation", "directions":"talk_in", "send_fax":"fax"}[id])
-		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "report_sighting", "roadside_fuel":
+		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "report_notes", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "report_sighting", "roadside_fuel":
 			_change_page("")
 			action.emit(id)
 		"mark_sketch":

@@ -226,16 +226,9 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 		street_lamps.sort_custom(func(a,b):return a.position.x < b.position.x)
 	match id:
 		"the_lift","woods_car","empty_oncoming","set_down","plow_stopped":
-			actor = _vehicle(props,4 if id=="plow_stopped" else int(identity.get("variant",0)),id=="the_lift",identity)
+			actor = Car.county_plow(props,identity) if id=="plow_stopped" else _vehicle(props,int(identity.get("variant",0)),id=="the_lift",identity)
 			actor.position = roadside+Vector3.UP*20.0 if id=="set_down" else roadside
 			actor.rotation.y = identity.get("yaw",atan2(-forward.x,-forward.z))
-			if id == "plow_stopped":
-				var plow := Kit.new(actor)
-				plow.box(Vector3(0,.49,-2.89),Vector3(3.12,.84,.24),Color("#997249"),Vector3(.17,.24,.05))
-				plow.finish()
-				var duane := Car.person(actor,false,1)
-				duane.position = Vector3(-.45,.45,-.13)
-				duane.get_node("AnimationPlayer").play("seated")
 			if id=="empty_oncoming": actor.rotate_y(PI)
 			if id=="woods_car": _tree_gap(props,roadside+crossroad*7.,crossroad)
 		"walker":
