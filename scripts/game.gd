@@ -533,7 +533,10 @@ func _accept(ticket: Dictionary) -> void:
 	if job.kind != "looksee":
 		rig.start_job(job.kind,county.resolve_point(job.point),job.angle,job)
 	_sync_survey_scene()
-	_speak("DISPATCH",job.dispatch)
+	var call_text: String = job.dispatch
+	if Rig.uses_warning_triangle(job.kind,job):
+		call_text += " Look for the red triangle."
+	_speak("DISPATCH",call_text)
 	speaker = "DISPATCH  ·  CONTRACT %d ACCEPTED" % job.number
 	_save()
 
@@ -1037,6 +1040,22 @@ func _current_road_map() -> RoadDirections:
 	return road_directions
 
 func _road_note() -> Dictionary:
+	var note := _route_note()
+	if not active or mode != "fieldwork" or rig.phase != "scene" or _needs_fuel_can():
+		return note
+	if job.get("kind") not in ["ditch","hazard","hold","passenger"]:
+		return note
+	var identity := "%s, plate %s." % [job.vehicle,job.plate]
+	if Rig.uses_warning_triangle(job.kind,job):
+		identity += " Look for the red triangle."
+	elif job.kind == "passenger":
+		identity += " The driver's in a T-shirt."
+	if note.is_empty():
+		return {"title":"Pickup   /   %s" % job.location,"instruction":identity}
+	note.instruction += " " + identity
+	return note
+
+func _route_note() -> Dictionary:
 	if not active or not rig.in_cab or _needs_fuel_can():
 		return {}
 	var at: Vector3 = rig.get_truck_position()
@@ -1189,6 +1208,9 @@ func _restore(s: Dictionary) -> void:
 		_migrate_case_ticket(rig_state)
 	if not job.is_empty() and not rig_state.has("identity"):
 		rig_state.identity = job
+	elif job.has("case_id") and job.kind == rig_state.get("kind"):
+		# Older rig snapshots only kept the case ID on the dispatch ticket.
+		rig_state.identity.case_id = job.case_id
 	# Older shifts kept finished roadside work as the active ticket until the yard fax.
 	if mode in ["return","invoice"] and job.get("kind") in ["ditch","looksee"] and job.get("case_id") != "ride":
 		_clear_field_job()

@@ -87,8 +87,10 @@ func run() -> void:
 
 	key(KEY_R)
 	await redraw()
+	check_text("red triangle", true)
 	var route := str(game._road_note().get("instruction", ""))
 	var procedure := str(game.state.progress)
+	check(game.job.plate in route and game.job.vehicle in route, "The talk-in should name the car on the current slip")
 	check_text(route, false)
 	check_text(procedure, false)
 	# First contact enables the touch HUD on a desktop or headless runner.
@@ -119,6 +121,24 @@ func run() -> void:
 	await tap("guidance")
 	check_text(nearby, true)
 	check_text(route, false)
+	check_text(game.job.plate, true)
+	await tap("close")
+	await tap("close")
+
+	game.rig.in_cab = true
+	game.rig.set_spawn(game.rig.job_site + Vector3.BACK * 12.0)
+	key(KEY_T)
+	check(game.job.plate in game.subtitle and "red triangle" in game.subtitle,
+		"Asking again at the shoulder should identify the pickup")
+	game._accept(game.campaign.ticket(1002,"mail"))
+	key(KEY_T)
+	check(game.job.plate in game.subtitle and game.job.vehicle in game.subtitle and "triangle" not in game.subtitle,
+		"The talk-in should identify the carrier's wagon from its own slip")
+	game.rig.phase = "loaded"
+	game.mode = "haul"
+	key(KEY_T)
+	check(game.rig.dropoff.sign in game.subtitle and game.job.plate not in game.subtitle,
+		"A loaded truck should get delivery directions")
 	game.free()
 	await process_frame
 	if not failed:

@@ -18,6 +18,10 @@ func run() -> void:
 	game._action("play")
 	var director = game.sightings
 	var rig = game.rig
+	for key: String in ["tape_swamp", "tape_dairy", "tape_church"]:
+		var parked: Node3D = director.scene.remnants[key]
+		check(parked.has_node("RoadCar/SheriffTape") and not parked.has_node("RoadCar/VehicleLamps"),
+			key + " is checked by the sheriff and parked with its lights out")
 	game.dispatch_seed = 23
 	# Twenty filed and paid ordinary jobs, ignoring the case. Start each real
 	# ticket, drive on its road, then finish at the yard using the normal fax.
@@ -95,6 +99,8 @@ func run() -> void:
 	director.restore(data,game.county)
 	director._snow_over(game.completed+10)
 	check(director.aftermath.has("field_car") and not director.aftermath.has("bare_ring"),"upturned car survives ten jobs and a reload while rings snow over")
+	check(director.scene.remnants.field_car.has_node("RoadCar/VehicleLamps/TailpipeVapor"),
+		"the car set down in the field keeps its running lights and exhaust")
 	# A fresh set of once-only flags. Use the regular tick for the scripted rides.
 	director.restore({},game.county)
 	game.campaign.stage=4

@@ -47,9 +47,10 @@ func setup(county: Node3D) -> void:
 func ground(at: Vector3) -> Vector3:
 	return Vector3(at.x,world.ground_height(at.x,at.z),at.z)
 
-func _vehicle(parent: Node3D, tint := 0, taped := false, identity := {}) -> Node3D:
+func _vehicle(parent: Node3D, tint := 0, taped := false, identity := {}, running := true) -> Node3D:
 	var car := Car.car(parent,"hazard" if taped else "unattended",tint,identity)
-	Car.car_lamps(car,"running",-1)
+	if running:
+		Car.car_lamps(car,"running",-1)
 	return car
 
 func _animal(parent: Node3D, cow: bool) -> Node3D:
@@ -133,7 +134,7 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 	match id:
 		"field_car","nose_car","tree_car","roof_car","ice_car","gate_car","shoulder_car","walker_car","roadside_tape":
 			var vehicle: Dictionary = entry.get("vehicle",{})
-			var car := _vehicle(parent,int(vehicle.get("variant",0)),not vehicle.get("untaped",true),vehicle)
+			var car := _vehicle(parent,int(vehicle.get("variant",0)),not vehicle.get("untaped",true),vehicle,id != "roadside_tape")
 			car.position = ground(at)+Vector3.UP*float(entry.get("height",0))
 			car.rotation.y = entry.get("yaw",0.)
 			if id == "field_car":

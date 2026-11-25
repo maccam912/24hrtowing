@@ -32,6 +32,7 @@ var eyes:=Camera3D.new()
 var torch:=SpotLight3D.new()
 var car:Node3D
 var car_lamps:Node3D
+var warning_triangle: Node3D
 var flash_time:=0.0
 var special_work := 0.0
 var second_line := false
@@ -517,10 +518,13 @@ func _compass_degrees() -> float:
 	var bearing := atan2(toward.x,-toward.z)
 	return fposmod(rad_to_deg(lerp_angle(deg_to_rad(_heading_degrees()),bearing,sighting_calm)),360.0)
 
-func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {}) -> void:
+static func uses_warning_triangle(job_kind: String, ticket: Dictionary) -> bool:
+	return job_kind in ["ditch","hazard"] and not ticket.has("case_id") and ticket.get("recovery","") == ""
+
+func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_phase := "scene") -> void:
 	end_job()
 	kind=job_kind
-	phase="scene"
+	phase=initial_phase
 	job_site=target
 	job_yaw=yaw
 	# Saves made before dispatch recorded a model used the site to choose one.
@@ -528,7 +532,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {}) -> void:
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["recovery", "mail", "running", "open_door", "untaped"]:
+	for key in ["case_id", "recovery", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if kind == "hold":
@@ -549,6 +553,16 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {}) -> void:
 			if kind == "hazard" and not vehicle_identity.get("running",false):
 				VehicleDrifts.place(car, _ground)
 	_set_car_lamps("running" if _running_car() else "hazard")
+	if phase == "scene" and uses_warning_triangle(kind,vehicle_identity):
+		# Face traffic from either direction, on the road side of the car.
+		# Dispatch parks cars at a slight yaw along the county's section roads.
+		var road_yaw := snappedf(job_yaw, PI / 2.0)
+		var across := Vector3.RIGHT.rotated(Vector3.UP,road_yaw)
+		if _road(target + across) > _road(target - across):
+			across = -across
+		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * 3.5
+		at.y = _ground(at)
+		warning_triangle = Scene.warning_triangle(self,at,road_yaw)
 	if kind in ["ditch","hold","passenger"]:
 		witness=Scene.person(self,kind=="hold",vehicle_identity.driver_variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
@@ -563,6 +577,7 @@ func end_job() -> void:
 	if phase == "departing":
 		car = null
 		witness = null
+	_clear_warning_triangle()
 	for n in [car,witness,flame,chocks,dollies]:
 		if is_instance_valid(n): n.queue_free()
 	car=null
@@ -587,6 +602,12 @@ func end_job() -> void:
 		body.work_light.hide()
 	if cable_mesh: cable_mesh.clear_surfaces()
 	if highlight: highlight.visible=false
+
+func _clear_warning_triangle() -> void:
+	if warning_triangle:
+		warning_triangle.hide()
+		warning_triangle.queue_free()
+		warning_triangle = null
 
 func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node3D:
 	var variant:=int(ticket.get("variant",3 if job_kind in ["bridge","river"] else 2))
@@ -846,6 +867,7 @@ func interact() -> void:
 			var loc:=foot+(car.position-foot).normalized()*.55
 			loc.y=_ground(loc)
 			flame=Scene.flare(self,loc)
+			_clear_warning_triangle()
 			phase="flared"
 			sound_event.emit("flare")
 		"cable":
@@ -1209,7 +1231,7 @@ func restore_state(d:Dictionary) -> void:
 		departures.append(departure)
 	var active:String=d.get("kind","")
 	if active in ["ditch","hazard","hold","passenger"]:
-		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)),d.get("identity",{}))
+		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)),d.get("identity",{}),d.get("phase","idle"))
 	else: end_job()
 	in_cab=d.get("cab",true)
 	driving_view = "cab" if d.get("driving_view") == "cab" else "chase"

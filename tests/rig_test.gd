@@ -215,9 +215,13 @@ func test_double_line() -> void:
 	rig.start_job("hazard",Vector3(-5,0,14),.15,ticket)
 	require(rig.car.name=="UtilityPickup" and rig.car.get_meta("plate")==ticket.plate,
 		"utility pickup gets its service body and its own plate")
+	var triangle: Node3D = rig.warning_triangle
+	require(is_instance_valid(triangle) and triangle.is_visible_in_tree(), "the checked utility pickup has a roadside triangle")
 	rig.in_cab=false
 	walk_to(Vector3(-3,0,9))
 	operate("flare",rig.car.position+Vector3.UP)
+	require(rig.warning_triangle == null and (not is_instance_valid(triangle) or not triangle.is_visible_in_tree() or triangle.is_queued_for_deletion()),
+		"placing the flare clears the original roadside triangle")
 	walk_to(Vector3(-2.1,0,2.35))
 	operate("need_block",rig._panel())
 	require(rig.phase=="flared","heavy pull cannot start on the stock line")
@@ -229,6 +233,7 @@ func test_double_line() -> void:
 	aim_at(rig._panel())
 	var saved: Dictionary = rig.save_state()
 	rig.restore_state(saved)
+	require(rig.warning_triangle == null, "a rigged tow resumes without putting the triangle back")
 	require(rig.vehicle_identity.heavy_recovery and rig.car.get_meta("body_size")==Rig.Scene.PICKUP_SIZE,
 		"resuming the rigged utility job keeps the heavy load and its geometry")
 	var initial: Vector3 = rig.car.position
@@ -260,6 +265,7 @@ func test_impossible_recoveries() -> void:
 		rig.set_spawn(Vector3.ZERO)
 		rig.start_job("hazard",point,.12,{"recovery":recovery, "running":true, "heavy_recovery": rolling or recovery=="tree"})
 		rig.snatch_block=true
+		require(rig.warning_triangle == null, recovery+" retains its original recovery scene")
 		require(rig.car_lamps.get_node_or_null("TailpipeVapor")!=null, recovery+" still runs at the site")
 		stand_at(rig._panel() if ice or raised else rig.car.position+Vector3.LEFT*2.5)
 		operate("flare",rig._panel() if ice or raised else rig.car.position)
@@ -309,14 +315,23 @@ func test_departing_driver() -> void:
 	rig.set_spawn(Vector3.ZERO)
 	var site := Vector3(10,0,15)
 	rig.start_job("ditch",site,0,{"vin":"FIRST","variant":1})
+	var triangle: Node3D = rig.warning_triangle
+	require(is_instance_valid(triangle), "an accepted ditch pull has a roadside triangle")
+	var triangle_pose := triangle.global_transform if triangle else Transform3D.IDENTITY
 	var snapshot: Dictionary = rig.save_state()
+	rig.restore_state(snapshot)
+	require(is_instance_valid(rig.warning_triangle) and rig.warning_triangle.global_transform.is_equal_approx(triangle_pose),
+		"an outbound save restores the triangle in the same place")
 	snapshot.phase = "departing"
 	snapshot.driver_boarded = false
 	rig.restore_state(snapshot)
+	require(rig.warning_triangle == null, "a departing customer has no triangle")
 	var driver: Node3D = rig.witness
 	var customer_car: Node3D = rig.car
 	var original: Vector3 = driver.position
 	rig.start_job("hazard",Vector3(40,0,10),0,{"vin":"NEXT"})
+	require(is_instance_valid(rig.warning_triangle) and rig.warning_triangle.position.distance_to(rig.car.position) < 12.0,
+		"the next triangle belongs at the newly assigned car")
 	require(not customer_car.is_queued_for_deletion() and not driver.is_queued_for_deletion(),
 		"taking a new tow keeps the previous customer and car on the road")
 	rig._trail(STEP)

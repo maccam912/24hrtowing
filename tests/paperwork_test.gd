@@ -93,6 +93,8 @@ func test_waiting_hazard(game) -> void:
 	var offer: Dictionary = game.rotation_offer.duplicate()
 	var parked: Node3D = game.waiting_hazard
 	var pose := parked.transform
+	check(game.world.find_children("WarningTriangle*", "Node3D", true, false).is_empty(),
+		"The waiting tow has no roadside triangle until the order is accepted")
 	game.survey.record("unit",19241)
 	game.survey.record("rod",19241)
 	game.campaign.ordinary_since = 5
@@ -116,6 +118,8 @@ func test_waiting_hazard(game) -> void:
 	game._action("play")
 	check(game.job.kind == "hold" and game.rotation_offer.vin == offer.vin and game.waiting_hazard.transform.is_equal_approx(pose),
 		"Resume restores both scenes at their own places")
+	check(game.world.find_children("WarningTriangle*", "Node3D", true, false).is_empty(),
+		"Neither the active evidence hold nor the unassigned taped car acquires a triangle on resume")
 	# shift_test exercises the actual transfer. Here, file it and take the waiting tow.
 	game.rig.end_job()
 	game.held = true
@@ -131,3 +135,5 @@ func test_waiting_hazard(game) -> void:
 	game._action("rotation")
 	check(game.waiting_hazard == null and game.rig.car.transform.is_equal_approx(pose) and game.rig.vehicle_identity.vin == offer.vin,
 		"Accepting the hazard hands the single vehicle at the original position to the rig")
+	check(game.world.find_children("WarningTriangle*", "Node3D", true, false).size() == 1 and is_instance_valid(game.rig.warning_triangle),
+		"Exactly one triangle marks the accepted hazard while the county truck is in storage")

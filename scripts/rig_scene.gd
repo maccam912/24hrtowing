@@ -290,6 +290,33 @@ static func walk_person(witness: Node3D) -> void:
 	if animation.current_animation != "walk":
 		animation.play("walk", 0.18)
 
+static var reflector_material: StandardMaterial3D
+
+static func warning_triangle(parent: Node3D, at: Vector3, yaw: float) -> Node3D:
+	var stand := K.joint(parent,at,"WarningTriangle")
+	stand.rotation.y = yaw
+	var frame := K.new(stand)
+	# A weighted folding foot and a short riser hold the reflector above the snow.
+	frame.box(Vector3(0,.055,0),Vector3(.24,.11,.78),BLACK)
+	frame.box(Vector3(0,.15,0),Vector3(.14,.20,.10),STEEL)
+	var corners := PackedVector3Array([Vector3(-.51,.27,0),Vector3(0,1.13,0),Vector3(.51,.27,0)])
+	var strips := K.new(stand)
+	for i in corners.size():
+		var a := corners[i]
+		var b := corners[(i + 1) % corners.size()]
+		frame.beam(a,b,.18,.045,Color("#dd4936"))
+		strips.beam(a,b,.095,.052,Color.WHITE)
+	frame.finish()
+	if not reflector_material:
+		reflector_material = StandardMaterial3D.new()
+		reflector_material.albedo_color = Color("#ff7842")
+		reflector_material.roughness = .45
+		reflector_material.emission_enabled = true
+		reflector_material.emission = Color("#ed5637")
+		reflector_material.emission_energy_multiplier = .32
+	strips.finish().material_override = reflector_material
+	return stand
+
 static func flare(parent:Node3D, at:Vector3) -> Node3D:
 	var p=K.joint(parent,at,"RoadFlare")
 	var g=K.new(p)

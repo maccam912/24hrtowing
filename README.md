@@ -8,6 +8,8 @@ You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow 
 
 Start the engine. Tap **RADIO**, then **Take contract**, or press **R** on desktop. Arlene starts you with a nearby ditch pull. Listen for the road, the landmark and the side the car went off. Your first call might take you past St. Hedwig’s, the co-op or the ginseng frames.
 
+On ordinary pulls and hazard tows, look for a red folding triangle in the snow beside your pickup. If two cars look alike, ask Arlene for directions. She’ll read back the vehicle and plate from your slip.
+
 The dash compass is visible in both driving views. If you lose your way or forget the next step, pause and open **Directions & next action**. In the cab, the truck log gives the next turn from your current road. At the scene, it shows the recovery procedure and what you can do where you’re standing. You can also tap **RADIO → Ask for directions** or press **T** to hear Arlene’s talk-in. Past the edge of her map, use the plat, fire numbers and your own pencil marks.
 
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
