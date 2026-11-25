@@ -3,6 +3,7 @@ extends RefCounted
 const Campaign := preload("res://scripts/county_case.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
 const NOTES_PER_PAGE := 6
+const SIGHTINGS_PER_PAGE := 3
 const PAPER_INK := Color("#353f3c")
 const FORM_BLUE := Color("#475e72")
 const FADED := Color("#67746e")
@@ -148,14 +149,23 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	c.text(Vector2(x,y),"VHF TRANSCEIVER",c.MONO,13,Color("#b9c1ad"))
 	c.text(Vector2(p.end.x-242,y),"BRANDT  /  UNIT 01",c.MONO,14,c.WHITE,208,HORIZONTAL_ALIGNMENT_RIGHT)
 	var lcd := Rect2(x,y+18,w*0.66,67)
+	var reporting: bool = c.desk.sighting_page >= 0
+	var in_cab: bool = s.get("can_radio",s.get("in_cab",true))
+	var button_height := 80 if c.desk.is_touch_mode() else 52
+	var report_key := Rect2(lcd.end.x+16,lcd.get_center().y-button_height*.5,w-lcd.size.x-16,button_height)
 	c.switch_face(lcd,Color("#171e1b"),true)
 	c.draw_rect(lcd.grow(-7),Color("#c1ac75"))
-	c.fitted(lcd.grow(-16),"COUNTY DISPATCH",c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
-	for i in 8:
-		var grille_x := lcd.end.x+21
-		var grille_y := lcd.position.y+8+i*7
-		c.rule(grille_x,grille_y,p.end.x-35-grille_x,Color("#192321"),3)
-		c.rule(grille_x,grille_y+2,p.end.x-35-grille_x,Color("#596054"))
+	c.fitted(lcd.grow(-16),"SIGHTING REPORT" if reporting else "COUNTY DISPATCH",c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
+	if in_cab and reporting:
+		_sighting_choices(c,p,s.get("sighting_reports",[]),button_height)
+		c.button("back_to_radio",report_key,"Back to dispatch",true)
+		return
+	if not in_cab:
+		for i in 8:
+			var grille_x := lcd.end.x+21
+			var grille_y := lcd.position.y+8+i*7
+			c.rule(grille_x,grille_y,p.end.x-35-grille_x,Color("#192321"),3)
+			c.rule(grille_x,grille_y+2,p.end.x-35-grille_x,Color("#596054"))
 	var records: Array = s.get("calls",[])
 	var ry := y+116
 	var offer: Dictionary = s.get("offer",{})
@@ -198,9 +208,8 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 			c.rule(x,ry+69+i*65,w,Color("#5a685e"))
 		else:
 			c.multiline(Vector2(x,ry+30),words,c.subtle,19,c.WHITE,w,3)
-	var button_height := 80 if c.desk.is_touch_mode() else 52
 	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
-	if not s.get("can_radio",s.get("in_cab",true)):
+	if not in_cab:
 		c.fitted(key,"Get in the cab to use the radio.",c.subtle,23,c.CREAM)
 	elif fuel_eta > 0:
 		c.fitted(key,"Fuel delivery in %d min" % fuel_eta,c.subtle,23,c.CREAM)
@@ -215,14 +224,36 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		var contact: Dictionary = s.get("radio_contact",{})
 		if not contact.is_empty():
 			buttons.append([contact.id,contact.label])
-		if s.get("can_report_sighting",false):
-			buttons.append(["report_sighting","Call in the lights"])
 		key.size.x = (w-10*(buttons.size()-1))/buttons.size()
 		for choice in buttons:
 			c.button(choice[0],key,choice[1],true)
 			key.position.x += key.size.x+10
 		if trackable:
 			c.button("toggle_lead",Rect2(x+w-track_width,y+126,track_width,button_height),_track_label(s),true)
+	if in_cab:
+		c.button("report_sighting",report_key,"Report a sighting",true)
+
+func _sighting_choices(c, p: Rect2, reports: Array, button_height: int) -> void:
+	var x := p.position.x+34
+	var width := p.size.x-68
+	if reports.is_empty():
+		c.multiline(Vector2(x,p.position.y+178),"Nothing to call in yet. If something catches your eye, look at it for a moment, then check back here.",c.subtle,22,c.CREAM,width,3)
+		return
+	var pages := ceili(float(reports.size()) / SIGHTINGS_PER_PAGE)
+	var page := clampi(c.desk.sighting_page,0,pages-1)
+	var first := page*SIGHTINGS_PER_PAGE
+	for i in range(first,mini(first+SIGHTINGS_PER_PAGE,reports.size())):
+		var item: Dictionary = reports[i]
+		var top := p.position.y+132+(i-first)*(button_height+8)
+		c.button("sighting:"+str(item.key),Rect2(x,top,width,button_height),item.label,true)
+	if pages > 1:
+		var nav := Rect2(x,p.end.y-8-button_height,150,button_height)
+		if page > 0:
+			c.button("prev_sightings",nav,"Previous",true)
+		c.fitted(Rect2(x+nav.size.x,nav.position.y,width-2*nav.size.x,button_height),"%d / %d" % [page+1,pages],c.MONO,19,c.CREAM)
+		if page+1 < pages:
+			nav.position.x = x+width-nav.size.x
+			c.button("next_sightings",nav,"Next",true)
 
 func _passenger(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,TISSUE)

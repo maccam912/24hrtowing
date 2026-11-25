@@ -69,6 +69,8 @@ func run() -> void:
 				check(game.survey.hold_order == "accepted" and game.job.kind == "hold" and not game.county.survey_pickup.visible, "Kowalski meets the operator at the original unit")
 		else:
 			press_key(KEY_R)
+			check(game.mode == "available" and game.desk.page == "radio", "opening the radio with R leaves the offer pending")
+			await tap_control("respond")
 		check(game.mode == "fieldwork","accepted radio call")
 		check(not game.county.drop_guide.visible, "the yard lights stay off until a vehicle is on the lift")
 		var job: Dictionary = game.job
@@ -328,6 +330,7 @@ func investigate_kolpack() -> void:
 	stand_at_cab_door(-1)
 	game._action("interact")
 	press_key(KEY_R)
+	await tap_control("respond")
 	check(game.mode == "fieldwork" and game.job.kind in ["ditch","hazard"],"dispatch returns to ordinary rotation")
 
 func hint_text() -> String:

@@ -91,6 +91,36 @@ func check_shop() -> void:
 	desk.update_view(PAPER_STATE)
 	await process_frame
 
+func tap_key(id: String) -> void:
+	var centers := check_layout([id])
+	if not centers.has(id):
+		return
+	touch(0,centers[id],true)
+	touch(0,centers[id],false)
+	await process_frame
+
+func check_sighting_pages() -> void:
+	await tap_key("report_sighting")
+	for id: String in desk.surface.key_choices():
+		check(not id.begins_with("sighting:") and id != "next_sightings","An empty list should reveal no sightings")
+	await tap_key("back_to_radio")
+	var reports := []
+	for i in 4:
+		reports.append({"key":str(i),"label":"Observed vehicle %d" % i})
+	desk.update_view(PAPER_STATE.merged({"sighting_reports":reports}))
+	await process_frame
+	await tap_key("report_sighting")
+	check_layout(["sighting:0","sighting:1","sighting:2"])
+	await tap_key("next_sightings")
+	check_layout(["sighting:3","prev_sightings"])
+	check("sighting:0" not in desk.surface.key_choices(),"The previous page's targets should be gone")
+	await tap_key("prev_sightings")
+	check_layout(["sighting:0","sighting:1","sighting:2"])
+	await tap_key("back_to_radio")
+	check_layout(["report_sighting"])
+	desk.update_view(PAPER_STATE)
+	await process_frame
+
 func check_driving(centers: Dictionary) -> void:
 	check(not centers.has("reverse"), "The shared pedal should be the only reverse control")
 	touch(0, centers.steer_l, true)
@@ -181,7 +211,9 @@ func run() -> void:
 			await process_frame
 			check(desk.page == tab, "Tap did not open " + tab)
 			centers = check_layout(PAPER_TABS + ["close"])
-			if tab == "parts":
+			if tab == "radio":
+				await check_sighting_pages()
+			elif tab == "parts":
 				await check_shop()
 			if failed:
 				break

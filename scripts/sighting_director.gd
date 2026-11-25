@@ -3,6 +3,8 @@ extends RefCounted
 ## physical aftermath survive a trip to the title screen or a process restart.
 const Scene := preload("res://scripts/sighting_scene.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
+const Reports := preload("res://scripts/sighting_reports.gd")
+const Observations := preload("res://scripts/sighting_observations.gd")
 const FAR := ["swamp_lights","the_calm","green_flash"]
 const PACING := ["pacing_lights","field_car","far_landing","cow_ring","deer_line","green_flash","electrics_fade","dry_road","moving_moon","plow_stopped","warm_air","compass_turns","power_lines","empty_ditch","thaw_glaze","radio_pulse","bare_ring"]
 const CLOSE := ["the_lift","woods_car","mirror_follow","empty_oncoming","streetlights_out","walker","yard_visit","snow_up","nose_car","roof_car","ice_car","tree_car","green_circle","pressed_lines","snow_column","missing_time"]
@@ -18,7 +20,7 @@ var drive := -1
 var used := false
 var seen := {} # last ticket on which each repeatable event appeared
 var once := {} # scripted moments, independent of ambient variations
-var reportable := ""
+var observations := Observations.new()
 var aftermath := {}
 var yard_turned := false
 var active := ""
@@ -30,6 +32,7 @@ var forward := Vector3.FORWARD
 var shoulder := Vector3.ZERO
 var road := ""
 var jumped := false
+var time_lost := false
 var live_identity := {}
 var heard := false
 var reset_mix := false
@@ -52,9 +55,9 @@ static func _unpack(data: Array) -> Vector3:
 
 func save_state() -> Dictionary:
 	return {"drive":drive,"used":used,"seen":seen.duplicate(),"once":once.duplicate(),
-		"reportable":reportable,"aftermath":aftermath.duplicate(true),"yard_turned":yard_turned,
+		"observations":observations.save_state(),"aftermath":aftermath.duplicate(true),"yard_turned":yard_turned,
 		"active":active,"duration":duration,"elapsed":elapsed,"level":level,"origin":_pack(origin),
-		"forward":_pack(forward),"shoulder":_pack(shoulder),"road":road,"jumped":jumped,"delay":delay,"identity":live_identity.duplicate(),"heard":heard}
+		"forward":_pack(forward),"shoulder":_pack(shoulder),"road":road,"jumped":jumped,"time_lost":time_lost,"delay":delay,"identity":live_identity.duplicate(),"heard":heard}
 
 func restore(data: Dictionary, county: Node3D) -> void:
 	if is_instance_valid(scene):
@@ -67,7 +70,8 @@ func restore(data: Dictionary, county: Node3D) -> void:
 	used = data.get("used",false)
 	seen = data.get("seen",{}).duplicate()
 	once = data.get("once",{}).duplicate()
-	reportable = data.get("reportable","")
+	# Old reportable strings were set at spawn and do not establish a sighting.
+	observations.restore(data.get("observations",{}))
 	aftermath = data.get("aftermath",{}).duplicate(true)
 	yard_turned = data.get("yard_turned",false)
 	active = data.get("active","")
@@ -79,6 +83,7 @@ func restore(data: Dictionary, county: Node3D) -> void:
 	shoulder = _unpack(data.get("shoulder",[0,0,0]))
 	road = data.get("road","")
 	jumped = data.get("jumped",false)
+	time_lost = data.get("time_lost",false)
 	delay = data.get("delay",0.)
 	last_filed = -1
 	landing_retry = 0.0
@@ -92,17 +97,39 @@ func restore(data: Dictionary, county: Node3D) -> void:
 		for spec: Array in [["tape_swamp",Vector3(247,0,-391),"Swamp Rd",PI*.5],["tape_dairy",Vector3(391,0,173),"Kolpack Rd",PI],["tape_church",Vector3(-8.4,0,193),"County K",0.0]]:
 			_record("roadside_tape",spec[1],spec[3],0,0,spec[2],_identity(spec[0],spec[1],true),spec[0])
 	for key: String in aftermath:
+		if not aftermath[key].has("observation_key"):
+			aftermath[key].observation_key = "trace/%s/legacy" % key
 		scene.add_remnant(key,aftermath[key])
 	if not active.is_empty():
 		scene.begin(active,origin,forward,shoulder,level,live_identity)
 		scene.animate(active,clampf(elapsed/maxf(duration,.01),0.,1.),0.,origin,forward)
 
-func can_report() -> bool:
-	return not reportable.is_empty()
+func report_options() -> Array[Dictionary]:
+	return observations.options()
 
-func report(stage: int) -> String:
-	reportable = ""
-	return "Copy, Brandt. I see where you are. They like to stay with your truck." if stage >= 4 else "Lights logged. No action. You’re clear to finish your call, Brandt."
+func report(key: String, game) -> String:
+	var note := observations.file(key)
+	if note.is_empty(): return ""
+	var kind: String = note.kind
+	var reply := Reports.reply(kind,game.campaign.stage)
+	if kind not in CASUALTIES: return reply
+	if game.job.get("observation_key","") == key:
+		if game.mode == "invoice": return reply + " I've got it down as delivered. Fax the slip when you're in."
+		return reply + " That's your car on slip %04d. Bring it to storage." % int(game.job.number)
+	var spot: Dictionary = aftermath.get(note.trace,{})
+	if spot.get("observation_key","") != key:
+		return reply + " That one has already been picked up."
+	spot.reported = true
+	if game.rotation_offer.get("aftermath_key","") == note.trace:
+		return reply + " The sheriff signed for that one. Take its tow slip when you're clear and bring it to storage."
+	if game.campaign.stage < 2:
+		return reply + " Leave it there. I'll hold the location for the sheriff."
+	if needs_block(kind) and not game.account.owns("snatch_block"):
+		return reply + " Leave it there. You'll need the snatch block and a tow order."
+	return reply + " I'll put it on the recovery list. Wait for the tow slip, then bring it to storage."
+
+static func needs_block(kind: String) -> bool:
+	return kind in ["tree_car","field_car","nose_car"]
 
 func _identity(kind: String, at: Vector3, tape: bool) -> Dictionary:
 	var digits := ("%s/%d/%d/%d" % [kind,roundi(at.x),roundi(at.z),drive]).hash()
@@ -112,7 +139,7 @@ func _record(id: String, at: Vector3, heading: float, filed: int, height := 0., 
 	if key.is_empty(): key = id
 	if aftermath.has(key): return
 	if id in CASUALTIES and vehicle.is_empty(): vehicle = _identity(id,at,false)
-	aftermath[key] = {"id":id,"x":at.x,"z":at.z,"height":height,"yaw":heading,
+	aftermath[key] = {"observation_key":"trace/%s/%d" % [key,drive],"id":id,"x":at.x,"z":at.z,"height":height,"yaw":heading,
 		"expires":-1 if id in CASUALTIES or id=="roadside_tape" else filed+4,"road":street,"vehicle":vehicle}
 	scene.add_remnant(key,aftermath[key])
 
@@ -130,13 +157,16 @@ func recovery_offer(issued: int, county: Node3D, has_block := true, after_story 
 	# Back ordinary dispatch between extraordinary tows. The last set-down is
 	# the next available order regardless of its position in that rotation.
 	if not aftermath.has("shoulder_car") and issued%11 not in [0,5]: return {}
-	var choices := ["shoulder_car"]+aftermath.keys()
+	var choices := ["shoulder_car"]
+	for key: String in aftermath:
+		if aftermath[key].get("reported",false): choices.append(key)
+	choices.append_array(aftermath.keys())
 	for key: String in choices:
 		if not aftermath.has(key): continue
 		var spot: Dictionary = aftermath[key]
 		var id: String = spot.id
 		if not id in CASUALTIES: continue
-		if not has_block and id in ["tree_car","field_car","nose_car"]: continue
+		if not has_block and needs_block(id): continue
 		var point := Vector3(spot.x,spot.height,spot.z)
 		var street: String = spot.road
 		if street.is_empty(): street = "County K"
@@ -163,6 +193,7 @@ func recovery_offer(issued: int, county: Node3D, has_block := true, after_story 
 func claim_recovery(ticket: Dictionary) -> void:
 	var key: String = ticket.get("aftermath_key","")
 	if not aftermath.has(key): return
+	ticket.observation_key = aftermath[key].observation_key
 	scene.remove_remnant(key)
 	aftermath.erase(key)
 
@@ -295,6 +326,7 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 	if id=="set_down" and landing.is_finite(): shoulder = landing
 	if id=="angie_lights": shoulder = Vector3(444,0,-534)
 	jumped = false
+	time_lost = false
 	heard = false
 	live_identity = _identity(id,shoulder,id=="the_lift")
 	if id in ["the_lift","empty_ditch"]:
@@ -318,7 +350,6 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		var script_key: String = {"mirror_follow":"carrier_follow","hanging_snow":"alder_snow","storm_hole":"tou_sky",
 			"overhead":"ride_overhead","angie_lights":"angie_lights","set_down":"story_set_down"}[id]
 		once[script_key] = true
-	else: reportable = id
 	scene.begin(id,origin,forward,shoulder,level,live_identity)
 	if id in CASUALTIES or id in ["cow_ring","bare_ring","green_circle","pressed_lines","empty_ditch","dry_road","snow_roof"]:
 		var fixed_at: Vector3 = FIXED.get(id,Vector3.ZERO)
@@ -418,6 +449,7 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 			if jump.is_finite():
 				game.rig.set_spawn(jump,game.rig.heading)
 				game.shift_seconds += 40.*60.
+				time_lost = true
 				game._speak("DISPATCH","There you are. I’ve been calling for forty minutes, Brandt.")
 	if t >= 1.0: finish(game)
 

@@ -87,6 +87,10 @@ func run() -> void:
 
 	key(KEY_R)
 	await redraw()
+	check(game.desk.page == "radio" and game.job.is_empty(), "R opens the transceiver without taking a contract")
+	check_text("Report a sighting", true)
+	key(KEY_ENTER)
+	await redraw()
 	check_text("red triangle", true)
 	var route := str(game._road_note().get("instruction", ""))
 	var procedure := str(game.state.progress)

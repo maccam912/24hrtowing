@@ -15,6 +15,7 @@ var fax_index := -1
 var fax_sheet := -1
 var atlas_notes := false
 var notes_page := 0
+var sighting_page := -1
 var fps := 30
 var _touch_mode := false
 var _touches: Dictionary = {}
@@ -79,6 +80,8 @@ func dismiss() -> void:
 func toggle_pause() -> void:
 	if page.is_empty():
 		_change_page("pause" if started else "title")
+	elif page == "radio" and sighting_page >= 0:
+		_change_page("radio")
 	else:
 		dismiss()
 
@@ -88,6 +91,7 @@ func _change_page(id: String) -> void:
 	slip_index = -1
 	fax_index = -1
 	fax_sheet = -1
+	sighting_page = -1
 	_clear_controls()
 	if surface:
 		surface.hit_boxes.clear()
@@ -251,9 +255,18 @@ func _activate(id: String) -> void:
 		"respond", "directions", "send_fax":
 			_change_page("")
 			action.emit({"respond":"rotation", "directions":"talk_in", "send_fax":"fax"}[id])
-		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "report_notes", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "report_sighting", "roadside_fuel":
+		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "report_notes", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "roadside_fuel":
 			_change_page("")
 			action.emit(id)
+		"report_sighting", "back_to_radio", "prev_sightings", "next_sightings":
+			match id:
+				"report_sighting": sighting_page = 0
+				"back_to_radio": sighting_page = -1
+				"prev_sightings": sighting_page -= 1
+				"next_sightings": sighting_page += 1
+			surface.hover = ""
+			surface.hit_boxes.clear()
+			surface.queue_redraw()
 		"mark_sketch":
 			atlas_notes = true
 			notes_page = 0
@@ -288,3 +301,7 @@ func _activate(id: String) -> void:
 			surface.queue_redraw()
 		"interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
+		_:
+			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):
+				_change_page("")
+				action.emit(id)

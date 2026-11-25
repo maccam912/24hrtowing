@@ -30,6 +30,7 @@ const TOP_ROW_HEIGHT := 94.0
 var desk
 var docs := Documents.new()
 var hit_boxes: Array[Dictionary] = []
+var hud_panels: Array[Rect2] = []
 var hover := ""
 var stick_center := Vector2.ZERO
 var dim: Vector2
@@ -60,6 +61,14 @@ func hit_at(point: Vector2) -> String:
 		if (hit_boxes[i].rect as Rect2).has_point(point):
 			return str(hit_boxes[i].id)
 	return ""
+
+# Compare a world-camera projection with the controls and gauges actually drawn
+# at this aspect ratio. Captions, pedals and the clipboard can cover a sighting.
+func covers_world_point(screen_fraction: Vector2) -> bool:
+	var at := screen_fraction * dim
+	for panel in hud_panels:
+		if panel.has_point(at): return true
+	return not hit_at(at).is_empty()
 
 func key_choices() -> Array:
 	var options := []
@@ -142,6 +151,7 @@ func _draw() -> void:
 	dim = size / unit
 	draw_set_transform(Vector2.ZERO, 0, Vector2.ONE * unit)
 	hit_boxes.clear()
+	hud_panels.clear()
 	drawn = desk.state
 	match desk.page:
 		"title":
@@ -272,9 +282,9 @@ func _menu() -> void:
 			var line_y := y+94
 			var entries: Array
 			if desk.is_touch_mode():
-				entries = [["DRIVE","Hold either side of the wheel to steer. Hold GAS to accelerate."],["BRAKE / REV","Hold the brake to stop. Press it again from rest to back up."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","In the cab, tap RADIO, then Take contract."],["PAPER","PLAT and SLIP open a lap view while moving."]]
+				entries = [["DRIVE","Hold either side of the wheel to steer. Hold GAS to accelerate."],["BRAKE / REV","Hold the brake to stop. Press it again from rest to back up."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","Tap RADIO to take a call or report a sighting."],["PAPER","PLAT and SLIP open a lap view while moving."]]
 			else:
-				entries = [["W A S D","Drive or walk. Use the mouse to look around."],["E","Step out, climb aboard, or use the point you face."],["SPACE","Brake in the cab. Hold at the side panel to winch."],["R   /   T","Answer the radio or ask Arlene for directions."],["M   /   J","Open the plat book or tow slip. Press again to stow."],["C","Switch between chase and cab view while driving."],["ESC","Put down a document or open the truck log."]]
+				entries = [["W A S D","Drive or walk. Use the mouse to look around."],["E","Step out, climb aboard, or use the point you face."],["SPACE","Brake in the cab. Hold at the side panel to winch."],["R   /   T","R opens the cab radio. T asks Arlene for directions."],["M   /   J","Open the plat book or tow slip. Press again to stow."],["C","Switch between chase and cab view while driving."],["ESC","Put down a document or open the truck log."]]
 			for entry in entries:
 				text(Vector2(x,line_y),entry[0],MONO,15,BLUE)
 				text(Vector2(x+132,line_y),entry[1],print_face,17,INK)
@@ -387,6 +397,7 @@ func _hud() -> void:
 		var size_prompt := 19
 		var length := minf(line_width,subtle.get_string_size(feedback,HORIZONTAL_ALIGNMENT_LEFT,-1,size_prompt).x)
 		var box := Rect2((dim.x-length)*.5-10,dim.y*.555,length+20,33)
+		hud_panels.append(box)
 		draw_rect(box, Color(0.045,0.065,0.07,0.77))
 		draw_rect(Rect2(box.position,Vector2(2,box.size.y)),AMBER)
 		fitted(box.grow(-4),feedback,subtle,size_prompt,WHITE)
@@ -397,6 +408,7 @@ func _hud() -> void:
 		var height := maxf(73,32+line_height)
 		var top := TOP_ROW_Y+TOP_ROW_HEIGHT+10 if desk.is_touch_mode() else dim.y-24-height
 		var box := Rect2((dim.x-available)*0.5,top,available,height)
+		hud_panels.append(box)
 		draw_rect(box,Color(0.035,0.048,0.055,0.86))
 		draw_rect(Rect2(box.position,Vector2(3,box.size.y)),AMBER)
 		var who := str(drawn.get("speaker","DISPATCH")).to_upper()
@@ -419,15 +431,18 @@ func _driving_view() -> void:
 		_control("camera",camera_box,destination)
 	else:
 		camera_box = Rect2(right-165,16,165,37)
+		hud_panels.append(camera_box)
 		switch_face(camera_box,RUBBER)
 		var key := Rect2(camera_box.position+Vector2(6,5),Vector2(27,26))
 		switch_face(key,CREAM)
 		fitted(key,"C",scaled,18,DARK)
 		fitted(camera_box.grow_individual(-37,-2,-6,-2), "Switch to cab" if chase else "Switch to chase",subtle,17,WHITE)
 	var compass := Rect2(camera_box.position.x-101,maxf(6, camera_box.get_center().y-(36 if chase else 20)),92,41)
+	hud_panels.append(compass)
 	_dash_compass(compass)
 	if chase:
 		var meter := Rect2(compass.position.x,compass.end.y+1,92,49)
+		hud_panels.append(meter)
 		switch_face(meter,Color("#292d29"),true)
 		draw_rect(meter.grow(-4),Color("#151b18"))
 		fitted(Rect2(meter.position+Vector2(7,1),Vector2(42,29)),"%d" % roundi(absf(float(drawn.get("speed_mph",0)))),LCD,23,AMBER,HORIZONTAL_ALIGNMENT_RIGHT)
@@ -486,7 +501,8 @@ func _mobile() -> void:
 		for i in [-1,0,1]:
 			rule(thumb.x-11,thumb.y+i*5,22,Color("#47453a"),1.6)
 		hit("stick",Rect2(stick_center-Vector2.ONE*STICK_RADIUS,2*Vector2.ONE*STICK_RADIUS).grow(8))
-		_control("interact",Rect2(right-144,bottom-112,144,112),"ENTER CAB" if drawn.get("can_enter_cab",false) else "USE")
+		var use_label := "INSPECT" if drawn.get("can_inspect_sighting",false) else "USE"
+		_control("interact",Rect2(right-144,bottom-112,144,112),"ENTER CAB" if drawn.get("can_enter_cab",false) else use_label)
 		if drawn.get("work_available",false):
 			_control("work",Rect2(right-144,bottom-112-THUMB_GAP-106,144,106),"WINCH")
 
@@ -507,6 +523,7 @@ func _tension_dial() -> void:
 	var value := clampf(float(drawn.get("tension",0.0)),0,1)
 	var slipping := str(drawn.get("prompt","")).contains("slipped")
 	var face := Rect2(dim.x*.5 - 65,dim.y*.64,130,75)
+	hud_panels.append(face)
 	var pivot := Vector2(face.get_center().x,face.position.y+51)
 	draw_rect(face, Color("#222c2b"))
 	draw_rect(face.grow(-3),Color("#c3c1a7"))

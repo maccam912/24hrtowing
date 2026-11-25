@@ -6,7 +6,7 @@ You run Brandt Towing & Recovery in Esker, Wisconsin. The county is under a tow 
 
 ## Your first call
 
-Start the engine. Tap **RADIO**, then **Take contract**, or press **R** on desktop. Arlene starts you with a nearby ditch pull. Listen for the road, the landmark and the side the car went off. Your first call might take you past St. Hedwig’s, the co-op or the ginseng frames.
+Start the engine. Tap **RADIO** or press **R** on desktop, then choose **Take contract**. Arlene starts you with a nearby ditch pull. Listen for the road, the landmark and the side the car went off. Your first call might take you past St. Hedwig’s, the co-op or the ginseng frames.
 
 On ordinary pulls and hazard tows, look for a red folding triangle in the snow beside your pickup. If two cars look alike, ask Arlene for directions. She’ll read back the vehicle and plate from your slip.
 
@@ -30,7 +30,7 @@ When you’re back at the yard, walk to the fax under the **OFFICE / FAX** sign 
 | Walk | Left thumb pad | WASD or arrows |
 | Step out, enter, or handle equipment | EXIT CAB appears at a full stop. On foot, tap ENTER CAB or USE. | E |
 | Operate the winch at its panel | Hold WINCH | Hold Space or F |
-| Accept a call, contact dispatch, or ask directions | RADIO, then choose a response | R to answer or choose a case contact, T for directions |
+| Take a call, report a sighting, or ask for directions | Tap RADIO, then choose a response | Press R to open the radio, or T for directions |
 | Plat book and current slip | PLAT or SLIP | M or J |
 | Set down paper or pause | Stow or pause button, Android Back | Escape |
 
@@ -48,7 +48,9 @@ Park in the yard and walk to the office fax to buy diesel or fit equipment. You 
 
 A **$175 snatch block** lets you rig a double line for loaded pickups. Once it’s fitted, Arlene can offer county utility trucks on rotation. Heavy recoveries pay an extra $36. **$95 tire chains** improve grip and braking and help the wrecker through deep snow. The office also services a worn winch for $24.
 
-The first two jobs give you time to learn the wrecker. On later drives you can keep working through a sighting, or use **RADIO → Call in the lights**. If Arlene sends you to a driver in a summer shirt, offer them the passenger seat and stop by the pumps at Esker Fuel & Food. Check the fax after your fifth ordinary job for the first lead in the county survey case. If something catches your eye on the road, park, walk over and press **E** or tap **USE** to examine it. Your observations stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
+The first two jobs give you time to learn the wrecker. If something catches your eye on the road, keep it in view for a moment. For a closer look at something left behind, park, walk over and press **E** or tap **USE**. In the cab, choose **RADIO → Report a sighting**, then pick what you saw. Arlene will log it and tell you what to do. Your current slip stays open. If a vehicle needs a tow and your rig has the equipment, the sheriff can authorize its recovery on a later rotation call.
+
+If Arlene sends you to a driver in a summer shirt, offer them the passenger seat and stop by the pumps at Esker Fuel & Food. Check the fax after your fifth ordinary job for the first lead in the county survey case. Your case notes stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
 
 Choose **Track unpaid stop** on the favor’s fax or on the cab radio. You can make it your next stop even with a paying slip open. Arlene will give you turns, and **Directions & next action** in the truck log tells you what to do on arrival. Look for the red triangle between two amber lamps at a marked stop. You can switch back to the tow at any time. If a lead sits for several calls or a long drive, Arlene gets more specific about where to look. When the favor leads to a paid county assignment, take that call on the radio.
 

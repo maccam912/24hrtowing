@@ -20,6 +20,8 @@ var roadside := Vector3.ZERO
 var street_lamps: Array = []
 var remnants := {}
 var passing_light := OmniLight3D.new()
+var progress := 0.0
+var intensity := 0.0
 
 func setup(county: Node3D) -> void:
 	world = county
@@ -131,6 +133,7 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 	var at := Vector3(entry.x,0,entry.z)
 	var id: String = entry.id
 	var facing := Vector3.FORWARD.rotated(Vector3.UP,float(entry.get("yaw",0)))
+	var points := PackedVector3Array()
 	match id:
 		"field_car","nose_car","tree_car","roof_car","ice_car","gate_car","shoulder_car","walker_car","roadside_tape":
 			var vehicle: Dictionary = entry.get("vehicle",{})
@@ -143,12 +146,14 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 			elif id == "nose_car":
 				car.rotate_object_local(Vector3.RIGHT,-PI*.5)
 				car.position.y += 2.16
+			points.append(car.transform * (Vector3.UP*.85))
 		"cow_ring":
 			for i in 11:
 				var radial := Vector3(cos(i*TAU/11),0,sin(i*TAU/11))
 				var cow := _animal(parent,true)
 				cow.position = ground(at+radial*11.)
 				cow.rotation.y = atan2(radial.x,radial.z)
+				points.append(cow.position+Vector3.UP)
 		"pressed_lines","dry_road","snow_roof":
 			var grooves := Kit.new(parent)
 			var side := facing.cross(Vector3.UP)
@@ -156,8 +161,13 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 				var pos := ground(at+side*(i-2)*1.45) if id=="pressed_lines" else ground(at)
 				grooves.box(pos+Vector3.UP*.06,Vector3(.32 if id=="pressed_lines" else 8.0,.045,28 if id=="pressed_lines" else 105),Color("#535e65" if id=="pressed_lines" else "#3f4649"),Vector3(0,entry.get("yaw",0),0))
 			grooves.finish()
+			var half_length := 14.0 if id=="pressed_lines" else 52.5
+			for offset: float in [-half_length, 0.0, half_length]:
+				points.append(ground(at)+facing*offset+Vector3.UP*.08)
 		"hoofprints","bootprints":
 			_marks(parent,at,facing,id=="hoofprints")
+			for step: int in [0,14,28]:
+				points.append(ground(at+facing*step*.73)+Vector3.UP*.06)
 		"woods_tracks":
 			_tree_gap(parent,at,facing)
 			var tread := Kit.new(parent)
@@ -168,13 +178,27 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 					tread.box(p,Vector3(.21,.045,1.24),Color("#89949b"),Vector3(0,entry.yaw,0))
 			tread.finish()
 			_ground_patch(parent,at+facing*21.,4.0,false)
+			for offset: float in [0.,10.,21.]:
+				points.append(ground(at+facing*offset)+Vector3.UP*.08)
 		"empty_ditch":
 			_ground_patch(parent,at,3.,false)
 			var tape := Kit.new(parent)
 			tape.box(ground(at)+Vector3.UP*.12,Vector3(1.16,.02,.16),Color("#f5d22e"))
 			tape.finish()
+			points.append(ground(at)+Vector3.UP*.12)
 		_:
 			_ground_patch(parent,at,6.4,id=="green_circle")
+			points.append(ground(at)+Vector3.UP*.12)
+			for offset: Vector3 in [Vector3.RIGHT,Vector3.LEFT,Vector3.FORWARD,Vector3.BACK]:
+				points.append(ground(at+offset*5.8)+Vector3.UP*.12)
+	parent.set_meta("report_points",points)
+
+func remnant_evidence(key: String) -> PackedVector3Array:
+	var model: Node3D = remnants.get(key)
+	if not is_instance_valid(model) or not model.is_visible_in_tree():
+		return PackedVector3Array()
+	var points: PackedVector3Array = model.get_meta("report_points")
+	return model.global_transform * points
 
 func _tree_gap(parent: Node3D, at: Vector3, along: Vector3) -> void:
 	var grove := Batch.new(parent,world.materials)
@@ -193,6 +217,8 @@ func remove_remnant(key: String) -> void:
 		remnants.erase(key)
 
 func clear_live() -> void:
+	intensity = 0.0
+	progress = 0.0
 	lights.hide()
 	passing_light.hide()
 	for lamp: Node3D in street_lamps:
@@ -217,7 +243,9 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 	var distance := 225. if level <= 1 else (140. if level == 2 else 92.)
 	sky_origin = ground(starting+forward*distance+crossroad*distance*.44)+Vector3.UP*(distance*.16)
 	if id == "swamp_lights":
-		sky_origin = ground(starting+forward*215.+crossroad*57.)+Vector3.UP*40.
+		# Keep the first three lamps just above the distant treeline. Higher
+		# lights fall behind the compass on the downward-looking chase view.
+		sky_origin = ground(starting+forward*295.-crossroad*10.)+Vector3.UP*13.
 	if id in ["set_down","the_lift","far_landing","snow_column","snow_up","angie_lights"]:
 		sky_origin = roadside+Vector3.UP*(24. if id=="set_down" else 19.)
 	if id == "yard_visit": sky_origin = Vector3(-44,24,-77)
@@ -233,6 +261,7 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 			if id=="woods_car": _tree_gap(props,roadside+crossroad*7.,crossroad)
 		"walker":
 			actor = Car.person(props,false)
+			actor.position = roadside
 			Car.walk_person(actor)
 			actor.rotation.y = atan2(-crossroad.x,-crossroad.z)
 		"deer_line":
@@ -276,6 +305,8 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 			motes.finish()
 
 func animate(id: String, t: float, strength: float, truck_at: Vector3, heading: Vector3) -> Vector3:
+	progress = t
+	intensity = strength
 	var location := sky_origin
 	match id:
 		"pacing_lights","compass_turns","electrics_fade","radio_pulse":
@@ -323,9 +354,68 @@ func animate(id: String, t: float, strength: float, truck_at: Vector3, heading: 
 	var show_lights := id not in ["the_calm","warm_air","green_flash","moving_moon","missing_time","snow_roof","dry_road","thaw_glaze"]
 	lights.visible = show_lights and strength>.02
 	var lamp_scale := .72 if id in ["overhead","set_down"] else 1.0
+	if id == "swamp_lights": lamp_scale = 1.55
 	lights.scale = Vector3.ONE*lamp_scale
 	lamps_material.set_shader_parameter("tint",Color(.76,1.0,.86,strength))
 	passing_light.visible = id in ["overhead","storm_hole","set_down","the_lift","angie_lights"] and strength>.02
 	passing_light.position = location
 	passing_light.light_energy = strength*4.8
 	return location if lights.visible else Vector3.INF
+
+func lamp_points() -> PackedVector3Array:
+	var points := PackedVector3Array()
+	if lights.is_visible_in_tree() and intensity >= .35:
+		for lamp: Node3D in lights.get_children():
+			points.append(lamp.global_position)
+	return points
+
+## Only return features that distinguish this encounter. Sky lights accompany many
+## events, but seeing them alone doesn't identify an overturned car or a deer line.
+func live_evidence(id: String) -> PackedVector3Array:
+	var points := PackedVector3Array()
+	if not is_instance_valid(props) or not props.is_visible_in_tree():
+		return points
+	match id:
+		"swamp_lights","pacing_lights","mirror_follow","overhead","yard_visit","angie_lights","far_landing":
+			return lamp_points()
+		"set_down","the_lift","woods_car","empty_oncoming","walker","plow_stopped":
+			if is_instance_valid(actor) and actor.is_visible_in_tree():
+				if id=="the_lift" and actor.position.y < roadside.y+.5: return points
+				if id=="woods_car" and progress < .14: return points
+				points.append(actor.to_global(Vector3.UP))
+		"deer_line":
+			for deer: Node3D in props.get_children():
+				points.append(deer.to_global(Vector3.UP))
+		"snow_up","snow_column":
+			for height: float in [2.,8.,15.]:
+				points.append(props.to_global(roadside+Vector3.UP*height))
+		"streetlights_out":
+			for lamp: Node3D in street_lamps:
+				if is_instance_valid(lamp) and not lamp.visible:
+					points.append(lamp.global_position)
+		"power_lines":
+			if progress > .1:
+				for i in 28:
+					var tuft := props.get_child(i) as Node3D
+					if tuft.visible: points.append(tuft.global_position)
+		_:
+			return remnant_evidence(id)
+	return points
+
+## Wind, illumination and dashboard effects are perceptible without facing a prop.
+func has_sensory_evidence(id: String, in_cab: bool, safe_electrics: bool) -> bool:
+	if intensity < .35: return false
+	match id:
+		"green_flash":
+			return intensity*pow(maxf(0.,sin(progress*10.)),10.) > .2
+		"the_calm","moving_moon","hanging_snow","storm_hole":
+			return true
+		"warm_air","thaw_glaze","radio_pulse","compass_turns":
+			return in_cab
+		"electrics_fade":
+			return in_cab and safe_electrics
+		"missing_time":
+			return in_cab and progress >= .45
+		"snow_roof":
+			return intensity >= .8
+	return false

@@ -214,6 +214,7 @@ func _physics_process(dt: float) -> void:
 			move = Vector2.ZERO
 			look = Vector2.ZERO
 		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working,brake,dt)
+		sightings.observations.sample(dt,self,sightings)
 		if rig.get_status().get("working",false):
 			seconds_worked += dt
 		save_timer += dt
@@ -297,12 +298,7 @@ func _action(id: String) -> void:
 			get_tree().physics_frame.connect(_frame_parked_truck,CONNECT_ONE_SHOT)
 		"radio":
 			if rig.get_status().in_cab:
-				if fuel_wait_left > 0.0 or _needs_fuel_can() or sightings.can_report() or not _radio_contact().is_empty() or _can_track_lead() or (mode == "available" and _case_due()):
-					desk.show_document("radio",state)
-				elif mode == "available":
-					_take_rotation()
-				else:
-					_directions()
+				desk.show_document("radio",state)
 			else:
 				_message("BRANDT","The county radio is in the cab.")
 		"rotation": _take_rotation()
@@ -340,10 +336,6 @@ func _action(id: String) -> void:
 				survey.record("sketch",rig.odo)
 				desk.show_document("map",state)
 				_save()
-		"report_sighting":
-			if rig.in_cab and sightings.can_report():
-				_speak("DISPATCH",sightings.report(campaign.stage))
-				_save()
 		"talk_in":
 			if rig.get_status().in_cab:
 				_directions()
@@ -376,6 +368,12 @@ func _action(id: String) -> void:
 		"quit":
 			_save()
 			get_tree().quit()
+		_:
+			if active and rig.in_cab and id.begins_with("sighting:"):
+				var reply := sightings.report(id.trim_prefix("sighting:"),self)
+				if not reply.is_empty():
+					_speak("DISPATCH",reply)
+					_save()
 	_refresh()
 
 func _needs_fuel_can() -> bool:
@@ -804,6 +802,8 @@ func _site_action() -> String:
 		return "field"
 	if _facing(PUMP_ISLANDS[0],4.5) or _facing(PUMP_ISLANDS[1],4.5):
 		return "fuel"
+	if rig.action_id().is_empty() and not sightings.observations.inspectable(self,sightings).is_empty():
+		return "inspect_sighting"
 	return ""
 
 func _chain_obstruction() -> String:
@@ -825,8 +825,16 @@ func _interact() -> void:
 		_save()
 		return
 	match site:
+		"inspect_sighting":
+			var note := sightings.observations.inspectable(self,sightings)
+			if not note.is_empty():
+				sightings.observations.remember(note)
+				_message("BRANDT",sightings.Reports.inspection(note.kind))
+				_save()
 		"unit","rod","house","farm_ring":
 			survey.record(site,rig.odo)
+			if site == "farm_ring":
+				sightings.observations.remember({"key":site,"kind":site})
 			if site in ["house","farm_ring"]:
 				_finish_favor("farm")
 			if site == "rod":
@@ -1156,7 +1164,7 @@ func _contract_hint(site: String) -> Dictionary:
 			elif desk.is_touch_mode():
 				instruction = "Tap RADIO, then Take contract."
 			else:
-				instruction = "Press R to take a contract on the cab radio."
+				instruction = "Press R, then choose Take contract."
 		"fieldwork":
 			if job.has("case_id"):
 				instruction = casework.procedure()
@@ -1206,7 +1214,7 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
-	var words := {"summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"inspect_sighting":"Take a closer look","summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1332,13 +1340,14 @@ func _refresh() -> void:
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
+		"can_inspect_sighting":site == "inspect_sighting",
 		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and (not rig.is_chocked() or rig.fuel <= 0.0) and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
 		"job":ticket,"slips":slips,"pending_slips":pending_slips,"fax_count":_fax_count(),"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
-		"offer":rotation_offer,"radio_contact":_radio_contact(),"can_report_sighting":sightings.can_report(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
+		"offer":rotation_offer,"radio_contact":_radio_contact(),"sighting_reports":sightings.report_options(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
 		"case_lead":_dispatch_lead_briefing(),
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
@@ -1359,6 +1368,8 @@ func _refresh() -> void:
 	state["case_chapter"] = campaign.chapter()
 	state["favor_point"] = favor_point
 	state["favor_available"] = state.can_track_lead and not casework.lead_site().is_empty()
+	if site == "inspect_sighting" and not desk.is_touch_mode() and state.feedback.is_empty():
+		state.feedback = "E  ·  Take a closer look"
 	state["recovery_restarts_job"] = _restart_on_recovery()
 	state["recovery_due"] = account.recovery_due
 	state["heading_degrees"] = s.heading
@@ -1420,9 +1431,13 @@ func _restore(s: Dictionary) -> void:
 	rotation_offer = Dispatch.unpack(s.get("offer",{}))
 	case_offer = Dispatch.unpack(s.get("case_offer",{}))
 	job = Dispatch.unpack(s.get("ticket",{}))
+	if job.has("aftermath_key") and not job.has("observation_key"):
+		job.observation_key = "order/%d/%s" % [int(job.number),job.aftermath_key]
 	if mode != "available" and job.is_empty():
 		job = Dispatch.legacy_ticket(completed,audio.lines)
 	survey.restore(s.get("survey",{}),held,job.get("kind",""))
+	if survey.notes.has("farm_ring") and not survey.farm_reported:
+		sightings.observations.remember({"key":"farm_ring","kind":"farm_ring"})
 	if not s.has("account") and survey.pending_order() == "hold" and case_offer.is_empty():
 		case_offer = Dispatch.hold_ticket(completed,audio.lines)
 		case_offer.point = county.survey_point
