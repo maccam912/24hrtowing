@@ -9,6 +9,7 @@ const Rollback := preload("res://scripts/rollback_deck.gd")
 const Flowage := preload("res://scripts/flowage_pull.gd")
 const Rollover := preload("res://scripts/rollover.gd")
 const Levers := preload("res://scripts/recovery_levers.gd")
+const Roof := preload("res://scripts/coop_roof.gd")
 const TreeRecovery := preload("res://scripts/tree_recovery.gd")
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
@@ -58,7 +59,10 @@ var rollback_deck: Rollback
 var flowage: Flowage
 var rollover: Rollover
 var active_levers: Levers:
-	get: return tree_recovery if tree_recovery else rollover
+	get:
+		if roof: return roof
+		return tree_recovery if tree_recovery else rollover
+var roof: Roof
 var tree_recovery: TreeRecovery
 var special_work := 0.0
 var second_line := false
@@ -640,6 +644,7 @@ func _update_engine(demand:float, dt:float) -> void:
 	engine_rpm = lerpf(engine_rpm, target_rpm, 1.0-exp(-6.0*dt))
 
 func _walk(move:Vector2, dt:float) -> void:
+	if roof and roof.step(self,move,dt): return
 	var dir:=Vector3(move.x,0,move.y).rotated(Vector3.UP,camera_yaw)
 	var start:=foot
 	var dest:=foot+dir.limit_length(1)*dt*(3.55 if phase!="cable" else 3.0)
@@ -783,7 +788,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "mail", "running", "open_door", "untaped"]:
+	for key in ["sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -823,6 +828,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	if _recovery() == "ice" and Flowage.on_flowage(job_site):
 		flowage = Flowage.new()
 		flowage.fit_marks(self)
+	if _recovery() == "roof" and vehicle_identity.get("canopy_spreader",false): roof = Roof.new()
 	if _recovery() == "tree": tree_recovery = TreeRecovery.new()
 	if _roll_job() and vehicle_identity.get("two_drum_roll",false): rollover = Rollover.new()
 	_set_car_lamps("running" if _running_car() else "hazard")
@@ -876,6 +882,8 @@ func send_cot_inside() -> bool:
 
 func end_job() -> void:
 	if rollback_deck: rollback_deck.reset()
+	if roof: roof.clear()
+	roof = null
 	if tree_recovery: tree_recovery.clear_sling()
 	tree_recovery = null
 	if flowage and is_instance_valid(flowage.markers): flowage.markers.queue_free()
@@ -1091,6 +1099,10 @@ func action_id() -> String:
 		var deck_action := rollback_deck.action(self,panel_range)
 		if not deck_action.is_empty(): return deck_action
 		if phase == "at_lift" or not rollback_deck.motion.is_empty(): return ""
+	if roof:
+		var roof_action := roof.action(self,panel_range)
+		if not roof_action.is_empty(): return roof_action
+		if roof.on_roof or roof.ladder >= 0. or (phase in ["cable","rigged"] and special_work<1.): return "enter" if _at_door() else ""
 	if flowage:
 		var bank_action := flowage.action(self,panel_range)
 		if not bank_action.is_empty(): return bank_action
@@ -1157,6 +1169,7 @@ func context_text() -> String:
 	var action:=action_id()
 	if action == "deck_unload": return "Lower the bed at %s" % dropoff.sign
 	if action == "deck_store": return "Aim the tail at the amber lamps at %s" % dropoff.sign
+	if Roof.PROMPTS.has(action): return Roof.PROMPTS[action]
 	if Rollback.PROMPTS.has(action): return Rollback.PROMPTS[action]
 	if rollback_active and action == "winch" and rollback_deck.hauls(self):
 		var control := "WINCH" if OS.has_feature("mobile") else "Space"
@@ -1220,6 +1233,9 @@ func context_text() -> String:
 func _hint() -> String:
 	if not in_cab and is_chocked() and fuel <= 0.0:
 		return reserve_hint()
+	if roof:
+		var roof_note := roof.hint(self)
+		if not roof_note.is_empty(): return roof_note
 	if rollback_active:
 		var deck_note := rollback_deck.instruction(self)
 		if not deck_note.is_empty(): return deck_note
@@ -1272,6 +1288,10 @@ func _hint() -> String:
 
 func interact() -> void:
 	var a:=action_id()
+	if roof and a.begins_with("roof_"):
+		if a in ["roof_setup","roof_boom"] and fuel <= 0.: _note(reserve_hint(),5.)
+		else: roof.handle(self,a)
+		return
 	if rollback_active and a.begins_with("deck_"):
 		rollback_deck.handle(self,a)
 		return
@@ -1666,6 +1686,9 @@ func _cable_curve() -> void:
 		pulley.global_transform=body.global_transform*Transform3D(Basis.IDENTITY,Vector3(-.89,1.85,3.40))
 	if not phase in ["cable","rigged","at_lift","dollies"]: return
 	if rollback_active and rollback_deck.motion == "return": return
+	if roof and special_work<1.:
+		if roof.installed: roof.lines(self)
+		return
 	if semi:
 		semi.draw_lines(self)
 		return
@@ -1721,6 +1744,14 @@ func _cable_strand(a: Vector3, b: Vector3) -> void:
 	cable_mesh.surface_end()
 
 func _update_highlight() -> void:
+	if roof and special_work<1. and phase in ["cable","rigged"]:
+		highlight.visible = false
+		if assist and roof.on_roof and roof.slings != 3:
+			var side := -1. if not (roof.slings & 1) else 1.
+			if roof.slings==0 and foot.distance_to(roof.pin(self,1.))<foot.distance_to(roof.pin(self,-1.)): side=1.
+			highlight.global_position = roof.pin(self,side)
+			highlight.visible = true
+		return
 	if rollover and (phase == "cable" or (phase == "rigged" and special_work >= 1. and not rollover.check_cleared)):
 		var side := 1. if second_line else -1.
 		var eye := _side_eye(side)
@@ -1795,6 +1826,7 @@ func save_state() -> Dictionary:
 		d.rollback_deck = rollback_deck.save_state()
 	if flowage: d.flowage = flowage.save_state()
 	if rollover: d.rollover = {"fetched":rollover.fetched,"clear":rollover.check_cleared,"preload":rollover.preload_fraction,"controls":rollover.controls,"watch_load":rollover.watch_load}
+	if roof: d.roof_spreader = roof.save_state()
 	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
 	if aux_tank and aux_tank.visible: d.reserve_fuel = reserve_fuel
 	if semi: d.freight = semi.snapshot()
@@ -1897,6 +1929,7 @@ func restore_state(d:Dictionary) -> void:
 			rollover.preload_fraction = clampf(drums.get("preload",0.),0.,1.)
 			rollover.controls = drums.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
 			rollover.watch_load = drums.get("watch_load",true)
+		if roof: roof.restore(self,d.get("roof_spreader",{}))
 		if tree_recovery:
 			var boom: Dictionary = d.get("tree_boom",{})
 			tree_recovery.block_set = boom.get("block",phase == "rigged" or special_work > 0.)

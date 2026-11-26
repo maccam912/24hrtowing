@@ -2050,6 +2050,12 @@ func _refresh() -> void:
 		state["ice_line"] = rig.flowage.meter(rig)
 	if rig.rollover and rig.rollover.controls:
 		state["drum_instruction"] = rig.rollover.instruction(rig)
+	if rig.roof and not rig.in_cab:
+		state["roof_action"] = rig.action_id()
+		state["roof_ladder"] = rig.roof.ladder >= 0.
+		if rig.roof.controls:
+			state["boom_instruction"] = rig.roof.instruction(rig)
+			state["roof_slew"] = true
 	if rig.tree_recovery and rig.tree_recovery.controls:
 		state["boom_instruction"] = rig.tree_recovery.instruction(rig)
 	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM

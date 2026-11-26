@@ -68,7 +68,7 @@ const RECOVERIES := {
 	"level_field_car": ["level_field", "sitting upright in the hay", "Back in from Kolpack Road. The stock drum will reach from the firm edge of the field.", "", 0.0],
 	"field_car": ["roll", "upside down in a field", "Rig two lines and roll it onto its wheels.", "Vehicle inverted, no approach", 85.0],
 	"nose_car": ["nose", "standing on its front bumper", "Check it with a second line before lowering it.", "Vehicle inverted, no approach", 85.0],
-	"roof_car": ["roof", "on the co-op roof", "Set up on the street side and lower it with the boom.", "Vehicle on structure", 95.0],
+	"roof_car": ["roof", "on the co-op roof", "Park in the striped pocket west of the canopy, hood toward County K. The co-op keeps a service ladder on the west end.", "Vehicle on structure", 95.0],
 	"tree_car": ["tree", "up in the tamaracks", "Set the boom and reeve the snatch block.", "Vehicle on structure", 95.0],
 	"ice_car": ["ice", "on the flowage ice", "Take River Rd north from the east end of the Highway 64 bridge. Back toward the ice at the landing and run out the long cable.", "Vehicle on ice", 70.0],
 	"shoulder_car": ["gate", "on the shoulder with the headlights on", "The sheriff authorizes recovery where found.", "", 0.0],
@@ -88,6 +88,7 @@ static func impossible(completed: int, event_id: String, point: Vector3, route: 
 		"rate_name":spec[3], "rate_fee":spec[4], "running":true, "reply":"clear", "run":route,
 		"dispatch":"Brandt, there's a blue sedan %s at %s. %s Sheriff wants it in storage." % [spec[1],landmark,spec[2]],
 		"directions":approach + " " + str(spec[2]), "schedule":_scheduled_miles(Vector2(point.x,point.z))}
+	if event_id == "roof_car": ticket.canopy_spreader = true
 	if event_id in ["field_car","nose_car"]:
 		ticket.two_drum_roll = true
 		var position := "upside down" if event_id == "field_car" else "standing on its front bumper"

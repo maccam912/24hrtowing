@@ -348,6 +348,7 @@ func esker() -> void:
 	for xx: float in [-4.96,4.96]:
 		b(xx,2.18,12.04,.20,4.36,.21,"oxide",true)
 		beam(Vector3(xx,3.2,12.04),Vector3(xx,4.33,10.70),.12,.14,"post")
+	preload("res://scripts/coop_roof.gd").furnish(self)
 	placard(Vector3(-7.56,4.5,0),"ESKER CO-OP",9.2,1.28,-PI*.5,"oxide")
 	for xx:float in [11.5,17.4]:
 		cyl(xx,6.4,-1,5.5,12.8,"silver",true)

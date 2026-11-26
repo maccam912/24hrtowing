@@ -348,10 +348,12 @@ func _bed(k) -> void:
 func aim_boom(at: Vector3) -> void:
 	var toward := to_local(at)-boom.position
 	boom.rotation.y = atan2(toward.x,toward.z)
-	boom.rotation.x = clampf(.22-atan2(toward.y,Vector2(toward.x,toward.z).length()),-1.23,.1)
-	var reach := clampf(toward.length(),3.32,20.0)
-	# Extend steel from the base of the inner boom, keeping the tip over the load.
-	boom_extension.scale.z = 1.0+(reach-3.32)/2.21
+	# The sheave is .77 m above the sliding axis, even when the section
+	# extends. Solve for the actual tip length and its angle to the pivot.
+	var reach := clampf(toward.length(),Vector2(.77,3.24).length(),20.0)
+	var along := sqrt(reach*reach-.77*.77)
+	boom.rotation.x = clampf(atan2(.77,along)-atan2(toward.y,Vector2(toward.x,toward.z).length()),-1.32,.18)
+	boom_extension.scale.z = (along-1.03)/2.21
 	boom_extension.position.z = 2.53+1.50*(boom_extension.scale.z-1.0)
 
 func stow_boom() -> void:

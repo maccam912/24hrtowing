@@ -390,6 +390,8 @@ func _recovery_levers() -> void:
 	draw_rect(rect,Color("#ad9a76"),false,1.4)
 	fitted(Rect2(rect.position+Vector2(8,3),Vector2(width-16,30)),str(drawn.get("boom_instruction",drawn.get("drum_instruction",""))),subtle,20,CREAM)
 	var keys := "↑  RAISE    →  SWING IN    ↓  LOWER" if desk.is_touch_mode() else "W  RAISE    D  SWING IN    S  LOWER"
+	if drawn.get("roof_slew",false):
+		keys = "↑  HOIST    ←  SLEW OUT    ↓  LOWER" if desk.is_touch_mode() else "W  HOIST    A  SLEW OUT    S  LOWER"
 	if drawn.has("drum_instruction"):
 		keys = "←  CHECK    ↑  MAIN    ↓  PAY OUT" if desk.is_touch_mode() else "A  CHECK    W  MAIN    S  PAY OUT"
 	fitted(Rect2(rect.position+Vector2(8,34),Vector2(width-16,27)),keys,MONO,15,AMBER)
@@ -465,7 +467,7 @@ func _hud() -> void:
 			var latch := Rect2(16,16,205,36)
 			draw_rect(latch,RUBBER)
 			fitted(latch,"E   Let the passenger out",subtle,17,WHITE)
-	if not desk.is_touch_mode() and (drawn.get("tower_height",-1.0) >= 0.0 or drawn.get("tower_action","") == "tower_ladder"):
+	if not desk.is_touch_mode() and (drawn.get("roof_ladder",false) or drawn.get("tower_height",-1.0) >= 0.0 or drawn.get("tower_action","") == "tower_ladder"):
 		_ladder_keys()
 	if desk.is_touch_mode():
 		_mobile()
@@ -479,6 +481,9 @@ const TOWER_LABELS := {"tower_ladder":"LADDER","tower_off":"STEP OFF","tower_gla
 func _ladder_keys() -> void:
 	var action := str(drawn.get("tower_action",""))
 	var controls := "" if action == "tower_ladder" else ("S   Descend" if drawn.get("tower_top",false) else "W / S   Climb")
+	if drawn.get("roof_ladder",false):
+		controls = "W / S   Climb"
+		if drawn.get("roof_action","") in ["roof_off","roof_top"]: controls += "     E   Step off"
 	if TOWER_LABELS.has(action):
 		var verb := "Take ladder" if action == "tower_ladder" else str(drawn.prompt)
 		controls += ("     " if not controls.is_empty() else "") + "E   " + verb
@@ -598,7 +603,7 @@ func _mobile() -> void:
 		draw_circle(stick_center,STICK_RADIUS,RUBBER)
 		draw_arc(stick_center,STICK_RADIUS-1,0,TAU,48,Color("#a29b85"),2,true)
 		draw_arc(stick_center,STICK_RADIUS-13,0,TAU,48,Color(0.75,0.71,0.59,0.24),1.3,true)
-		if drawn.get("tower_height",-1.0) >= 0.0:
+		if drawn.get("tower_height",-1.0) >= 0.0 or drawn.get("roof_ladder",false):
 			fitted(Rect2(stick_center-Vector2(52,86),Vector2(104,28)),"CLIMB",scaled,18,CREAM)
 			fitted(Rect2(stick_center+Vector2(-52,57),Vector2(104,28)),"DESCEND",scaled,16,CREAM)
 		var thumb: Vector2 = stick_center + desk._stick*(STICK_RADIUS-33)
@@ -610,6 +615,8 @@ func _mobile() -> void:
 		var use_label := "WIPE" if drawn.get("can_wipe",false) else ("INSPECT" if drawn.get("can_inspect_sighting",false) else "USE")
 		if not str(drawn.get("visit_action","")).is_empty():
 			use_label = drawn.visit_action
+		var roof_labels := {"roof_ladder":"CLIMB","roof_top":"STEP UP","roof_down":"LADDER","roof_off":"STEP OFF","roof_shackle":"PIN SLING","roof_boom":"LEVERS"}
+		use_label = roof_labels.get(drawn.get("roof_action",""),use_label)
 		if drawn.has("boom_instruction") or drawn.has("drum_instruction"): use_label = "LET GO"
 		var tower_action := str(drawn.get("tower_action",""))
 		if TOWER_LABELS.has(tower_action):
