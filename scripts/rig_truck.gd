@@ -33,6 +33,7 @@ var needles: Array[Node3D]=[]
 var wipers: Array[Node3D]=[]
 var mirrors: Array[SubViewport]=[]
 var steer_wheel: Node3D
+var service_body: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
 var stinger: Node3D
@@ -156,7 +157,10 @@ func build() -> void:
 	pane.position = Vector3(0,2.693,-1.645)
 	pane.rotation.x = .233
 	_driver_window()
-	_bed(k)
+	service_body = Kit.joint(self,Vector3.ZERO,"ServiceBody")
+	var service_kit := Kit.new(service_body)
+	_bed(service_kit)
+	service_kit.finish()
 	_cabin(k)
 	k.finish()
 	_panel_detail()

@@ -4,6 +4,7 @@ signal recovered(kind:String)
 signal dropped
 signal sound_event(id:String)
 
+const Rollback := preload("res://scripts/rollback_deck.gd")
 const Flowage := preload("res://scripts/flowage_pull.gd")
 const Rollover := preload("res://scripts/rollover.gd")
 const Levers := preload("res://scripts/recovery_levers.gd")
@@ -51,6 +52,8 @@ var reserve_fuel := 0.0
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
+var rollback_active := false
+var rollback_deck: Rollback
 var flowage: Flowage
 var rollover: Rollover
 var active_levers: Levers:
@@ -142,7 +145,7 @@ var second_winch := false:
 		if body and value and not auxiliary_drum:
 			auxiliary_drum = Semi.fit_auxiliary_drum(body)
 		if auxiliary_drum:
-			auxiliary_drum.visible = value
+			auxiliary_drum.visible = value and not rollback_active
 var pulley: Node3D
 var highlight:MeshInstance3D
 var info:=""
@@ -199,6 +202,24 @@ func setup(county:Node3D) -> void:
 	_build_tracks()
 	_ready_to_run=true
 	set_spawn(Vector3.ZERO)
+	if rollback_active: use_rollback(true)
+
+func use_rollback(on: bool) -> void:
+	rollback_active = on
+	if not is_instance_valid(body): return
+	if on and not rollback_deck:
+		rollback_deck = Rollback.new()
+		rollback_deck.assemble(body)
+	if rollback_deck: rollback_deck.visible = on
+	var lamp_mount: Node3D = rollback_deck.bed if on else body.boom_tip
+	if body.work_light.get_parent() != lamp_mount:
+		body.work_light.reparent(lamp_mount,false)
+		body.work_light.position = Vector3(0,1.09,-2.90) if on else Vector3(0,.13,.1)
+		body.work_light.rotation = Vector3(-.28 if on else -.38,PI,0)
+	for equipment: Node3D in [body.service_body,body.boom,body.lift,body.get_node("Hydraulics")]:
+		equipment.visible = not on
+	if auxiliary_drum: auxiliary_drum.visible = second_winch and not on
+	if pulley: pulley.visible = snatch_block and not on
 
 func offer_front_seat() -> bool:
 	if kind != "passenger" or phase != "scene" or not witness or not is_stopped():
@@ -391,7 +412,7 @@ func _obstructed(a:Vector3,displacement:Vector3) -> bool:
 
 func _truck_obstacle(step:Vector3, turn:float) -> bool:
 	if step.is_zero_approx(): return false
-	for z in [-4.06,4.22]:
+	for z in [-4.06,6.43 if rollback_active else 4.22]:
 		for x in [-1.12,1.12]:
 			var corner:Vector3=truck.global_basis*Vector3(x,.91,z)
 			var sweep:=step+corner.rotated(Vector3.UP,turn)-corner
@@ -400,12 +421,15 @@ func _truck_obstacle(step:Vector3, turn:float) -> bool:
 	# Out in a work scene, the bumper stops against the casualty.
 	if car and phase in ["scene","flared","cable","rigged"]:
 		if semi and semi.crosses_wrecker(truck,step,turn,speed): return true
-		var tip_offset:Vector3=truck.global_basis.z*(-signf(speed)*3.95)
+		var tip_offset:Vector3 = truck.global_basis.z*((6.43 if rollback_active else 3.95) if speed < 0. else -3.95)
 		var at:=car.to_local(truck.global_position+step+tip_offset.rotated(Vector3.UP,turn))
 		var old:=car.to_local(truck.global_position+tip_offset)
 		var size: Vector3 = car.get_meta("body_size")
 		if absf(at.x)<size.x+1.04 and absf(at.z)<size.z-.04 and Vector2(at.x,at.z).length_squared()<Vector2(old.x,old.z).length_squared():
 			return true
+	if loaded and rollback_active:
+		var predicted := Transform3D(Basis(Vector3.UP,turn)*car.global_basis,truck.position+step+(car.position-truck.position).rotated(Vector3.UP,turn))
+		return load_obstructed(car,predicted,.95,1.23,[-2.12,0.,2.12])
 	if loaded and road_wheels:
 		var z := line_end*road_wheels.axle_z
 		var size: Vector3 = car.get_meta("body_size")
@@ -496,7 +520,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	if Rect2(-65,-90,68,61).has_point(Vector2(truck.position.x,truck.position.z)) or RiverLanes.LOT.has_point(Vector2(truck.position.x,truck.position.z)):
 		offroad=0
 	var prev:=speed
-	var packed_speed := MAX_LOADED if loaded else MAX_SPEED
+	var packed_speed := (37. / MPH_PER_MPS if rollback_active else MAX_LOADED) if loaded else MAX_SPEED
 	var snow_speed := 7.2 if loaded else 9.1
 	if tire_chains:
 		snow_speed *= 1.30
@@ -612,10 +636,11 @@ func _walk(move:Vector2, dt:float) -> void:
 	var start:=foot
 	var dest:=foot+dir.limit_length(1)*dt*(3.55 if phase!="cable" else 3.0)
 	var local:=truck.to_local(dest)
-	if absf(local.x)<1.34 and local.z<4.22 and local.z> -4.11:
+	var tail := (lerpf(6.43,9.22,rollback_deck.extension) if rollback_active else 4.22)
+	if absf(local.x)<1.34 and local.z<tail and local.z> -4.11:
 		var before:=truck.to_local(foot)
 		if absf(before.x)>=1.32: local.x=signf(before.x)*1.35
-		else: local.z=4.23 if before.z>0 else -4.12
+		else: local.z=tail+.01 if before.z>0 else -4.12
 		dest=truck.to_global(local)
 	if car and car.visible:
 		var c:=car.to_local(dest)
@@ -812,6 +837,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	_update_highlight()
 
 func end_job() -> void:
+	if rollback_deck: rollback_deck.reset()
 	if tree_recovery: tree_recovery.clear_sling()
 	tree_recovery = null
 	if flowage and is_instance_valid(flowage.markers): flowage.markers.queue_free()
@@ -903,10 +929,10 @@ func _flat_distance(a:Vector3,b:Vector3) -> float:
 	return Vector2(a.x-b.x,a.z-b.z).length()
 
 func _panel() -> Vector3:
-	return body.to_global(Truck.PANEL)
+	return body.to_global(Rollback.PANEL if rollback_active else Truck.PANEL)
 
 func _drum() -> Vector3:
-	return body.to_global(Truck.DRUM)
+	return rollback_deck.drum(self) if rollback_active else body.to_global(Truck.DRUM)
 
 func _hitch() -> Vector3:
 	return body.stinger.to_global(Truck.HITCH)
@@ -987,6 +1013,7 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 	return not require_facing or offset.length()<1.5 or (-eyes.global_basis.z).dot(offset.normalized())>-.13
 
 func at_dropoff() -> bool:
+	if rollback_active and loaded: return rollback_deck.fits_bay(self)
 	if semi: return loaded and semi.fits(RiverLanes.BAY)
 	if tanker: return loaded and tanker.fits(Dairy.BAY)
 	return loaded and is_instance_valid(car) and (YardDrop.contains(dropoff.center, car.position)
@@ -994,7 +1021,7 @@ func at_dropoff() -> bool:
 
 func wrecker_overlaps(area: Rect2) -> bool:
 	# Include the forks behind the rear bumper, even after stowing the lift.
-	var rear: float = Truck.HITCH.z + body.stinger.position.z + .32
+	var rear: float = lerpf(6.43,9.22,rollback_deck.extension) if rollback_active else Truck.HITCH.z + body.stinger.position.z + .32
 	var outline := PackedVector2Array()
 	for corner: Vector3 in [Vector3(-1.4,0,-4.2), Vector3(1.4,0,-4.2), Vector3(1.4,0,rear), Vector3(-1.4,0,rear)]:
 		var p := truck.to_global(corner)
@@ -1007,7 +1034,7 @@ func is_stopped() -> bool:
 	return speed == 0.0
 
 func is_chocked() -> bool:
-	return phase in ["cable","rigged","at_lift","dollies"]
+	return (rollback_active and not rollback_deck.motion.is_empty()) or phase in ["cable","rigged","at_lift","dollies"]
 
 func at_dry_rig_door() -> bool:
 	return not in_cab and fuel <= 0.0 and is_chocked() and _at_door()
@@ -1020,6 +1047,10 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if rollback_active and rollback_deck.hauls(self):
+		var deck_action := rollback_deck.action(self,panel_range)
+		if not deck_action.is_empty(): return deck_action
+		if phase == "at_lift" or not rollback_deck.motion.is_empty(): return ""
 	if flowage:
 		var bank_action := flowage.action(self,panel_range)
 		if not bank_action.is_empty(): return bank_action
@@ -1083,6 +1114,10 @@ func _at_door() -> bool:
 
 func context_text() -> String:
 	var action:=action_id()
+	if Rollback.PROMPTS.has(action): return Rollback.PROMPTS[action]
+	if rollback_active and action == "winch" and rollback_deck.hauls(self):
+		var control := "WINCH" if OS.has_feature("mobile") else "Space"
+		return "Hold %s to pay the car down into storage" % control if rollback_deck.unloading else "Hold %s to reel the car up the runners" % control
 	if Semi.PROMPTS.has(action): return Semi.PROMPTS[action]
 	if tanker:
 		match action:
@@ -1141,6 +1176,9 @@ func context_text() -> String:
 func _hint() -> String:
 	if not in_cab and is_chocked() and fuel <= 0.0:
 		return reserve_hint()
+	if rollback_active:
+		var deck_note := rollback_deck.instruction(self)
+		if not deck_note.is_empty(): return deck_note
 	if semi:
 		var freight_note := semi.instructions(phase)
 		if not freight_note.is_empty(): return freight_note
@@ -1190,6 +1228,14 @@ func _hint() -> String:
 
 func interact() -> void:
 	var a:=action_id()
+	if rollback_active and a.begins_with("deck_"):
+		rollback_deck.handle(self,a)
+		return
+	if rollback_active and a == "unhook" and rollback_deck.hauls(self):
+		phase = "cable"
+		tension = 0.
+		sound_event.emit("ratchet")
+		return
 	if a == "milk_manifest":
 		tanker.checked = true
 		_note("%d gallons   ·   Seal %s intact. Take the snatch block at the side panel." % [tanker.gallons,tanker.seal],6.)
@@ -1354,7 +1400,8 @@ func _fit_dollies() -> void:
 func _winch(operate:bool,dt:float) -> void:
 	var prev_work:=working
 	slip_cooldown=maxf(0,slip_cooldown-dt)
-	working=phase=="rigged" and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
+	var paying := rollback_active and rollback_deck.motion == "pay"
+	working=(phase=="rigged" or paying) and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
 	if working and ((vehicle_identity.heavy_recovery and not snatch_block) or (semi and not second_winch)):
 		working = false
 	if flowage and not flowage.prepare(self,operate,dt): working = false
@@ -1376,6 +1423,10 @@ func _winch(operate:bool,dt:float) -> void:
 		_note(reserve_hint(),6.0)
 	else:
 		fuel -= dt * WINCH_FUEL_PER_SECOND
+	if rollback_active and rollback_deck.hauls(self):
+		if paying: rollback_deck.pay(self,dt)
+		else: rollback_deck.reel(self,dt)
+		return
 	if semi and semi.rigging == "both":
 		semi.straighten(self,dt)
 		return
@@ -1484,6 +1535,9 @@ func _set_car_lamps(mode:String) -> void:
 	car_lamps=semi.freight_lamps() if semi and mode=="tow" else Scene.car_lamps(car,mode,line_end)
 
 func _track_underlift() -> void:
+	if rollback_active:
+		rollback_deck.track(self)
+		return
 	var size: Vector3 = car.get_meta("body_size")
 	var half_wheelbase:=size.z*.61
 	var wheel_height:=.43 if size == Scene.PICKUP_SIZE else .355
@@ -1530,7 +1584,7 @@ func _begin_departure() -> DepartingDriver:
 
 func _in_wrecker(point:Vector3) -> bool:
 	var local:=truck.to_local(point)
-	return absf(local.x)<1.75 and local.z> -4.5 and local.z<5.1
+	return absf(local.x)<1.75 and local.z> -4.5 and local.z<(6.6 if rollback_active else 5.1)
 
 func _trail(dt:float) -> void:
 	body.lift.position.y=move_toward(body.lift.position.y,.39 if loaded else .03,dt*.65)
@@ -1545,11 +1599,12 @@ func _trail(dt:float) -> void:
 				driver.car.queue_free()
 				driver.witness.queue_free()
 			departures.remove_at(i)
+	if rollback_active and car: rollback_deck.animate_bed(self,dt)
 	if not car: return
 	body.work_light.visible=loaded or near_casualty(CABLE_REACH)
 	var extending:=kind!="ditch" and phase in ["rigged","at_lift","dollies","loaded"]
 	body.stinger.position.z=move_toward(body.stinger.position.z,0.0 if extending else -1.31,dt*1.5)
-	if loaded:
+	if loaded and not (rollback_active and rollback_deck.motion == "tip"):
 		_track_underlift()
 	if phase not in ["loaded","done","departing"]:
 		flash_time=fmod(flash_time+dt,1.0)
@@ -1558,10 +1613,11 @@ func _trail(dt:float) -> void:
 func _cable_curve() -> void:
 	cable_mesh.clear_surfaces()
 	if flowage: flowage.markers.visible = phase in ["cable","rigged"]
-	pulley.visible=snatch_block
+	pulley.visible=snatch_block and not rollback_active
 	if snatch_block:
 		pulley.global_transform=body.global_transform*Transform3D(Basis.IDENTITY,Vector3(-.89,1.85,3.40))
 	if not phase in ["cable","rigged","at_lift","dollies"]: return
+	if rollback_active and rollback_deck.motion == "return": return
 	if semi:
 		semi.draw_lines(self)
 		return
@@ -1595,7 +1651,7 @@ func _cable_curve() -> void:
 	if phase=="cable":
 		b = foot + Vector3.UP*.15 if in_cab else eyes.global_transform*Vector3(.25,-.32,-.46)
 	if flowage and phase in ["cable","rigged"]: flowage.mark_line(self,a,b)
-	if snatch_block and vehicle_identity.heavy_recovery:
+	if snatch_block and not rollback_active and vehicle_identity.heavy_recovery:
 		pulley.global_position=b+Vector3.UP*.12
 		pulley.rotation.y=atan2(b.x-a.x,b.z-a.z)
 		b=pulley.global_position
@@ -1686,6 +1742,9 @@ func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d.special_work = special_work
+	if rollback_active:
+		d.rollback_active = true
+		d.rollback_deck = rollback_deck.save_state()
 	if flowage: d.flowage = flowage.save_state()
 	if rollover: d.rollover = {"fetched":rollover.fetched,"clear":rollover.check_cleared,"preload":rollover.preload_fraction,"controls":rollover.controls,"watch_load":rollover.watch_load}
 	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
@@ -1719,6 +1778,7 @@ func save_state() -> Dictionary:
 
 func restore_state(d:Dictionary) -> void:
 	if d.is_empty(): return
+	use_rollback(d.get("rollback_active",false))
 	set_spawn(_unpack(d.get("truck"),truck.position),float(d.get("heading",heading)))
 	for driver in departures:
 		driver.car.queue_free()
@@ -1780,6 +1840,7 @@ func restore_state(d:Dictionary) -> void:
 				"scene": witness.position = _unpack(d.get("waiting_rider"),witness.position)
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
+		if rollback_active: rollback_deck.restore(self,d.get("rollback_deck",{}))
 		if flowage: flowage.restore(self,d.get("flowage",{}))
 		if rollover:
 			var drums: Dictionary = d.get("rollover",{})
@@ -1805,7 +1866,7 @@ func restore_state(d:Dictionary) -> void:
 			witness.hide()
 		if d.has("flare") and phase in ["flared","cable","rigged","at_lift","dollies"]:
 			flame=Scene.flare(self,_unpack(d.flare,car.position))
-		if phase in ["cable","rigged","at_lift","dollies"]: _set_chocks()
+		if is_chocked(): _set_chocks()
 		if kind=="hold" and phase in ["dollies","loaded","done"]: _fit_dollies()
 		if loaded:
 			body.stinger.position.z=0.0
