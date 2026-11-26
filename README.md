@@ -20,7 +20,7 @@ Pull over within cable reach and stop before getting out. Stand near the casualt
 
 Ditch customers walk back to their cars and drive away after the pull. Your slip stays on the clipboard. Get back in the cab and answer the radio to go straight to the next call. For a hazard tow, bring the axle up to the underlift and strap it. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room.
 
-Amber lights mark your drop on every haul. Inside the yard gate, ordinary tows go right to **STORAGE**. For the surveyor’s pickup, bear left toward the office and back the pickup into **EVIDENCE HOLD**. Stop and unhook at the wrecker’s left rear panel. Pull the wrecker clear, then lock the corner chain from the yard side.
+Amber lights mark your drop on every haul. Inside the yard gate, ordinary tows go right to **STORAGE**. For the surveyor’s pickup, bear left toward the office and back the pickup into **EVIDENCE HOLD**. Stop and unhook at the wrecker’s left rear panel. Pull the wrecker clear, then lock the corner chain from the yard side. You hold the key. If you open the pickup to read Tou’s field book, you can shut the driver’s door by hand. After the hold is filed, Kowalski leaves a callback on the custody card. Answer from the stopped cab whenever you like.
 
 When you’re back at the yard, walk to the fax under the **OFFICE / FAX** sign and tap **USE** or press **E**. One transmission files every finished slip in order. Each job gets its own receipt in the fax tray.
 

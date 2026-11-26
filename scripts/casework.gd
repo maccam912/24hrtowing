@@ -261,6 +261,9 @@ func _start_departure() -> void:
 	if not is_instance_valid(released_pickup):
 		return
 	game.physical_cars.erase(released_pickup)
+	game.hold_door_open = false
+	game.Rig.Scene.close_driver_door(released_pickup)
+	game.held_pickup = null
 	campaign.evidence["unit_departed"] = game.rig.odo
 	game.county.Scene.car_lamps(released_pickup,"running",-1)
 	# Nose out through the open bay. Round the office, pass through the

@@ -5,6 +5,7 @@ var notes := {}
 var unit_reported := false
 var tracked_lead := ""
 var hold_order := ""
+var custody_reply := ""
 var farm_order := ""
 var farm_reported := false
 
@@ -53,7 +54,7 @@ func notebook() -> Array:
 	return rows
 
 func save_state() -> Dictionary:
-	return {"notes":notes.duplicate(), "unit_reported":unit_reported, "tracked_lead":tracked_lead, "hold_order":hold_order,
+	return {"notes":notes.duplicate(), "unit_reported":unit_reported, "tracked_lead":tracked_lead, "hold_order":hold_order,"custody_reply":custody_reply,
 		"farm_order":farm_order, "farm_reported":farm_reported}
 
 func restore(data: Dictionary, held: bool, active_kind: String) -> void:
@@ -61,6 +62,7 @@ func restore(data: Dictionary, held: bool, active_kind: String) -> void:
 	# Older operators already entrusted with the truck keep the deputy's authorization.
 	hold_order = data.get("hold_order", "accepted" if active_kind == "hold" else ("filed" if held else ""))
 	unit_reported = data.get("unit_reported", false)
+	custody_reply = str(data.get("custody_reply",""))
 	tracked_lead = str(data.get("tracked_lead", ""))
 	farm_order = data.get("farm_order", "")
 	farm_reported = data.get("farm_reported", false)

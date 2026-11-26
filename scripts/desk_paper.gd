@@ -35,7 +35,7 @@ const KEY_PLACES := [
 func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 	match page:
 		"map": _atlas(c,p,s)
-		"radio": _radio(c,p,s)
+		"radio","deputy_call": _radio(c,p,s)
 		"visit_call": _visit_call(c,p,s)
 		"fax": _fax(c,p,s)
 		"custody": _custody(c,p,s)
@@ -198,12 +198,23 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	c.switch_face(lcd,Color("#171e1b"),true)
 	c.draw_rect(lcd.grow(-7),Color("#c1ac75"))
 	var display := "SIGHTING REPORT" if reporting else "COUNTY DISPATCH"
+	if c.desk.page == "deputy_call":
+		display = "COUNTY SHERIFF"
 	if scanning:
 		display = Scanner.CHANNELS.get(s.get("scanner_channel","highway"),"OFF")
 	if listening:
 		var station: Dictionary = Broadcast.STATIONS.get(s.get("broadcast_station","off"),{})
 		display = station.get("dial","OFF")
 	c.fitted(lcd.grow(-16),display,c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
+	if c.desk.page == "deputy_call":
+		var copy := Rect2(x,y+112,w,150)
+		c.switch_face(copy,Color("#27342e"),true)
+		c.text(copy.position+Vector2(18,35),"J. KOWALSKI   /   TC-96-031",c.MONO,17,c.AMBER)
+		c.multiline(copy.position+Vector2(18,79),"Brandt, one more thing about Thirty-eight. Did you go through the pickup?",c.print_face,25,c.CREAM,copy.size.x-36,3)
+		var half := (w-12)*.5
+		c.button("told_open",Rect2(x,y+301,half,88),"I opened it.")
+		c.button("told_closed",Rect2(x+half+12,y+301,half,88),"I left it alone.")
+		return
 	if scanning:
 		var selector := report_key
 		selector.size.x = floorf((report_key.size.x-8)*.48)
@@ -482,6 +493,11 @@ func _custody(c, p: Rect2, s: Dictionary) -> void:
 	c.multiline(Vector2(x,y+39),str(s.get("custody_text","No active evidence hold.")),c.MONO,17,PAPER_INK,p.size.x-74,7)
 	c.text(Vector2(x,p.end.y-44),"RECEIVED BY",c.MONO,13,FADED)
 	c.text(Vector2(x+124,p.end.y-41),"Brandt",c.HAND,30,FORM_BLUE)
+	if s.get("deputy_callback",false):
+		if s.get("in_cab",false) and s.get("truck_stopped",false):
+			c.button("return_deputy_call",Rect2(p.end.x-314,p.end.y-90,281,80),"Call Kowalski back")
+		else:
+			c.fitted(Rect2(x+200,p.end.y-83,p.size.x-275,64),"Call me from the truck.  — J.K.",c.HAND,25,FORM_BLUE,HORIZONTAL_ALIGNMENT_RIGHT)
 
 func _field(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d3d7b9"))

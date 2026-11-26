@@ -292,7 +292,7 @@ func _activate(id: String) -> void:
 		"yard_recovery":
 			if page == "pause":
 				show_document(id,state)
-		"cab_heat","blower_off","blower_low","blower_high","window_latch","confirm_yard_recovery","settings_anchors":
+		"return_deputy_call","told_open","told_closed","cab_heat","blower_off","blower_low","blower_high","window_latch","confirm_yard_recovery","settings_anchors":
 			action.emit(id)
 		"title":
 			started = false

@@ -62,6 +62,8 @@ var stored := []
 var faxes := []
 var filed_card := ""
 var physical_cars := []
+var hold_door_open := false
+var held_pickup: Node3D
 var held_tape: Dictionary = Rig.Scene.Tape.LEGACY
 var open_tape := {}
 var yard_card := {}
@@ -437,8 +439,18 @@ func _action(id: String) -> void:
 				_save()
 		"fax": _file_invoice()
 		"read_field":
-			if held and (book_read or _near(BAY,5.0)):
+			if book_read or (held and not bay_locked and not rig.in_cab and _near(BAY,4.8)):
 				_read_book()
+		"return_deputy_call":
+			if _deputy_callback() and desk.page == "custody" and rig.in_cab and rig.is_stopped():
+				desk.show_document("deputy_call",state)
+				_speak("KOWALSKI","Brandt, one more thing about Thirty-eight. Did you go through the pickup?")
+		"told_open","told_closed":
+			if _deputy_callback() and desk.page == "deputy_call" and rig.in_cab:
+				survey.custody_reply = id
+				desk.dismiss()
+				_speak("KOWALSKI","All right. If there’s a thermos in there, leave it where he can reach it." if id == "told_open" else "All right. He always locked the passenger side first. Habit of his.")
+				_save()
 		"cab_heat":
 			if active and rig.in_cab and rig.is_stopped():
 				desk.show_document("cab_heat",state)
@@ -1065,8 +1077,12 @@ func _site_action() -> String:
 		return "yard_coffee"
 	if held and _facing(county.bay_latch_point(),2.7):
 		return "unlock" if bay_locked else "lock"
-	if held and not bay_locked and _facing(BAY,4.8):
-		return "field"
+	if held and not bay_locked and is_instance_valid(held_pickup):
+		var hinge := held_pickup.get_node("DriverDoor") as Node3D
+		if hold_door_open and _facing(hinge.to_global(Vector3(-.07,.46,1.16)),1.35):
+			return "close_unit_door"
+		if _facing(held_pickup.to_global(Vector3(-.62,.85,-.18)),4.0):
+			return "field"
 	if _facing(County.Dryhouse.grower_position(county),3.1):
 		return "grower"
 	if _at_counter():
@@ -1187,6 +1203,10 @@ func _interact() -> void:
 			county.set_bay_locked(bay_locked)
 			audio.effect("ratchet")
 			_message("BRANDT","Bay secured. Key back on the ring." if bay_locked else "Hold bay open.")
+		"close_unit_door":
+			hold_door_open = false
+			Rig.Scene.close_driver_door(held_pickup)
+			audio.effect("door")
 		"field": _read_book()
 		"wipe_mirror":
 			var side: int = rig.wipeable_mirror()
@@ -1313,15 +1333,17 @@ func _turn_storage_north() -> void:
 	_display_storage()
 
 func _display_storage() -> void:
+	held_pickup = null
 	for node in physical_cars:
 		if is_instance_valid(node):
 			node.hide()
 			node.queue_free()
 	physical_cars.clear()
 	if held or (campaign.released and not campaign.evidence.has("unit_departed")):
-		var car = rig.store_vehicle("hold",BAY,-PI/2,{"checked_tape":held_tape})
-		if car is Node3D:
-			physical_cars.append(car)
+		held_pickup = rig.store_vehicle("hold",BAY,-PI/2,{"checked_tape":held_tape,"open_door":true})
+		if not hold_door_open:
+			Rig.Scene.close_driver_door(held_pickup)
+		physical_cars.append(held_pickup)
 	var capacity := PARKING.size()+(County.Fittings.WEST_STALLS if county.west_lot_open else 0)
 	for i in mini(stored.size(),capacity):
 		var entry: Dictionary = stored[i] if stored[i] is Dictionary else {"route":stored[i]}
@@ -1363,7 +1385,16 @@ func _read_fire_plate() -> void:
 		desk.show_document("map",state)
 		desk.open_fire_index(id)
 
+func _deputy_callback() -> bool:
+	return held and survey.hold_order == "filed" and survey.custody_reply.is_empty()
+
 func _read_book() -> void:
+	if held and not bay_locked and not rig.in_cab and _near(BAY,4.8) and is_instance_valid(held_pickup):
+		if not hold_door_open:
+			audio.effect("door")
+		hold_door_open = true
+		var hinge := held_pickup.get_node("DriverDoor") as Node3D
+		hinge.rotation.y = -1.04
 	book_read = true
 	_refresh()
 	desk.show_document("field",state)
@@ -1643,7 +1674,7 @@ func _prompt(site: String = _site_action()) -> String:
 		return "Ask Roman Duda about County K"
 	if site == "let_out":
 		return "Let the passenger out at " + Rides.destination(job)
-	var words := {"checked_tape":"Read the deputy’s mirror tape","impound_register":"Open the impound register","storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"checked_tape":"Read the deputy’s mirror tape","impound_register":"Open the impound register","storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Read Tou’s field book" if hold_door_open else "Open the pickup · field book","close_unit_door":"Shut Unit 38’s door","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1796,7 +1827,7 @@ func _refresh() -> void:
 		"case_lead":_dispatch_lead_briefing(),
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
-		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
+		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"deputy_callback":_deputy_callback(),"can_fax":_can_file_here(),
 		"plat_marks":plat_pencil.marks,"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
 		"west_lot":county.west_lot_open,"storage_tag":yard_card,"checked_tape":open_tape,
 		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
@@ -1880,7 +1911,7 @@ func _save() -> void:
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
 		"sightings":sightings.save_state(),"scanner":scanner.save_state(),"broadcast":broadcast.save_state(),"mai_lot_heard":mai_lot_heard,
-		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"held_tape":held_tape,"book_read":book_read,
+		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"held_tape":held_tape,"hold_door_open":hold_door_open,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
 		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_wait_left,
@@ -1910,6 +1941,7 @@ func _restore(s: Dictionary) -> void:
 	stored = s.stored
 	held = s.held
 	held_tape = s.get("held_tape",Rig.Scene.Tape.LEGACY)
+	hold_door_open = s.get("hold_door_open",false)
 	bay_locked = s.get("bay_locked",held)
 	book_read = s.book_read
 	signed_card = s.signed
