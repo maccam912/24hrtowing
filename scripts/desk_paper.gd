@@ -85,6 +85,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
 	if active_job.has("sheriff_order"):
 		job_kind = "Sheriff hold"
+	elif active_job.has("wheel_fault"):
+		job_kind = "Motor pool repair"
 	elif active_job.has("clearance_seconds"):
 		job_kind = "Squad pull"
 	elif active_job.get("recovery") == "semi":
@@ -135,6 +137,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
 		if active_job.get("recovery") == "semi":
 			note += "\nReceived by River Lanes Truck Stop"
+		elif active_job.has("wheel_fault"):
+			note += "\nREPAIR 03   /   " + str(active_job.handling)
 		elif active_job.get("recovery") == "milk":
 			note += "\nBrzezinski  /  %d gal   ·   Seal %s" % [int(active_job.gallons),active_job.seal]
 		if float(active_job.get("rate_fee",0)) > 0:

@@ -35,6 +35,13 @@ func assemble(vehicle: Node3D, size: Vector3, tire_radius: float) -> void:
 			hubs.append(hub)
 			previous.append(Vector3.INF)
 
+func roll_on_ground(index: int, held: bool) -> void:
+	var hub := hubs[index]
+	if not held and previous[index].is_finite():
+		var travel := (hub.global_position-previous[index]).dot(-global_basis.z)
+		hub.rotation.x = wrapf(hub.rotation.x-travel/radius,-PI,PI)
+	previous[index] = hub.global_position
+
 func ground_axle(end: int, ground: Callable, dollies: Node3D) -> void:
 	var lift := DOLLY_RISE if dollies else 0.0
 	for i in hubs.size():
@@ -46,10 +53,7 @@ func ground_axle(end: int, ground: Callable, dollies: Node3D) -> void:
 		var body_at := to_global(Vector3(hub.position.x,0,hub.position.z)).y
 		var sprung := (foot+radius+lift-body_at)/maxf(global_basis.y.y,.65)
 		hub.position.y = clampf(sprung,radius-.14,radius+.14)
-		if previous[i].is_finite() and not dollies:
-			var travel := (hub.global_position-previous[i]).dot(-global_basis.z)
-			hub.rotation.x = wrapf(hub.rotation.x-travel/radius,-PI,PI)
-		previous[i] = hub.global_position
+		roll_on_ground(i,dollies!=null)
 		if dollies:
 			var cart := dollies.get_child(i/2) as Node3D
 			cart.global_basis = Basis(Vector3.UP,global_rotation.y)

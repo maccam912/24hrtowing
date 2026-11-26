@@ -98,8 +98,14 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wh
 	g.box(Vector3(0,base+.81,(cab_end+top_end)*.5),Vector3(width*1.72,.72,.036),GLASS,Vector3(rear_tilt,0,0))
 	g.box(Vector3(0,base+.47,-.98),Vector3(width*1.87,.08,.06),BLACK)
 	var tire_radius := .43 if pickup else .355
+	live_wheels = live_wheels or identity.has("wheel_fault")
 	if live_wheels:
-		RoadWheels.new().assemble(p,size,tire_radius)
+		var hubs := RoadWheels.new()
+		hubs.assemble(p,size,tire_radius)
+		if identity.has("wheel_fault"):
+			preload("res://scripts/damaged_axle.gd").mark_car(hubs,identity)
+			for side: float in [-1.,1.]:
+				K.label(p,"TAMARACK COUNTY\nMOTOR POOL",Vector3(side*(width+.031),base+.24,-.46),.083,Color("#d1c7aa"),Vector3(0,side*PI/2,0))
 	for s in [-1.0,1.0]:
 		var x:float=s*width
 		if not live_wheels:

@@ -67,6 +67,7 @@ var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
 var yard_dispenser := false
 var yard_brewer := false
+const PoolRepair := preload("res://scripts/pool_repair.gd")
 const WestBay := preload("res://scripts/west_hold_bay.gd")
 var west_bay: WestBay
 var west_bay_fitted := false
@@ -639,6 +640,7 @@ func _build() -> void:
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
 	East.new(self,draw).build()
+	PoolRepair.new(self,draw).build()
 	Dryhouse.new(self,draw).build()
 	Flowage.mark_ice(draw,self)
 	preload("res://scripts/tree_recovery.gd").grow_grove(draw,self)

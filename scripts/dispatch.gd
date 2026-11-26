@@ -1,5 +1,6 @@
 extends RefCounted
 
+const PoolRepair := preload("res://scripts/pool_repair.gd")
 const Speech := preload("res://scripts/county_speech.gd")
 const Legacy := preload("res://scripts/legacy_dispatch.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
@@ -117,11 +118,18 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var freight_calls := 0
 	var last_milk := -1
 	var milk_calls := 0
+	var last_repair := -1
+	var repair_calls := 0
+	var dollies_issued := false
 	for slip: Dictionary in slips:
+		dollies_issued = dollies_issued or slip.kind=="hold"
 		met_angie = met_angie or slip.get("vin", "") == Legacy.JOBS.angie.vin
 		if slip.has("case_id") or slip.kind not in ["ditch", "hazard","passenger"]:
 			continue
 		var site_id := _site_on_slip(slip)
+		if slip.has("wheel_fault"):
+			last_repair = ditches+hazards
+			repair_calls += 1
 		if slip.get("recovery") == "semi":
 			last_semi = ditches + hazards
 			freight_calls += 1
@@ -167,6 +175,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		return _freight_ticket(completed,dispatch_seed,freight_calls)
 	if kind == "hazard" and snatch_block and rotation_count >= 16 and (last_milk < 0 or rotation_count-last_milk >= 20) and (last_semi < 0 or rotation_count-last_semi >= 4):
 		return _milk_ticket(completed,dispatch_seed,milk_calls)
+	if kind=="hazard" and dollies_issued and rotation_count>=8 and (last_repair<0 or rotation_count-last_repair>=13) and (last_semi<0 or rotation_count-last_semi>=3) and (last_milk<0 or rotation_count-last_milk>=3):
+		return PoolRepair.ticket(completed,dispatch_seed,repair_calls)
 	var route := ""
 	var best := INF
 	for id: String in SITES:
@@ -398,7 +408,7 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 	var hookup := 0 if look_only else 16
 	var winch := 0 if look_only else maxi(1, ceili(seconds / 60.0)) * 6
 	var storage := 12 if towed else 0
-	if job.get("recovery") in ["semi","milk"]:
+	if job.has("wheel_fault") or job.get("recovery") in ["semi","milk"]:
 		storage = 0
 	var heavy_fee := HEAVY_FEE if job.get("heavy_recovery", false) else 0
 	var rate_fee := float(job.get("rate_fee",0.0)) if revised_rates else 0.0
@@ -408,6 +418,12 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		"start_odo":start, "pickup_odo":pickup, "drop_odo":drop, "loaded":mile,
 		"schedule":job.get("schedule",0.0), "call_out":38, "hookup":hookup, "winch":winch,
 		"storage":storage, "heavy_fee":heavy_fee, "pay":snappedf(pay,.01), "time":clock}
+	if job.has("wheel_fault"):
+		slip.wheel_fault = job.wheel_fault
+		slip.wheel_side = job.wheel_side
+		slip.destination = PoolRepair.DROP.sign
+		slip.handling = job.get("handling","")
+		slip.diagnosis = job.get("diagnosis","Shop inspection requested.")
 	if job.has("checked_tape"):
 		slip.checked_tape = job.checked_tape.duplicate()
 	if job.kind == "field_visit":

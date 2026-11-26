@@ -75,6 +75,8 @@ var open_tape := {}
 var yard_card := {}
 var impound_book := preload("res://scripts/impound_book.gd").new()
 var received_freight: Node3D
+var received_pool_car: Node3D
+var pool_receipt := {}
 var held := false
 var bay_locked := false
 var book_read := false
@@ -1091,7 +1093,7 @@ func _directions() -> void:
 	elif job.get("kind") == "passenger" and rig.phase == "passenger":
 		_speak("DISPATCH",Rides.approach(job))
 	elif mode == "haul":
-		if job.has("sheriff_order"): _speak("DISPATCH",rig.dropoff.approach)
+		if job.has("sheriff_order") or rig.axle_fault: _speak("DISPATCH",rig.dropoff.approach)
 		else: _say(rig.dropoff.radio)
 	elif mode in ["return","invoice"]:
 		_say("yard_dir")
@@ -1108,6 +1110,8 @@ func _sync_survey_scene() -> void:
 
 func _survey() -> void:
 	var pos: Vector3 = rig.get_truck_position()
+	if received_pool_car and pos.distance_to(received_pool_car.global_position)>190 and not _near(received_pool_car.global_position,190):
+		_set_pool_receipt({})
 	if received_freight and pos.distance_to(received_freight.global_position)>190 and not _near(received_freight.global_position,190):
 		received_freight.queue_free()
 		received_freight = null
@@ -1425,15 +1429,42 @@ func _recovered(kind: String) -> void:
 		_prepare_offers()
 	else:
 		mode = "haul"
+		if rig.axle_fault:
+			job.handling = rig.axle_fault.method(rig)
+			job.diagnosis = rig.axle_fault.finding() if rig.axle_fault.checked else "Shop inspection requested."
 		_speak("DISPATCH",job.get("haul_line","Copy, Brandt. Bring this one to %s." % rig.dropoff.sign))
 	_refresh()
 	_save()
+
+func _set_pool_receipt(record: Dictionary) -> void:
+	if received_pool_car:
+		received_pool_car.hide()
+		received_pool_car.queue_free()
+		received_pool_car = null
+	pool_receipt = record
+	if record.is_empty(): return
+	received_pool_car = Rig.Scene.car(world,"hazard",int(record.variant),record)
+	received_pool_car.position = Vector3(record.x,0,record.z)
+	received_pool_car.position.y = rig._ground(received_pool_car.position)
+	received_pool_car.rotation.y = record.yaw
 
 func _dropped() -> void:
 	if mode != "haul":
 		return
 	drop_odo = rig.get_status().odo
 	drop_time = _clock()
+	if rig.axle_fault:
+		var receipt := {"x":rig.car.position.x,"z":rig.car.position.z,"yaw":rig.car.rotation.y}
+		for key in ["number","variant","plate","vin","wheel_side","wheel_fault"]:
+			receipt[key] = job[key]
+		_set_pool_receipt(receipt)
+		rig.end_job()
+		_clear_field_job()
+		_prepare_offers()
+		_message("COUNTY HIGHWAY SHOP","Keys received at door three. Your repair copy is ready to fax.")
+		_refresh()
+		_save()
+		return
 	if rig.semi or rig.tanker:
 		var milk: bool = rig.tanker != null
 		if received_freight:
@@ -1652,6 +1683,8 @@ func _file_slip(slip: Dictionary) -> void:
 		fax_text += "\nHeavy recovery  $%d" % slip.heavy_fee
 	if slip.get("recovery") == "semi":
 		fax_text += "\nReceived at River Lanes truck stop"
+	elif slip.has("wheel_fault"):
+		fax_text += "\nCounty shop   /   REPAIR 03\n%s\n%s" % [slip.get("diagnosis","Shop inspection requested."),slip.handling]
 	elif slip.get("recovery") == "milk":
 		fax_text += "\nBrzezinski transfer   %d gal   /   Seal %s" % [int(slip.gallons),slip.seal]
 	if slip.has("clearance_bonus"):
@@ -1737,7 +1770,7 @@ func _procedure() -> String:
 			return rig.get_status().get("hint","Drive to the scene. Ask dispatch for a landmark if needed.")
 		"haul":
 			if rig.rollback_active: return rig.rollback_deck.instruction(rig)
-			return rig.dropoff.approach if job.has("sheriff_order") else audio.lines[rig.dropoff.radio][1]
+			return rig.dropoff.approach if job.has("sheriff_order") or rig.axle_fault else audio.lines[rig.dropoff.radio][1]
 		"return": return "Return to the yard to file your slip."
 		"invoice":
 			if job.get("kind") == "hold" and not bay_locked:
@@ -1929,11 +1962,14 @@ func _route_note(favor_site := "") -> Dictionary:
 	var title := "Route slip   /   Brandt yard"
 	var unmapped := false
 	var heading: float = fposmod(-rad_to_deg(rig.heading),360.0)
-	if favor_site.is_empty() and mode == "haul" and (rig.semi or rig.tanker):
+	if favor_site.is_empty() and mode == "haul" and (rig.semi or rig.tanker or rig.axle_fault):
 		var apron := County.Dairy.APRON if rig.tanker else County.RiverLanes.LOT
+		var receiver := "Brzezinski milk house" if rig.tanker else "River Lanes truck stop"
+		if rig.axle_fault:
+			apron = County.East.LOT
+			receiver = "County highway garage · REPAIR 03"
 		if apron.grow(3).has_point(p):
 			return {"title":rig.dropoff.sign,"instruction":rig.dropoff.approach}
-		var receiver := "Brzezinski milk house" if rig.tanker else "River Lanes truck stop"
 		var center:Vector3 = rig.dropoff.center
 		var freight: Dictionary = _current_road_map().cue(p,heading,Vector2(center.x,center.z),receiver)
 		freight.title = "Delivery   /   "+receiver
@@ -2108,6 +2144,7 @@ func _save() -> void:
 		return
 	save_timer = 0
 	saved_data = {"completed":completed,"declined_visit":declined_visit,"mode":mode,"rig":rig.save_state(),"slips":slips,"pending_slips":pending_slips,
+		"received_pool":pool_receipt,
 		"received_freight":received_freight.delivery_record() if received_freight else {},
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
 		"parked_truck":fleet.parked.duplicate(true),"light_offer":Dispatch.pack(fleet.alternate_offer),
@@ -2126,6 +2163,7 @@ func _save() -> void:
 		push_warning("Could not save current tow ticket")
 
 func _restore(s: Dictionary) -> void:
+	_set_pool_receipt(s.get("received_pool",{}))
 	if received_freight:
 		received_freight.queue_free()
 		received_freight = null

@@ -4,6 +4,8 @@ signal recovered(kind:String)
 signal dropped
 signal sound_event(id:String)
 
+const WheelFault := preload("res://scripts/damaged_axle.gd")
+const PoolRepair := preload("res://scripts/pool_repair.gd")
 const WestBay := preload("res://scripts/west_hold_bay.gd")
 const Rollback := preload("res://scripts/rollback_deck.gd")
 const Flowage := preload("res://scripts/flowage_pull.gd")
@@ -48,6 +50,7 @@ var torch:=SpotLight3D.new()
 var car:Node3D
 var semi: Semi
 var tanker: Tanker
+var axle_fault: WheelFault
 var road_wheels: Scene.RoadWheels
 var aux_tank: Reserve
 var reserve_fuel := 0.0
@@ -133,6 +136,7 @@ var exiting_riders: Array[RiderWalk] = []
 var walked:=0.0
 var dropoff: Dictionary:
 	get:
+		if axle_fault: return PoolRepair.DROP
 		if vehicle_identity.has("sheriff_order"): return WestBay.DROP
 		if tanker: return Dairy.DROP
 		return RiverLanes.DROP if semi else YardDrop.for_vehicle(kind)
@@ -788,7 +792,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
+	for key in ["wheel_fault", "wheel_side", "sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -818,7 +822,9 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		"roof", "tree":
 			car.position.y += target.y if target.y > 0 else (4.75 if _recovery()=="roof" else 5.0)
 		"":
-			if kind == "hazard" and not vehicle_identity.get("running",false):
+			if vehicle_identity.has("wheel_fault"):
+				WheelFault.settle_on_shoulder(car,_ground)
+			elif kind == "hazard" and not vehicle_identity.get("running",false):
 				VehicleDrifts.place(car, _ground)
 			elif _county_plow():
 				var nose := car.to_global(Vector3.FORWARD*3.4)
@@ -829,6 +835,9 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		flowage = Flowage.new()
 		flowage.fit_marks(self)
 	if _recovery() == "roof" and vehicle_identity.get("canopy_spreader",false): roof = Roof.new()
+	if vehicle_identity.has("wheel_fault"):
+		axle_fault = WheelFault.new(vehicle_identity)
+		if phase in ["scene","flared","cable","rigged"]: axle_fault.drag_mark(self)
 	if _recovery() == "tree": tree_recovery = TreeRecovery.new()
 	if _roll_job() and vehicle_identity.get("two_drum_roll",false): rollover = Rollover.new()
 	_set_car_lamps("running" if _running_car() else "hazard")
@@ -904,6 +913,7 @@ func end_job() -> void:
 	semi=null
 	tanker=null
 	road_wheels=null
+	axle_fault=null
 	car_lamps=null
 	flash_time=0
 	witness=null
@@ -940,7 +950,9 @@ func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node
 	var stored:=Scene.car(self,model_kind,variant,ticket)
 	stored.position=Vector3(point.x,_ground(point),point.z)
 	stored.rotation.y=yaw
-	if model_kind == "hazard":
+	if ticket.has("wheel_fault"):
+		WheelFault.settle_on_shoulder(stored,_ground)
+	elif model_kind == "hazard":
 		VehicleDrifts.place(stored, _ground)
 	return stored
 
@@ -1061,6 +1073,7 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 
 func at_dropoff() -> bool:
 	if rollback_active and loaded: return rollback_deck.fits_bay(self)
+	if axle_fault: return loaded and PoolRepair.fits(car,car.global_transform)
 	if vehicle_identity.has("sheriff_order"): return loaded and WestBay.fits(car)
 	if semi: return loaded and semi.fits(RiverLanes.BAY)
 	if tanker: return loaded and tanker.fits(Dairy.BAY)
@@ -1095,6 +1108,9 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if axle_fault:
+		var task := axle_fault.action(self,panel_range)
+		if not task.is_empty(): return task
 	if rollback_active and rollback_deck.hauls(self):
 		var deck_action := rollback_deck.action(self,panel_range)
 		if not deck_action.is_empty(): return deck_action
@@ -1167,6 +1183,7 @@ func _at_door() -> bool:
 
 func context_text() -> String:
 	var action:=action_id()
+	if axle_fault and action.begins_with("axle_"): return axle_fault.prompt(action)
 	if action == "deck_unload": return "Lower the bed at %s" % dropoff.sign
 	if action == "deck_store": return "Aim the tail at the amber lamps at %s" % dropoff.sign
 	if Roof.PROMPTS.has(action): return Roof.PROMPTS[action]
@@ -1236,6 +1253,9 @@ func _hint() -> String:
 	if roof:
 		var roof_note := roof.hint(self)
 		if not roof_note.is_empty(): return roof_note
+	if axle_fault:
+		var note := axle_fault.instruction(self)
+		if not note.is_empty(): return note
 	if rollback_active:
 		var deck_note := rollback_deck.instruction(self)
 		if not deck_note.is_empty(): return deck_note
@@ -1291,6 +1311,9 @@ func interact() -> void:
 	if roof and a.begins_with("roof_"):
 		if a in ["roof_setup","roof_boom"] and fuel <= 0.: _note(reserve_hint(),5.)
 		else: roof.handle(self,a)
+		return
+	if axle_fault and a.begins_with("axle_"):
+		axle_fault.handle(self,a)
 		return
 	if rollback_active and a.begins_with("deck_"):
 		rollback_deck.handle(self,a)
@@ -1471,6 +1494,7 @@ func _winch(operate:bool,dt:float) -> void:
 	if working and cot_at_line(): working = false
 	if flowage and not flowage.prepare(self,operate,dt): working = false
 	if (active_levers and special_work < 1.) or (rollover and not rollover.check_cleared): working = false
+	if working and axle_fault and rollback_active and not axle_fault.skates: working=false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
 		if tanker:
@@ -1491,6 +1515,7 @@ func _winch(operate:bool,dt:float) -> void:
 	if rollback_active and rollback_deck.hauls(self):
 		if paying: rollback_deck.pay(self,dt)
 		else: rollback_deck.reel(self,dt)
+		if axle_fault: axle_fault.roll_free_wheels(self)
 		return
 	if semi and semi.rigging == "both":
 		semi.straighten(self,dt)
@@ -1517,6 +1542,7 @@ func _winch(operate:bool,dt:float) -> void:
 		# that load across two strands and halves travel per turn of the drum.
 		resistance=(resistance+.68)*.5
 		shortening*=.5
+	if axle_fault: resistance += .075
 	if tanker:
 		resistance += clampf(tanker.surge.length()*.28,0,.31)
 	free_line=maxf(.30,free_line-shortening)
@@ -1543,6 +1569,9 @@ func _winch(operate:bool,dt:float) -> void:
 	var desired:=atan2(toward.x,toward.z)+(PI if line_end<0 else 0.0)
 	car.rotation.y=lerp_angle(car.rotation.y,desired,clampf(amount*.16,0,.20))
 	if semi: semi.follow(_ground)
+	if axle_fault:
+		WheelFault.settle_on_shoulder(car,_ground)
+		axle_fault.roll_free_wheels(self)
 	if gap<=1.15 or (kind=="ditch" and _road(car.position)<4.55 and car.position.distance_to(job_site)>3.0):
 		tension=0
 		working=false
@@ -1820,6 +1849,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
+	if axle_fault: d.axle_work = {"checked":axle_fault.checked,"skates":axle_fault.skates!=null,"dollies":dollies!=null}
 	d.special_work = special_work
 	if rollback_active:
 		d.rollback_active = true
@@ -1930,6 +1960,11 @@ func restore_state(d:Dictionary) -> void:
 			rollover.controls = drums.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
 			rollover.watch_load = drums.get("watch_load",true)
 		if roof: roof.restore(self,d.get("roof_spreader",{}))
+		if axle_fault:
+			var work: Dictionary = d.get("axle_work",{})
+			axle_fault.checked = work.get("checked",false)
+			if work.get("skates",false): axle_fault.fit_skates(self)
+			if work.get("dollies",false): _fit_dollies()
 		if tree_recovery:
 			var boom: Dictionary = d.get("tree_boom",{})
 			tree_recovery.block_set = boom.get("block",phase == "rigged" or special_work > 0.)

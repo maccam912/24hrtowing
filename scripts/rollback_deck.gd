@@ -136,6 +136,7 @@ func bay_point(rig) -> Vector3:
 
 func fits_bay(rig) -> bool:
 	var p := bay_point(rig)
+	if rig.axle_fault: return rig.PoolRepair.fits(rig.car,Transform3D(rig.truck.global_basis,p),.65)
 	if rig.vehicle_identity.has("sheriff_order"):
 		return rig.WestBay.fits(rig.car,p,rig.heading)
 	var along: Vector3 = rig.truck.global_basis.z*1.95
