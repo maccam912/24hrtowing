@@ -18,6 +18,7 @@ const GLASS := Color("#45555d")
 const RED := Color("#a63f3b")
 const AUX_FAIRLEAD := Vector3(.92,1.85,4.16)
 var trailer: Node3D
+var trailer_yaw := 0.0
 var rigging := "tractor"
 var chain_side := 1.0
 var initial_bend := 0.0
@@ -89,16 +90,21 @@ func build(parent: Node3D, ticket: Dictionary) -> void:
 	g.finish()
 
 func set_trailer_heading(yaw: float, ground: Callable) -> void:
+	trailer_yaw = yaw
 	var pin := to_global(KINGPIN)
 	var tail := pin+Vector3.BACK.rotated(Vector3.UP,yaw)*BOGIE
 	var grade := atan2(pin.y-(float(ground.call(tail))+KINGPIN.y),BOGIE)
 	trailer.global_rotation = Vector3(clampf(grade,-.22,.22),yaw,0)
 	trailer.global_position = pin
 
-func follow(ground: Callable) -> void:
-	var tail := trailer.to_global(Vector3.BACK*BOGIE)-to_global(KINGPIN)
-	var bend := wrapf(atan2(tail.x,tail.z)-rotation.y,-PI,PI)
-	set_trailer_heading(rotation.y+clampf(bend,-1.22,1.22),ground)
+func heading_at_pin(pin: Vector3, tractor_yaw: float) -> float:
+	var travel := pin-trailer.global_position
+	var axle := Vector3.BACK.rotated(Vector3.UP,trailer_yaw)*BOGIE-travel
+	return tractor_yaw+clampf(angle_difference(tractor_yaw,atan2(axle.x,axle.z)),-1.22,1.22)
+
+func follow(ground: Callable, rolling := true) -> void:
+	var yaw := heading_at_pin(to_global(KINGPIN),rotation.y) if rolling else trailer_yaw
+	set_trailer_heading(yaw,ground)
 
 func park_at(point: Vector3, yaw: float, fold: float, ground: Callable) -> void:
 	position = point
@@ -121,7 +127,7 @@ func outside_trailer(destination: Vector3, previous: Vector3) -> Vector3:
 	return trailer.to_global(p)
 
 func straighten(rig, dt: float) -> void:
-	var previous_yaw := trailer.global_rotation.y
+	var previous_yaw := trailer_yaw
 	var toward:Vector3 = rig._drum()-global_position
 	toward.y = 0
 	# The tractor inches forward under the main line as the other drum
@@ -144,7 +150,7 @@ func straighten(rig, dt: float) -> void:
 		rig._note("Trailer straight. Set the brake on the drum and unpin the check line at the tandem.",6.0)
 
 func snapshot() -> Dictionary:
-	return {"yaw":trailer.global_rotation.y,"rigging":rigging,"side":chain_side,"fold":initial_bend}
+	return {"yaw":trailer_yaw,"rigging":rigging,"side":chain_side,"fold":initial_bend}
 
 func restore(state: Dictionary, ground: Callable) -> void:
 	rigging = state.get("rigging","tractor")
@@ -289,9 +295,8 @@ func tow_obstructed(rig, step: Vector3, turn: float) -> bool:
 	if rig.load_obstructed(self,tractor,SIZE.x,1.0,[-SIZE.z,0,SIZE.z]):
 		return true
 	var pin := tractor*KINGPIN
-	var tail := trailer.to_global(Vector3.BACK*BOGIE)-pin
 	var yaw := atan2(tractor.basis.z.x,tractor.basis.z.z)
-	var box_yaw := yaw+clampf(angle_difference(yaw,atan2(tail.x,tail.z)),-1.22,1.22)
+	var box_yaw := heading_at_pin(pin,yaw)
 	var box_pose := Transform3D(Basis(Vector3.UP,box_yaw),pin)
 	return rig.load_obstructed(trailer,box_pose,WIDTH,-.07,[-.98,2.0,4.9,7.8,BACK])
 
@@ -299,7 +304,7 @@ func settle(ground: Callable) -> void:
 	rotation.x = 0
 	rotation.z = 0
 	position.y = ground.call(position)
-	set_trailer_heading(trailer.global_rotation.y,ground)
+	set_trailer_heading(trailer_yaw,ground)
 	_solid(self,Vector3(0,1.2,-.76),Vector3(2.26,2.24,5.25))
 	_solid(trailer,Vector3(0,1.28,4.86),Vector3(WIDTH*2,2.9,11.68))
 
@@ -315,7 +320,7 @@ func _solid(parent: Node3D, at: Vector3, size: Vector3) -> void:
 
 func delivery_record() -> Dictionary:
 	return {"plate":get_meta("plate"),"vin":get_meta("vin"),"paint":get_meta("paint"),"x":position.x,"z":position.z,
-		"yaw":rotation.y,"trailer_yaw":trailer.global_rotation.y}
+		"yaw":rotation.y,"trailer_yaw":trailer_yaw}
 
 func restore_delivery(parent: Node3D, data: Dictionary, ground: Callable) -> void:
 	build(parent,data)

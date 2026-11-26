@@ -1761,7 +1761,7 @@ func _track_underlift(pin_travel := Vector3.ZERO, first_hook := false) -> void:
 	body.crossbar.follow_axle(car,line_end,half_track,wheel_height)
 	car.global_position=body.crossbar.to_global(Vector3.UP*Truck.WheelLift.AXLE_HEIGHT)-car.global_basis*lifted_axle
 	if road_wheels: road_wheels.ground_axle(line_end,_ground,dollies)
-	if semi: semi.follow(_ground)
+	if semi: semi.follow(_ground,first_hook or not pin_travel.is_zero_approx())
 
 func _begin_departure() -> DepartingDriver:
 	var driver := DepartingDriver.new(self,car,witness,car_lamps,job_site,job_yaw,vehicle_identity)

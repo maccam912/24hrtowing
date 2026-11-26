@@ -115,6 +115,12 @@ func run() -> void:
 		return
 	game._save()
 	var field_save:Dictionary = game.saved_data.duplicate(true)
+	for bend_at_rest:float in [-.24,.24]:
+		rig.semi.set_trailer_heading(rig.semi.rotation.y+bend_at_rest,rig._ground)
+		var parked_yaw:float = rig.semi.trailer.global_rotation.y
+		for tick in 900:
+			rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,DT)
+		check(absf(angle_difference(parked_yaw,rig.semi.trailer.global_rotation.y)) < deg_to_rad(.01),"a stopped freight trailer holds its fifth-wheel angle in either direction")
 	rig.truck.position = rig.YardDrop.STORAGE.center
 	rig.car.position = rig.YardDrop.STORAGE.center
 	check(not rig.at_dropoff(),"the county storage bay cannot accept freight")
