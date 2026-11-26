@@ -617,6 +617,8 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 	c.button("plat_pencil",Rect2(p.end.x-210,p.position.y+6,182,80),"Put pencil away" if c.desk.pencil_open else "Use pencil")
 	var map_box := Rect2(p.position+Vector2(30,105), Vector2(p.size.x*.64-35,p.size.y-147))
 	_map(c,map_box,s,true)
+	if not c.desk.east_sheet and not c.desk.pencil_open and c.desk.fire_leaf < 0:
+		c.button("turn_town",Rect2(map_box.position+Vector2(6,map_box.size.y-86),Vector2(142,80)),"County plat" if c.desk.town_sheet else "Esker detail")
 	var cx := map_box.end.x+19
 	var cy := map_box.position.y+19
 	var column_w := p.end.x-cx-25
@@ -633,6 +635,9 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 			if tool != "erase":
 				_pencil_symbol(c,row.position+Vector2(21,row.size.y*.5),tool,1.1)
 			row.position.y += 84
+		return
+	if c.desk.town_sheet:
+		Pencil.Town.directory(c,Rect2(cx,cy,column_w,p.end.y-cy-12))
 		return
 	if c.desk.east_sheet:
 		EastPlat.directory(c,Rect2(cx,cy,column_w,p.end.y-cy-12))
@@ -699,14 +704,17 @@ func _fire_index(c, column: Rect2) -> void:
 
 func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	c.draw_rect(box,Color("#d5d7bc"))
-	var transform := Pencil.projection(box,12 if detailed else 4,c.desk.east_sheet)
+	var transform := Pencil.projection(box,12 if detailed else 4,c.desk.east_sheet,c.desk.town_sheet)
 	var scale_factor := transform.x.x
 	var project := func(v: Vector2) -> Vector2: return transform*v
 	if detailed and c.desk.pencil_open:
 		pencil_projection = transform
-		var start := Pencil.EAST_NW if c.desk.east_sheet else ATLAS_A
-		var end := Pencil.EAST_SE if c.desk.east_sheet else ATLAS_B
-		c.hit("pencil_sheet",Rect2(transform*start,(end-start)*scale_factor))
+		var bounds: Rect2 = c.desk._pencil_bounds()
+		c.hit("pencil_sheet",Rect2(transform*bounds.position,bounds.size*scale_factor))
+	if c.desk.town_sheet:
+		Pencil.Town.draw_sheet(c,box,transform,detailed)
+		_pencil_marks(c,box,s,transform,detailed)
+		return
 	if c.desk.east_sheet:
 		EastPlat.draw_sheet(c,box,transform,detailed)
 		_pencil_marks(c,box,s,transform,detailed)

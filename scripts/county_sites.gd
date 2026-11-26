@@ -476,6 +476,8 @@ func spruce_at(x: float, z: float, solid: bool) -> void:
 	if z < -395 and z > (world.CaseSites.ALDER_END-8 if world.alder_open else -484.0):
 		if absf(x-world.CaseSites.ALDER_X) < 10 or world.CaseSites.HOUSE_YARD.grow(2).has_point(Vector2(x,z)):
 			return
+	if world.Town.APRON.grow(10).has_point(Vector2(x,z)) or world.Town.CHEESE_YARD.grow(3).has_point(Vector2(x,z)) or world.Town.ZION_YARD.grow(1).has_point(Vector2(x,z)):
+		return
 	draw.spruce(origin, height, yaw)
 	if solid:
 		draw.solid_box(p(0,1.5,0),Vector3(.34,3,.34))

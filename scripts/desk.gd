@@ -18,6 +18,7 @@ var fax_sheet := -1
 var fire_leaf := -1
 var fire_parcel := ""
 var atlas_notes := false
+var town_sheet := false
 var east_sheet := false
 var pencil_open := false
 var pencil_tool := "return"
@@ -118,6 +119,7 @@ func _change_page(id: String) -> void:
 		surface.queue_redraw()
 
 func open_fire_index(id: String) -> void:
+	town_sheet = false
 	east_sheet = false
 	pencil_open = false
 	fire_parcel = id
@@ -125,6 +127,11 @@ func open_fire_index(id: String) -> void:
 	surface.hover = ""
 	surface.hit_boxes.clear()
 	surface.queue_redraw()
+
+func _pencil_bounds() -> Rect2:
+	if town_sheet: return Rect2(Surface.Documents.Pencil.Town.NW,Surface.Documents.Pencil.Town.SE-Surface.Documents.Pencil.Town.NW)
+	if east_sheet: return Rect2(Surface.Documents.Pencil.EAST_NW,Surface.Documents.Pencil.EAST_SE-Surface.Documents.Pencil.EAST_NW)
+	return Rect2(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B-Surface.Documents.ATLAS_A)
 
 func _clear_controls() -> void:
 	_touches.clear()
@@ -206,7 +213,8 @@ func _input(event: InputEvent) -> void:
 				KEY_UP: direction = Vector2.UP
 				KEY_DOWN: direction = Vector2.DOWN
 			if direction != Vector2.ZERO:
-				pencil_point = (pencil_point+direction*(100 if event.shift_pressed else 22)).clamp(Surface.Documents.Pencil.EAST_NW if east_sheet else Surface.Documents.ATLAS_A,Surface.Documents.Pencil.EAST_SE if east_sheet else Surface.Documents.ATLAS_B)
+				var step := (20 if event.shift_pressed else 4) if town_sheet else (100 if event.shift_pressed else 22)
+				pencil_point = (pencil_point+direction*step).clamp(_pencil_bounds().position,_pencil_bounds().end)
 				surface.queue_redraw()
 				get_viewport().set_input_as_handled()
 				return
@@ -340,7 +348,13 @@ func _activate(id: String) -> void:
 			surface.queue_redraw()
 		"west_accept","west_sign_pickup","west_sign_release","west_archive","west_archive_prev","west_archive_next","west_current","impound_prev", "impound_next", "impound_index", "impound_0", "impound_1", "impound_2", "buy_coffee", "talk_mai":
 			action.emit(id)
+		"turn_town":
+			town_sheet = not town_sheet
+			surface.hover = ""
+			surface.hit_boxes.clear()
+			surface.queue_redraw()
 		"turn_plat":
+			town_sheet = false
 			east_sheet = not east_sheet
 			pencil_open = false
 			fire_leaf = -1
@@ -367,10 +381,7 @@ func _activate(id: String) -> void:
 		"plat_pencil":
 			fire_leaf = -1
 			pencil_open = not pencil_open
-			if east_sheet:
-				pencil_point = pencil_point.clamp(Surface.Documents.Pencil.EAST_NW,Surface.Documents.Pencil.EAST_SE)
-			else:
-				pencil_point = pencil_point.clamp(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B)
+			pencil_point = pencil_point.clamp(_pencil_bounds().position,_pencil_bounds().end)
 			surface.hover = "pencil_sheet" if pencil_open else ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()

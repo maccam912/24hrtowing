@@ -14,6 +14,8 @@ const Scene = preload("res://scripts/rig_scene.gd")
 const SURVEY_PICKUP := Vector3(314,0,-409)
 const SURVEY_YAW := .38
 const HOFFMANN_LANE_END := Vector2(457,336)
+const Town := preload("res://scripts/esker_main_street.gd")
+const FireBay := preload("res://scripts/esker_fire_bay.gd")
 const East := preload("res://scripts/tamarack_highway.gd")
 const TERRAIN_X := Vector2i(-795, 2250)
 const TERRAIN_Z := Vector2i(-610, 1000)
@@ -29,7 +31,7 @@ const ROADS := [
 const PLACES := [
 	["Brandt Towing", -32,-64], ["Fuel & Food",-71,18], ["St. Hedwig’s",22,80],
 	["Brzezinski Dairy",90,425], ["Lindquist",431,246], ["Section 3",314,-400],
-	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Flowage landing",-434,-141], ["Esker Co-op",40,-22], ["Tamarack",895,0], ["County Highway Garage",East.CURB.x,East.CURB.z], ["Cedar Creek",1325,0],
+	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Flowage landing",-434,-141], ["Esker Co-op",40,-22], ["Tamarack",895,0], ["Esker Fire Hall",Town.HALL.x,Town.HALL.y], ["Esker Tap",-30,20], ["Esker Cheese Factory",-164,-20], ["Zion Lutheran",-24,73], ["County Highway Garage",East.CURB.x,East.CURB.z], ["Cedar Creek",1325,0],
 ]
 var alder_open := false
 var case_landmarks := {"angie_house":true,"mailboxes":true}
@@ -73,6 +75,7 @@ var west_bay: WestBay
 var west_bay_fitted := false
 var west_lot_open := false
 var fittings_model: Node3D
+var fire_bay: FireBay
 var fuel_door: Node3D
 var bay: Node3D
 var drop_guide := Node3D.new()
@@ -420,7 +423,7 @@ func _distance_from_lot(x: float, z: float) -> float:
 	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
 	if Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
-	for lot: Rect2 in [YARD,Fittings.WEST_LOT,Flowage.LANDING,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
+	for lot: Rect2 in [YARD,Town.APRON,Town.CHEESE_YARD,Town.ZION_YARD,Fittings.WEST_LOT,Flowage.LANDING,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
 		var dz := maxf(0,maxf(lot.position.y-z, z-lot.end.y))
 		nearest = minf(nearest, maxf(dx,dz))
@@ -620,6 +623,7 @@ func _airborne_snow(material: ShaderMaterial, count: int) -> MultiMeshInstance3D
 
 func _build() -> void:
 	rebuild_queued = false
+	var tanker_state := {"lift":fire_bay.lift,"travel":fire_bay.travel} if is_instance_valid(fire_bay) else {}
 	case_models.clear()
 	if is_instance_valid(county_model):
 		remove_child(county_model)
@@ -634,6 +638,12 @@ func _build() -> void:
 	_build_ground(draw)
 	var places = Sites.new(self,draw)
 	places.build()
+	Town.new(self,draw).build()
+	fire_bay = FireBay.new()
+	fire_bay.name = "VolunteerTankerBay"
+	county_model.add_child(fire_bay)
+	fire_bay.build(self)
+	fire_bay.restore(tanker_state)
 	_build_yard_fittings()
 	RiverLanes.new(self,draw).build()
 	Dairy.new(self,draw).build()
@@ -708,8 +718,8 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,Flowage.ROAD_X,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884,1100,1150,East.LOT.position.x,East.LOT.end.x])
-	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,4,14,18,24,31,47,61,146,164,236,246,331,336,341,425,448])
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,Flowage.ROAD_X,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884,Town.APRON.position.x,Town.APRON.end.x,Town.CHEESE_YARD.position.x,Town.CHEESE_YARD.end.x,1100,1150,East.LOT.position.x,East.LOT.end.x])
+	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,4,14,18,24,27,31,47,61,146,164,236,246,331,336,341,425,448])
 	var ground := {}
 	var h_rows := []
 	for z: float in zs:
@@ -733,7 +743,7 @@ func _build_ground(draw) -> void:
 			var center := (a+c)*.5
 			var road := road_distance(center.x,center.z) <= 5.0
 			var yard_floor := Flowage.LANDING.has_point(Vector2(center.x,center.z)) or YARD.has_point(Vector2(center.x,center.z)) or RiverLanes.LOT.has_point(Vector2(center.x,center.z))
-			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z)) or East.LOT.has_point(Vector2(center.x,center.z))
+			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z)) or East.LOT.has_point(Vector2(center.x,center.z)) or Town.APRON.has_point(Vector2(center.x,center.z)) or Town.CHEESE_YARD.has_point(Vector2(center.x,center.z))
 			var material := "road" if road else ("pavement" if yard_floor or forecourt else "snow")
 			var uv := PackedVector2Array()
 			var highway := absf(center.z)<5.1 or absf(center.z-400)<5.1 or absf(center.z-800)<5.1 or absf(center.z+400)<5.1

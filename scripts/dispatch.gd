@@ -48,6 +48,9 @@ const SITES := {
 	"county_seat": {"road":"Highway 64", "landmark":"Tamarack county offices", "station":Vector2(880,0), "hazard_only":true,
 		"after_jobs":8, "hazard_reasons":["Highway crew needs the shoulder for snow.", "The clerk is holding the keys at the counter."],
 		"approach":"Go south on K, left at Main. Stay on sixty-four past County FF to the brick county building."},
+	"fire_hall": {"road":"Highway 64","landmark":"Esker fire hall","station":Vector2(108.4,0),"after_jobs":4,"hazard_only":true,
+		"hazard_reasons":["The tanker bay is blocked. Chief checked it and put the tape on.","The owner got a ride home. The volunteers need their apron clear for Tanker 2."],
+		"approach":"Take K south and turn left at Main. Pass the co-op bins. Pull into the brick fire hall on the right, under the hose tower."},
 }
 const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan", "County utility pickup", "Orange county snowplow", "White sheriff’s squad", "North Country tractor-trailer", "Brzezinski bulk milk truck", Ambulance.TITLE]
 const HEAVY_VARIANT := 4
@@ -198,11 +201,14 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var station: Vector2 = site.station
 	var north_south: bool = site.get("north_south", false)
 	var side := 1 if rng.randi() % 2 == 0 else -1
+	if route == "fire_hall": side = 1
 	var shoulder := ("east" if side > 0 else "west") if north_south else ("south" if side > 0 else "north")
 	var offset := 8.4 if kind == "ditch" else 5.6
+	if route == "fire_hall": offset = 17.5
 	var point := Vector3(station.x, 0, station.y)
 	point += (Vector3.RIGHT if north_south else Vector3.BACK) * side * offset
 	var yaw := (0.0 if north_south else PI / 2) + (PI if rng.randi() % 2 == 0 else 0.0)
+	if route == "fire_hall": yaw = PI*.5
 	if kind == "ditch":
 		# Turn released drivers back into the county at the two outer closures.
 		if route == "swamp":

@@ -296,6 +296,8 @@ func _physics_process(dt: float) -> void:
 	var player_at: Vector3 = rig.get_player_position()
 	var in_store: bool = not rig.in_cab and county.inside_fuel_store(player_at)
 	var playing_shift: bool = active and not desk.is_title()
+	if playing:
+		county.fire_bay.advance(job.get("site") == "fire_hall" and mode == "haul",rig,dt)
 	county.follow_camera(world_view.get_camera_3d().global_position,rig.in_cab and playing_shift,in_store)
 	ambience.mix(player_at,rig.in_cab,in_store,audio.calm,playing_shift,dt)
 	if active and not desk.is_title() and desk.page not in ["pause", "guidance"]:
@@ -405,7 +407,8 @@ func _action(id: String) -> void:
 				_speak("TOU",Campaign.QUESTIONS[choice][1])
 				_save()
 		"pencil_mark":
-			if desk.page == "map" and desk.pencil_open and not desk.glance and plat_pencil.write(desk.pencil_tool,desk.pencil_point):
+			if desk.page == "map" and desk.pencil_open and not desk.glance and plat_pencil.write(desk.pencil_tool,desk.pencil_point,
+					plat_pencil.TOWN_PICK_RADIUS if desk.town_sheet else plat_pencil.PICK_RADIUS):
 				_save()
 		"mark_sketch":
 			if book_read and desk.page == "field":
@@ -2144,6 +2147,7 @@ func _save() -> void:
 		return
 	save_timer = 0
 	saved_data = {"completed":completed,"declined_visit":declined_visit,"mode":mode,"rig":rig.save_state(),"slips":slips,"pending_slips":pending_slips,
+		"fire_bay":{"lift":county.fire_bay.lift,"travel":county.fire_bay.travel},
 		"received_pool":pool_receipt,
 		"received_freight":received_freight.delivery_record() if received_freight else {},
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
@@ -2178,6 +2182,7 @@ func _restore(s: Dictionary) -> void:
 	heavy_job_filed = slips.any(func(slip: Dictionary) -> bool: return float(slip.get("heavy_fee",0.0)) > 0.0)
 	pending_slips = s.get("pending_slips",[])
 	calls = s.calls.duplicate()
+	county.fire_bay.restore(s.get("fire_bay",{}))
 	plat_pencil.restore(s.get("plat_marks",[]))
 	roads_driven = s.roads
 	stored = s.stored

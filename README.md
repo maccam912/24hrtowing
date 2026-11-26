@@ -46,7 +46,9 @@ If you or the wrecker get wedged, open **Pause → Stuck? Recover to yard**. The
 
 ## The county rotation
 
-Arlene draws ditch pulls and checked hazards from seven sites at first. After eight ordinary jobs, she can also send you across the bridge to River Lanes, out to the dairy barn on County FF, or east to the Tamarack county offices. Old slips and county faxes stay on the clipboard.
+Arlene draws ditch pulls and checked hazards from seven sites at first. After eight ordinary jobs, she can also send you across the bridge to River Lanes, out to the dairy barn on County FF, or east to the Tamarack county offices. Old slips and county faxes stay on the clipboard. The volunteer fire hall can call in a taped car in front of Tanker 2 after four ordinary jobs. Tow it clear of the apron and the crew can get the tanker out.
+
+Open the plat and choose **Esker detail** for Main Street. From west to east, the shuttered cheese works, Mai’s pumps, the lit Tap sign, the co-op bins and the fire hall lead through town. On County K, Zion’s single belfry sits opposite St. Hedwig’s twin steeples.
 
 Open the **Shop** tab to check your account. A new operator starts with $35. Filing a slip adds its pay to **Lifetime earned** and **Pending payment**. Every third slip clears the batch for spending. Buying diesel or parts comes out of **Available**.
 
