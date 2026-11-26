@@ -262,7 +262,7 @@ func _physics_process(dt: float) -> void:
 				look *= .19
 		# A clearance clock belongs to this ticket. Travel, paperwork, a fuel
 		# delivery and time spent away from the scene leave it where it was.
-		if job.has("clearance_seconds") and not rig.in_cab and rig.fuel > 0.0 and rig.phase in ["flared","cable","rigged"] and rig.near_casualty(42.0):
+		if job.has("clearance_seconds") and not rig.in_cab and rig.fuel > 0.0 and rig.phase in ["flared","cable","rigged"] and rig.near_casualty(42.0) and not rig.cot_at_line():
 			job.clearance_seconds += dt
 		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working and not on_ladder,brake,dt,on_ladder)
 		picture.material.set_shader_parameter("operator_frost",0.0 if rig.in_cab else smoothstep(.08,.72,1.0-rig.warmth))
@@ -1150,6 +1150,8 @@ func _site_action() -> String:
 	if not west_site.is_empty(): return west_site
 	if is_instance_valid(fleet.model) and _facing(fleet.door(),2.45):
 		return "fleet_door"
+	if rig.ems_partner and rig.phase != "scene" and _facing(rig.ems_partner.position,3.3):
+		return "cot_inside"
 	if CountyVisits.step_in_reach(self):
 		return "visit_stop"
 	var detail_site := casework.site()
@@ -1319,6 +1321,9 @@ func _interact() -> void:
 				rig.end_job()
 				_sync_survey_scene()
 				_prepare_offers()
+		"cot_inside":
+			if rig.send_cot_inside():
+				_speak("EMT KIT","I’ve got the cot. I’ll take it in through the lit doors.")
 		"driver":
 			talked = true
 			_say(job.reply)
@@ -1409,7 +1414,9 @@ func _recovered(kind: String) -> void:
 	if kind == "ditch":
 		drop_odo = pickup_odo
 		drop_time = pickup_time
-		if talked:
+		if job.get("vin") == Dispatch.Ambulance.VIN:
+			_speak("EMT NOVAK","Four wheels on pavement. I’ll bring the unit back around for Kit. Thanks, Brandt.")
+		elif talked:
 			_say("clear")
 		else:
 			_say(job.reply)
@@ -1647,7 +1654,8 @@ func _file_slip(slip: Dictionary) -> void:
 	elif slip.get("recovery") == "milk":
 		fax_text += "\nBrzezinski transfer   %d gal   /   Seal %s" % [int(slip.gallons),slip.seal]
 	if slip.has("clearance_bonus"):
-		fax_text += "\nSquad clearance  %s    Bonus  $%.2f" % [Dispatch.Squad.clock(slip.clearance_seconds),slip.clearance_bonus]
+		var responder := "Ambulance" if slip.get("vin") == Dispatch.Ambulance.VIN else "Squad"
+		fax_text += "\n%s clearance  %s    Bonus  $%.2f" % [responder,Dispatch.Squad.clock(slip.clearance_seconds),slip.clearance_bonus]
 	if slip.get("rate_fee",0) > 0:
 		fax_text += "\n%s  $%.2f" % [slip.rate_name,slip.rate_fee]
 	fax_text += "\nNet invoice  $%.2f\n\nD. Pfaff  /  Accounts Payable" % slip.pay
@@ -1701,6 +1709,9 @@ func _procedure() -> String:
 		var instruction := casework.procedure()
 		if not instruction.is_empty():
 			return instruction
+	if job.get("vin") == Dispatch.Ambulance.VIN and rig.cot_at_line():
+		if rig.phase == "scene": return "Flare the scene at Memorial’s east drive. Kit is beside the empty cot at the back."
+		return "Ask Kit to wheel the cot in." if rig.ems_partner else "The crew is walking clear. You can set up your line."
 	match mode:
 		"available":
 			if not pending_slips.is_empty():
@@ -1837,6 +1848,8 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
+	if site == "cot_inside":
+		return "Ask Kit to wheel the cot into Memorial"
 	if site == "offer_ride":
 		return "Offer a ride to " + Rides.destination(job)
 	if site == "visit_stop":
@@ -2028,7 +2041,7 @@ func _refresh() -> void:
 		state.west_card = west_orders.sheet(self)
 		state.west_source = west_source
 	state["visit_offer"] = visit_offer if mode == "available" else {}
-	state["visit_action"] = CountyVisits.CHECKS[job.id].buttons[int(job.visit_step)] if site == "visit_stop" else ""
+	state["visit_action"] = CountyVisits.CHECKS[job.id].buttons[int(job.visit_step)] if site == "visit_stop" else ("MOVE COT" if site == "cot_inside" else "")
 	if site == "visit_stop" and not desk.is_touch_mode():
 		state.feedback = "E   "+_prompt(site)
 	state["passenger_drop"] = site == "let_out"

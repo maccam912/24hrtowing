@@ -5,6 +5,7 @@ const Legacy := preload("res://scripts/legacy_dispatch.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Rides := preload("res://scripts/passenger_call.gd")
+const Ambulance := preload("res://scripts/memorial_ambulance.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
 const Tanker := preload("res://scripts/milk_tanker.gd")
@@ -47,7 +48,7 @@ const SITES := {
 		"after_jobs":8, "hazard_reasons":["Highway crew needs the shoulder for snow.", "The clerk is holding the keys at the counter."],
 		"approach":"Go south on K, left at Main. Stay on sixty-four past County FF to the brick county building."},
 }
-const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan", "County utility pickup", "Orange county snowplow", "White sheriff’s squad"]
+const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan", "County utility pickup", "Orange county snowplow", "White sheriff’s squad", "North Country tractor-trailer", "Brzezinski bulk milk truck", Ambulance.TITLE]
 const HEAVY_VARIANT := 4
 const HEAVY_FEE := 36
 const DRIVERS := [
@@ -110,6 +111,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var last_plow := -1
 	var last_squad := -1
 	var squad_calls := 0
+	var last_ems := -1
 	var last_semi := -1
 	var freight_calls := 0
 	var last_milk := -1
@@ -127,7 +129,9 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			milk_calls += 1
 		if slip.get("vin") == Snowplow.VIN:
 			last_plow = ditches + hazards
-		if slip.has("clearance_seconds"):
+		if slip.get("vin") == Ambulance.VIN:
+			last_ems = ditches + hazards
+		elif slip.has("clearance_seconds"):
 			last_squad = ditches + hazards
 			squad_calls += 1
 		used[site_id] = int(used.get(site_id, 0)) + 1
@@ -156,6 +160,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var passenger_due := summer_due or (rotation_count >= 9 and (last_ride < 0 or rotation_count-last_ride >= 12))
 	var stuck_plow := snatch_block and kind == "ditch" and not passenger_due and rotation_count >= 8 and (last_plow == -1 or rotation_count-last_plow >= 14)
 	var squad := kind == "ditch" and not passenger_due and not stuck_plow and rotation_count >= 12 and (last_squad == -1 or rotation_count-last_squad >= 17)
+	if kind == "ditch" and not passenger_due and not stuck_plow and not squad and rotation_count >= 18 and (last_ems < 0 or rotation_count-last_ems >= 23):
+		return Ambulance.ticket(completed,_scheduled_miles(Vector2(Ambulance.SITE.x,Ambulance.SITE.z)))
 	if kind == "hazard" and second_winch and snatch_block and rotation_count >= 12 and (last_semi < 0 or rotation_count-last_semi >= 18):
 		return _freight_ticket(completed,dispatch_seed,freight_calls)
 	if kind == "hazard" and snatch_block and rotation_count >= 16 and (last_milk < 0 or rotation_count-last_milk >= 20) and (last_semi < 0 or rotation_count-last_semi >= 4):

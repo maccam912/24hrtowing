@@ -9,6 +9,7 @@ var lamps: Node3D
 var job_site: Vector3
 var job_yaw: float
 var identity: Dictionary
+var ems_leg := 0
 var departure_time := 0.0
 var backing_distance := 0.0
 var west_bay_cleared := false
@@ -38,7 +39,7 @@ func _running_lamps() -> void:
 func save_state() -> Dictionary:
 	var state := {"site":rig._v(job_site),"site_yaw":job_yaw,"identity":identity.duplicate(),
 		"car":rig._v(car.position),"car_rot":rig._v(car.rotation),"departed":departure_time,
-		"backing_distance":backing_distance,"driver_boarded":not witness.visible,
+		"ems_leg":ems_leg,"backing_distance":backing_distance,"driver_boarded":not witness.visible,
 		"witness":rig._v(witness.position),"witness_yaw":witness.rotation.y}
 	if identity.get("west_release",false): state.west_bay_cleared = west_bay_cleared
 	return state
@@ -46,6 +47,7 @@ func save_state() -> Dictionary:
 func restore_state(data: Dictionary) -> void:
 	car.position = rig._unpack(data.get("car"), job_site)
 	car.rotation = rig._unpack(data.get("car_rot"), Vector3.UP * job_yaw)
+	ems_leg = clampi(data.get("ems_leg",0),0,Scene.Ambulance.RETURN_LANE.size())
 	departure_time = data.get("departed",0)
 	backing_distance = data.get("backing_distance",0)
 	west_bay_cleared = data.get("west_bay_cleared",false)
@@ -68,6 +70,11 @@ func _departure_lane() -> void:
 		else:
 			departure_lane_start = Vector3(-2.15,0,-66)
 			departure_lane_end = Vector3(-2.15,0,900)
+		return
+	if identity.get("variant") == Scene.Ambulance.VARIANT:
+		if ems_leg < Scene.Ambulance.RETURN_LANE.size():
+			departure_lane_start = car.position
+			departure_lane_end = Scene.Ambulance.RETURN_LANE[ems_leg]
 		return
 	var forward:=Vector3.FORWARD.rotated(Vector3.UP,job_yaw)
 	departure_lane_start=job_site-forward*500
@@ -119,6 +126,13 @@ func advance(dt: float) -> bool:
 	if yard_release and car.position.x>=-6:
 		_departure_lane()
 		yard_release=false
+	var ambulance: bool = identity.get("variant") == Scene.Ambulance.VARIANT
+	if ambulance:
+		if ems_leg == Scene.Ambulance.RETURN_LANE.size(): return false
+		if rig._flat_distance(car.position,departure_lane_end) < 1.65:
+			ems_leg += 1
+			_departure_lane()
+			return false
 	var lane:=departure_lane_end-departure_lane_start
 	var lane_forward:=lane.normalized()
 	var lane_right:=lane_forward.cross(Vector3.UP)
@@ -147,13 +161,14 @@ func advance(dt: float) -> bool:
 	if reverse_out: direction = -direction
 	if direction.length()>1.0:
 		var yaw_target:=atan2(-direction.x,-direction.z)
-		var distance:=minf((departure_time-1.0)*1.55,10.5)*dt
+		var distance:=minf((departure_time-1.0)*1.55,3.2 if ambulance else 10.5)*dt
 		var yaw:=rotate_toward(car.rotation.y,yaw_target,distance*.32)
 		var step:=Vector3.FORWARD.rotated(Vector3.UP,yaw)*distance
 		if reverse_out: step = -step
 		# A close pull can leave the bumper pointed at the wrecker. Back up to
 		# make enough room to swing around its bed before trying forward again.
 		var overhang := 4.40 if identity.get("variant",-1) == Scene.Snowplow.VARIANT else 2.2
+		if ambulance: overhang = Scene.Ambulance.SIZE.z
 		if backing_distance<=0 and rig._in_wrecker(car.position+step.normalized()*overhang+step):
 			backing_distance=3.2
 		if backing_distance>0:

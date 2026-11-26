@@ -65,6 +65,7 @@ var second_line := false
 var sighting_calm := 0.0
 var sighting_light := Vector3.INF
 var electrical_fade := 0.0
+var ems_partner: Node3D
 var witness:Node3D
 var survey_passenger: Node3D
 var flame:Node3D
@@ -777,7 +778,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["sheriff_order", "case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "mail", "running", "open_door", "untaped"]:
+	for key in ["sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -836,7 +837,37 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
 		witness.position=Vector3(point.x,_ground(point),point.z)
 		witness.rotation.y=yaw-1.14
+	if variant == Scene.Ambulance.VARIANT and not vehicle_identity.get("cot_released",false):
+		ems_partner = Scene.person(self,false,Scene.Ambulance.ATTENDANT)
+		var at := car.to_global(Vector3(0,0,5.30))
+		ems_partner.position = Vector3(at.x,_ground(at),at.z)
+		var toward := Rides.Memorial.DOOR-ems_partner.position
+		ems_partner.rotation.y = atan2(-toward.x,-toward.z)
 	_update_highlight()
+
+func cot_at_line() -> bool:
+	if vehicle_identity.get("variant",-1) != Scene.Ambulance.VARIANT:
+		return false
+	if ems_partner:
+		return true
+	for walker in exiting_riders:
+		if walker.variant == Scene.Ambulance.ATTENDANT and _flat_distance(walker.person.position,job_site)<9.0:
+			return true
+	return false
+
+func send_cot_inside() -> bool:
+	if not ems_partner or phase == "scene":
+		return false
+	var walker := RiderWalk.new(ems_partner,Scene.Ambulance.ATTENDANT)
+	var door := Rides.Memorial.DOOR
+	if not walker.plot(self,door+Vector3.FORWARD*1.1,"ems_cot"):
+		_note("Leave Kit a clear route to the hospital curb.",5)
+		return false
+	walker.route.append(door+Vector3.BACK*.7)
+	exiting_riders.append(walker)
+	ems_partner = null
+	vehicle_identity.cot_released = true
+	return true
 
 func end_job() -> void:
 	if rollback_deck: rollback_deck.reset()
@@ -853,9 +884,10 @@ func end_job() -> void:
 		car = null
 		witness = null
 	_clear_warning_triangle()
-	for n in [car,witness,flame,chocks,dollies]:
+	for n in [car,witness,ems_partner,flame,chocks,dollies]:
 		if is_instance_valid(n): n.queue_free()
 	car=null
+	ems_partner=null
 	semi=null
 	tanker=null
 	road_wheels=null
@@ -1094,6 +1126,7 @@ func action_id() -> String:
 		if _county_plow() and _in_range(_eyelet(-1),2.6): return "plow_blade"
 		if panel_range: return "restow"
 	if phase=="rigged":
+		if panel_range and cot_at_line(): return "ems_wait"
 		if panel_range: return "winch"
 		if semi and semi.rigging=="both": return "enter" if _at_door() else ""
 		if not _boom_job() and not _roll_job() and _in_range(_eyelet(line_end),1.8): return "unhook"
@@ -1123,6 +1156,7 @@ func context_text() -> String:
 	if rollback_active and action == "winch" and rollback_deck.hauls(self):
 		var control := "WINCH" if OS.has_feature("mobile") else "Space"
 		return "Hold %s to pay the car down into %s" % [control,dropoff.sign] if rollback_deck.unloading else "Hold %s to reel the car up the runners" % control
+	if action == "ems_wait": return "Kit and the empty cot must clear the line before the pull."
 	if Semi.PROMPTS.has(action): return Semi.PROMPTS[action]
 	if tanker:
 		match action:
@@ -1409,6 +1443,7 @@ func _winch(operate:bool,dt:float) -> void:
 	working=(phase=="rigged" or paying) and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
 	if working and ((vehicle_identity.heavy_recovery and not snatch_block) or (semi and not second_winch)):
 		working = false
+	if working and cot_at_line(): working = false
 	if flowage and not flowage.prepare(self,operate,dt): working = false
 	if (active_levers and special_work < 1.) or (rollover and not rollover.check_cleared): working = false
 	if not working:
@@ -1537,6 +1572,8 @@ func _set_car_lamps(mode:String) -> void:
 	if car_lamps:
 		car_lamps.hide()
 		car_lamps.queue_free()
+	if mode == "running" and vehicle_identity.get("variant") == Scene.Ambulance.VARIANT:
+		mode = "ems_scene"
 	car_lamps=semi.freight_lamps() if semi and mode=="tow" else Scene.car_lamps(car,mode,line_end)
 
 func _track_underlift() -> void:
@@ -1614,6 +1651,7 @@ func _trail(dt:float) -> void:
 	if phase not in ["loaded","done","departing"]:
 		flash_time=fmod(flash_time+dt,1.0)
 		car_lamps.visible=_running_car() or flash_time<.5
+		if vehicle_identity.get("variant") == Scene.Ambulance.VARIANT: Scene.Ambulance.flash(car_lamps,flash_time)
 
 func _cable_curve() -> void:
 	cable_mesh.clear_surfaces()

@@ -1,6 +1,7 @@
 extends RefCounted
 const K=preload("res://scripts/rig_mesh.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
+const Ambulance := preload("res://scripts/memorial_ambulance.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
 const RoadWheels := preload("res://scripts/road_wheels.gd")
@@ -33,6 +34,8 @@ static func snatch_block(parent: Node3D) -> Node3D:
 	return block
 
 static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wheels := false) -> Node3D:
+	if variant == Ambulance.VARIANT:
+		return Ambulance.vehicle(parent)
 	if variant == Tanker.VARIANT:
 		var tanker := Tanker.new()
 		tanker.build(parent,identity)
@@ -260,6 +263,8 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 			kit.box(Vector3(side*.855,bar_y,0),Vector3(.12,.13,.19),Color("#ffbe47"),Vector3.ZERO,"lamp")
 	else:
 		var plow: bool = car_body.get_meta("vin", "") == Snowplow.VIN
+		if mode == "ems_scene":
+			Ambulance.warning_heads(lamps)
 		if car_body.get_meta("patrol",false):
 			Squad.add_patrol_lights(kit,height)
 		if plow:
@@ -272,7 +277,7 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 					kit.box(Vector3(side*1.02,1.32,-3.28),Vector3(.27,.17,.033),tint,Vector3.ZERO,"lamp")
 				else:
 					kit.box(Vector3(side*width*.82,height+.25,end_sign*length*.997),Vector3(.19,.112,.035),tint,Vector3.ZERO,"lamp")
-		if mode=="running":
+		if mode in ["running","ems_scene"]:
 			var beam:=SpotLight3D.new()
 			lamps.add_child(beam)
 			beam.position=Vector3(0,height+.25,-length-.08)
@@ -282,7 +287,7 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 			beam.spot_range=38
 			beam.spot_angle=29
 	kit.finish()
-	if mode=="running":
+	if mode in ["running","ems_scene"]:
 		_exhaust(lamps, Vector3(-width*.57,.34,length+.06))
 	return lamps
 
@@ -328,11 +333,13 @@ static func person(parent: Node3D, deputy: bool, variant: int = 0) -> Node3D:
 		scene = preload("res://assets/characters/deputy.glb")
 	elif variant == 2:
 		scene = preload("res://assets/characters/summer_driver.glb")
-	elif variant in [1,3,Snowplow.DRIVER]:
+	elif variant in [1,3,Snowplow.DRIVER,Ambulance.ATTENDANT]:
 		scene = preload("res://assets/characters/farm_driver.glb")
 	var witness := scene.instantiate() as Node3D
 	witness.name = "Deputy" if deputy else "Driver"
 	parent.add_child(witness)
+	if variant in [Ambulance.DRIVER,Ambulance.ATTENDANT]:
+		Ambulance.fit_uniform(witness,variant == Ambulance.ATTENDANT)
 	if variant == Snowplow.DRIVER and not deputy:
 		var jacket := witness.find_child("Jacket",true,false) as MeshInstance3D
 		if jacket:

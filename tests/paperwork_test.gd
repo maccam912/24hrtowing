@@ -47,6 +47,8 @@ func run() -> void:
 			check(ticket.vehicle == Dispatch.VEHICLES[ticket.variant], "Vehicle matches the scene")
 			var site: Dictionary = Dispatch.SITES[ticket.site]
 			var station: Vector2 = site.station
+			if ticket.vin == Dispatch.Ambulance.VIN:
+				station = Vector2(Dispatch.Ambulance.SITE.x,0)
 			match ticket.shoulder:
 				"east": check(ticket.point.x > station.x and is_equal_approx(ticket.point.z, station.y), "Car on east side")
 				"west": check(ticket.point.x < station.x and is_equal_approx(ticket.point.z, station.y), "Car on west side")
