@@ -139,12 +139,13 @@ func _identity(kind: String, at: Vector3, tape: bool) -> Dictionary:
 	var digits := ("%s/%d/%d/%d" % [kind,roundi(at.x),roundi(at.z),drive]).hash()
 	return {"variant":0,"plate":"TMR %03d" % (100+posmod(digits,900)),"vin":"1BTRS39C5WJ%06d" % posmod(digits,1000000),"untaped":not tape}
 
-func _record(id: String, at: Vector3, heading: float, filed: int, height := 0., street := "", vehicle := {}, key := "") -> void:
+func _record(id: String, at: Vector3, heading: float, filed: int, height := 0., street := "", vehicle := {}, key := "", half_length := 0.) -> void:
 	if key.is_empty(): key = id
 	if aftermath.has(key): return
 	if id in CASUALTIES and vehicle.is_empty(): vehicle = _identity(id,at,false)
 	aftermath[key] = {"observation_key":"trace/%s/%d" % [key,drive],"id":id,"x":at.x,"z":at.z,"height":height,"yaw":heading,
 		"expires":-1 if id in CASUALTIES or id=="roadside_tape" else filed+4,"road":street,"vehicle":vehicle}
+	if half_length>0.: aftermath[key]["half_length"] = half_length
 	scene.add_remnant(key,aftermath[key])
 
 func _snow_over(filed: int) -> void:
@@ -155,6 +156,8 @@ func _snow_over(filed: int) -> void:
 		if expires >= 0 and filed >= expires:
 			scene.remove_remnant(key)
 			aftermath.erase(key)
+		elif scene.world.thawed_roads.has(key):
+			scene.world.thawed_roads[key].set_age(filed-(expires-4))
 
 func recovery_offer(issued: int, county: Node3D, has_block := true, after_story := true, second_drum := true) -> Dictionary:
 	if not is_instance_valid(scene): return {}
@@ -337,7 +340,17 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 	shoulder = scene.ground(at+side*8.5)
 	if id in ["field_car","nose_car","pressed_lines","green_circle","bare_ring","far_landing","snow_column","snow_up"]: shoulder=scene.ground(at+side*24.)
 	if id=="empty_oncoming": shoulder=scene.ground(at-side*2.)
-	if id in ["dry_road","snow_roof"]: shoulder=scene.ground(at)
+	var thaw_span := 0.0
+	if id in ["dry_road","snow_roof"]:
+		var stretch := Scene.Thaw.locate(roads,at,forward,id)
+		if stretch.is_empty() or aftermath.has(id):
+			active = ""
+			used = true
+			return
+		shoulder = scene.ground(stretch.center)
+		forward = Vector3.FORWARD.rotated(Vector3.UP,stretch.yaw)
+		road = stretch.road
+		thaw_span = stretch.half
 	if FIXED.has(id): shoulder = scene.ground(FIXED[id])
 	if id=="set_down" and landing.is_finite(): shoulder = landing
 	if id=="angie_lights": shoulder = Vector3(444,0,-534)
@@ -371,7 +384,7 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		var fixed_at: Vector3 = FIXED.get(id,Vector3.ZERO)
 		var street_name: String = {"roof_car":"Highway 64","ice_car":"Highway 64","tree_car":"Swamp Rd","gate_car":"County K"}.get(id,street)
 		var yaw := PI if id=="ice_car" else atan2(-forward.x,-forward.z)
-		_record(id,shoulder,yaw,game.completed,fixed_at.y,street_name)
+		_record(id,shoulder,yaw,game.completed,fixed_at.y,road if thaw_span>0. else street_name,{},"",thaw_span)
 
 func finish(game) -> void:
 	if active.is_empty():
@@ -434,9 +447,10 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 	if active=="mirror_follow" and game.job.get("case_id")=="mail" and once.has("carrier_follow") and not once.has("carrier_words") and elapsed >= 2.3:
 		once["carrier_words"] = true
 		game._speak("DISPATCH","They follow you, Brandt. They always have. While you’re out, they’re not over anybody’s house.")
-	if active == "snow_roof":
-		var along := absf((at-shoulder).dot(forward))
-		intensity *= (1.-smoothstep(52.,68.,along))
+	if active in ["snow_roof","dry_road"]:
+		var strip: Node3D = game.county.thawed_roads.get(active)
+		if active=="snow_roof": game.county.shelter_road_snow(intensity)
+		intensity *= strip.coverage(game.rig.get_player_position(),10. if active=="snow_roof" else 4.6) if strip else 0.
 	var light := scene.animate(active,t,intensity,at,Vector3.FORWARD.rotated(Vector3.UP,game.rig.heading))
 	var safe_electrics: bool = absf(game.rig.acceleration)<3.5 and absf(game.rig.pitch)<.075
 	var electrical := intensity if safe_electrics and active in ["electrics_fade","overhead","set_down","mirror_follow"] else 0.0

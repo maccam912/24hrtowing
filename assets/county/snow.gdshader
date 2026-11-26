@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never, skip_vertex_transform;
 #include "res://assets/weather/headlamp.gdshaderinc"
 #include "res://assets/weather/fuel_store.gdshaderinc"
+#include "res://assets/weather/snow_roof.gdshaderinc"
 
 uniform float storm_time;
 uniform float storm_gust;
@@ -27,6 +28,7 @@ void vertex() {
 	float dist = length(local);
 	float falloff = smoothstep(1.7, 3.5, dist) * (1.0 - smoothstep(.35, .49, dist / volume.x));
 	falloff *= 1. - smoothstep(.40, .50, abs(local.y) / volume.y);
+	falloff *= falling_snow_at(center.xz);
 	bool bay = center.x > -60. && center.x < -42. && center.z > -51. && center.z < -38.3 && center.y < 5.18;
 	bool pump = center.x > -76.6 && center.x < -65.4 && center.z > 12.5 && center.z < 19.5 && center.y < 4.45;
 	bool kitchen = center.x > 440.8 && center.x < 449.2 && center.z > 321.0 && center.z < 331.1 && center.y < 5.;

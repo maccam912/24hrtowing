@@ -5,6 +5,7 @@ const Car := preload("res://scripts/rig_scene.gd")
 const Kit := preload("res://scripts/rig_mesh.gd")
 const SKY_LIGHT := preload("res://assets/county/sky_lights.gdshader")
 
+const Thaw := preload("res://scripts/thawed_road.gd")
 var world: Node3D
 var lights: Node3D
 var lamps_material := ShaderMaterial.new()
@@ -154,16 +155,21 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 				cow.position = ground(at+radial*11.)
 				cow.rotation.y = atan2(radial.x,radial.z)
 				points.append(cow.position+Vector3.UP)
-		"pressed_lines","dry_road","snow_roof":
+		"dry_road","snow_roof":
+			var thaw := Thaw.new()
+			parent.add_child(thaw)
+			thaw.configure(world,entry)
+			for offset: float in [-thaw.half_length*.88,0.,thaw.half_length*.88]:
+				points.append(ground(at+facing*offset)+Vector3.UP*.08)
+		"pressed_lines":
 			var grooves := Kit.new(parent)
 			var side := facing.cross(Vector3.UP)
-			for i in (5 if id=="pressed_lines" else 1):
-				var pos := ground(at+side*(i-2)*1.45) if id=="pressed_lines" else ground(at)
-				grooves.box(pos+Vector3.UP*.06,Vector3(.32 if id=="pressed_lines" else 8.0,.045,28 if id=="pressed_lines" else 105),Color("#535e65" if id=="pressed_lines" else "#3f4649"),Vector3(0,entry.get("yaw",0),0))
+			for i in 5:
+				var pos := ground(at+side*(i-2)*1.45)
+				grooves.box(pos+Vector3.UP*.06,Vector3(.32,.045,28),Color("#535e65"),Vector3(0,entry.get("yaw",0),0))
 			grooves.finish()
-			var half_length := 14.0 if id=="pressed_lines" else 52.5
-			for offset: float in [-half_length, 0.0, half_length]:
-				points.append(ground(at)+facing*offset+Vector3.UP*.08)
+			for offset: float in [-14.,0.,14.]:
+				points.append(ground(at+facing*offset)+Vector3.UP*.08)
 		"hoofprints","bootprints":
 			_marks(parent,at,facing,id=="hoofprints")
 			for step: int in [0,14,28]:

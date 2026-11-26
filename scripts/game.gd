@@ -2169,6 +2169,7 @@ func _restore(s: Dictionary) -> void:
 	plow_heard = s.plow
 	mai_lot_heard = s.get("mai_lot_heard",false)
 	sightings.restore(s.get("sightings",{}),county)
+	sightings._snow_over(completed)
 	var anchor := Dispatch.unpack(s.get("survey_anchor",{}))
 	county.set_survey_anchor(anchor.get("point",County.SURVEY_PICKUP),anchor.get("angle",County.SURVEY_YAW))
 	dispatch_seed = int(s.get("dispatch_seed",dispatch_seed))

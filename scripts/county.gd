@@ -55,6 +55,8 @@ var wind_time := 0.0
 var storm_time := 0.0
 var storm_gust := 0.0
 var storm_travel := 0.0
+var thawed_roads := {}
+var roof_strength := 0.0
 var storm: MeshInstance3D
 var snow_shader: ShaderMaterial
 var powder_clouds: MultiMeshInstance3D
@@ -285,6 +287,25 @@ func set_survey_pickup_parked(value: bool) -> void:
 		survey_pickup.visible = value
 		survey_pickup.process_mode = Node.PROCESS_MODE_INHERIT if value else Node.PROCESS_MODE_DISABLED
 
+func road_contact(at: Vector3) -> Vector2:
+	var result := Vector2(1.,0.)
+	if thawed_roads.is_empty(): return result
+	for patch: Node3D in thawed_roads.values():
+		if not patch.is_visible_in_tree(): continue
+		var sample: Vector2 = patch.contact(at)
+		if absf(sample.x-1.) > absf(result.x-1.): result.x = sample.x
+		result.y = maxf(result.y,sample.y)
+	return result
+
+func shelter_road_snow(amount: float) -> void:
+	if amount==0. and roof_strength==0.: return
+	roof_strength = amount
+	var strip: Node3D = thawed_roads.get("snow_roof")
+	var span := Vector2(strip.half_length,amount) if strip else Vector2.ZERO
+	for material: ShaderMaterial in [snow_shader,powder_shader,spindrift_shader]:
+		if strip: material.set_shader_parameter("roof_strip",strip.geometry())
+		material.set_shader_parameter("roof_span",span)
+
 func set_sighting_weather(id: String, strength: float, progress: float) -> void:
 	calm = strength
 	hanging = strength if id in ["overhead","hanging_snow","storm_hole","set_down"] else 0.0
@@ -296,9 +317,9 @@ func set_sighting_weather(id: String, strength: float, progress: float) -> void:
 	sky_material.set_shader_parameter("passage",progress)
 	skylight.rotation_degrees.y = -34.0+glow*(progress*130.0-65.0)
 	skylight.light_energy = 0.30+glow*0.60+flash*0.8
-	storm.visible = id != "snow_roof" or strength < 0.8
-	powder_clouds.transparency = strength
-	spindrift.transparency = strength
+	if id != "snow_roof": shelter_road_snow(0.)
+	powder_clouds.transparency = 0. if id=="snow_roof" else strength
+	spindrift.transparency = powder_clouds.transparency
 
 func advance_storm(dt: float) -> void:
 	storm_time += dt * (1.0-hanging)

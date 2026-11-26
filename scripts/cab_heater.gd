@@ -14,13 +14,15 @@ func advance(rig, dt: float) -> void:
 	var power: int = blower if rig.fuel > 0 else OFF
 	var target := OPEN_TARGETS if cracked else CLOSED_TARGETS
 	var rate := OPEN_RATES if cracked else CLOSED_RATES
-	air = move_toward(air,float(target[power]),dt*float(rate[power]))
+	var warm_lane: float = rig.road_contact.y
+	var cabin_target := lerpf(float(target[power]),1.,warm_lane)
+	air = move_toward(air,cabin_target,dt*maxf(float(rate[power]),warm_lane*.05))
 	if rig.in_cab:
 		rig.warmth = move_toward(rig.warmth,maxf(air,rig.sighting_calm),dt*(0.023 if power == HIGH else 0.014))
 	elif rig.world and rig.world.has_method("is_heated_shelter") and rig.world.is_heated_shelter(rig.foot):
 		rig.warmth = minf(1,rig.warmth+dt*.014)
 	else:
-		var cooling := lerpf(-.0017,.017,rig.sighting_calm)
+		var cooling := lerpf(-.0017,.017,maxf(rig.sighting_calm,warm_lane*.65))
 		if rig.coffee_left > 0:
 			rig.coffee_left = maxf(0,rig.coffee_left-dt)
 			cooling = maxf(0,cooling)

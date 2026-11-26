@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never, skip_vertex_transform;
 #include "res://assets/weather/headlamp.gdshaderinc"
 #include "res://assets/weather/fuel_store.gdshaderinc"
+#include "res://assets/weather/snow_roof.gdshaderinc"
 
 uniform float storm_time;
 uniform float storm_gust;
@@ -35,6 +36,7 @@ void vertex() {
 	fade = smoothstep(3.0, 6.0, dist) * (1. - smoothstep(17., 25., dist));
 	// Let clouds dissolve before wrapping vertically when the operator moves.
 	fade *= 1. - smoothstep(5.5, 7.5, abs(local.y));
+	fade *= falling_snow_at(center.xz);
 	world_point = center + INV_VIEW_MATRIX[0].xyz * VERTEX.x * (7. + 6. * seed)
 		+ INV_VIEW_MATRIX[1].xyz * VERTEX.y * (1.9 + 1.8 * INSTANCE_CUSTOM.g);
 	VERTEX = (VIEW_MATRIX * vec4(world_point,1.)).xyz;

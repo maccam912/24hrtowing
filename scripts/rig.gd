@@ -63,6 +63,7 @@ var tree_recovery: TreeRecovery
 var special_work := 0.0
 var second_line := false
 var sighting_calm := 0.0
+var road_contact := Vector2(1.,0.) # Tire grip and heat rising from the lane.
 var sighting_light := Vector3.INF
 var electrical_fade := 0.0
 var ems_partner: Node3D
@@ -465,6 +466,7 @@ func load_obstructed(payload: Node3D, pose: Transform3D, half_width: float, prob
 
 func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_ladder := false) -> void:
 	if not _ready_to_run: return
+	road_contact = world.road_contact(get_player_position()) if world and world.has_method("road_contact") else Vector2(1.,0.)
 	dt=minf(dt,.0667)
 	info_timer=maxf(0,info_timer-dt)
 	if in_cab and driving_view == "chase":
@@ -536,6 +538,9 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 			offroad = 0
 	var max_forward := lerpf(packed_speed,snow_speed,offroad) * load_factor
 	var tire_grip:float=1.29 if tire_chains else 1.0
+	var surface := road_contact.x
+	if tire_chains and surface<1.: surface = lerpf(surface,1.,.50)
+	tire_grip *= surface
 	var coast_decel := .56 + offroad*.78 + speed*speed*.0018
 	var demand := 0.0
 	if is_chocked():
