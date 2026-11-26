@@ -16,7 +16,7 @@ func run() -> void:
 		if call.kind != "passenger":
 			continue
 		var rider: Dictionary = game.Rides.rider(call)
-		check(rider.person in call.dispatch or rider.id == "summer_driver","radio names the requested passenger")
+		check(rider.person.to_lower() in call.dispatch.to_lower() or rider.id == "summer_driver","radio names the requested passenger")
 		check(game.Rides.destination(call) in call.dispatch and history.back().rider == rider.id,"ticket, destination and filed ride match")
 		if rider.id == "summer_driver":
 			summer_calls += 1

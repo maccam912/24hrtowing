@@ -35,11 +35,15 @@ func run() -> void:
 			if i == 0:
 				check(ticket.kind == "ditch" and Dispatch.SITES[ticket.site].local,"A new operator gets a local ditch pull")
 				first_sites[ticket.site] = true
-			check(ticket.kind in ["ditch","hazard"] and ticket.number == 1001+i, "Ordinary work always stays on rotation")
+			check(ticket.kind in ["ditch","hazard","passenger"] and ticket.number == 1001+i, "Ordinary work always stays on rotation")
 			check(ticket.plate != "WI CO 038" and ticket.vin != Dispatch.Legacy.JOBS.hold.vin, "Unit 38 is reserved")
-			check(ticket.road in ticket.dispatch and ticket.shoulder in ticket.dispatch and ticket.shoulder in ticket.directions,
+			check(ticket.road in ticket.dispatch and ticket.shoulder in ticket.dispatch.to_lower() and ticket.shoulder in ticket.directions.to_lower(),
 				"Radio describes the recorded road and shoulder")
-			check(ticket.vehicle in ticket.dispatch and ticket.vehicle.to_lower() in ticket.directions,"Vehicle description matches both calls")
+			if ticket.kind == "passenger":
+				check(Dispatch.Rides.destination(ticket) in ticket.dispatch, "Arlene names the requested drop for a passenger")
+			else:
+				check(ticket.vehicle.to_lower() in ticket.dispatch.to_lower(), "Arlene identifies the recovery vehicle")
+			check(ticket.vehicle.to_lower() in ticket.directions.to_lower(),"Vehicle description matches the talk-in")
 			check(ticket.vehicle == Dispatch.VEHICLES[ticket.variant], "Vehicle matches the scene")
 			var site: Dictionary = Dispatch.SITES[ticket.site]
 			var station: Vector2 = site.station
@@ -53,22 +57,28 @@ func run() -> void:
 				"Save preserves the actual scene and call")
 			if ticket.site == "swamp":
 				check(ticket.point.x > Dispatch.Legacy.JOBS.hold.point.x + 40, "Ordinary Swamp Road call passes the separate survey truck")
-			check(lines.has(ticket.reply), "Driver has a recorded reply")
+			if ticket.kind == "passenger":
+				check(not Dispatch.Rides.rider(ticket).pickup.is_empty(), "Passenger has a boarding line")
+			else:
+				check(lines.has(ticket.reply), "Driver has a recorded reply")
 			nurse_calls += int(ticket.id == "angie")
 			sites[ticket.site] = true
 			shoulders[ticket.shoulder] = true
 			setups[roundi(rad_to_deg(ticket.angle))] = true
 			forms[ticket.kind] = true
 			var slip := Dispatch.issue_slip(ticket,19240,19241.2,19242.48,83,"04:30")
-			check(slip.pay >= 60 and slip.winch == 12, "County schedule pays each recovery")
+			if ticket.kind == "passenger":
+				check(slip.pay == 38 and slip.winch == 0 and slip.hookup == 0, "County pays passenger call-out")
+			else:
+				check(slip.pay >= 60 and slip.winch == 12, "County schedule pays each recovery")
 			if ticket.kind == "hazard":
 				check(is_equal_approx(slip.loaded,1.3) and slip.storage == 12 and slip.schedule > 0, "Metered loaded haul and printed schedule")
 			else:
 				check(slip.loaded == 0 and slip.storage == 0, "No loaded charges for a self-departing driver")
 			slips.append(slip)
 		check(nurse_calls <= 1, "Angie has one introduction")
-		check(sites.size() == Dispatch.SITES.size() and shoulders.size() == 4 and setups.size() > 8 and forms.size() == 2,
-			"A twenty-call shift covers the county, both recoveries and different approaches")
+		check(sites.size() == Dispatch.SITES.size() and shoulders.size() == 4 and setups.size() > 8 and forms.has_all(["ditch","hazard","passenger"]),
+			"A twenty-call shift covers the county, recoveries, passenger transfers and different approaches")
 	check(first_sites.size() >= 2, "Different saves have different local first pulls")
 	var legacy := Dispatch.legacy_ticket(3,lines)
 	check(legacy.id == "bridge" and legacy.number == 1004 and legacy.plate == "EWG 044", "Legacy active ticket keeps its original vehicle")
