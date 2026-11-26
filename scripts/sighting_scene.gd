@@ -4,6 +4,7 @@ const Batch := preload("res://scripts/county_mesh.gd")
 const Car := preload("res://scripts/rig_scene.gd")
 const Kit := preload("res://scripts/rig_mesh.gd")
 const Woods := preload("res://scripts/woods_passage.gd")
+const Oncoming := preload("res://scripts/oncoming_sedan.gd")
 const Deer := preload("res://scripts/deer_crossing.gd")
 const SKY_LIGHT := preload("res://assets/county/sky_lights.gdshader")
 
@@ -263,11 +264,14 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 		street_lamps = world.get_tree().get_nodes_in_group("esker_street_lamps")
 		street_lamps.sort_custom(func(a,b):return a.position.x < b.position.x)
 	match id:
-		"the_lift","woods_car","empty_oncoming","set_down","plow_stopped":
+		"empty_oncoming":
+			actor = Oncoming.build(props,identity)
+			actor.position = roadside
+			actor.rotation.y = atan2(forward.x,forward.z)
+		"the_lift","woods_car","set_down","plow_stopped":
 			actor = Car.county_plow(props) if id=="plow_stopped" else _vehicle(props,int(identity.get("variant",0)),id=="the_lift",identity)
 			actor.position = roadside+Vector3.UP*20.0 if id=="set_down" else roadside
 			actor.rotation.y = identity.get("yaw",atan2(-forward.x,-forward.z))
-			if id=="empty_oncoming": actor.rotate_y(PI)
 			if id=="woods_car":
 				woods = Woods.new()
 				woods.set_course(roadside,direction,ground)
@@ -339,7 +343,9 @@ func animate(id: String, t: float, strength: float, truck_at: Vector3, heading: 
 			actor.position = roadside+Vector3.UP*(1.-smoothstep(.10,.71,t))*20.
 			location = actor.position+Vector3.UP*(14.+smoothstep(.77,1.,t)*32.)
 		"empty_oncoming":
-			actor.position = ground(roadside-direction*t*130.)
+			actor.position = ground(roadside-direction*t*Oncoming.RUN)
+			var wheels := actor.get_node("RoadWheels")
+			for hub: Node3D in wheels.hubs: hub.rotation.x = -t*Oncoming.RUN/wheels.radius
 		"woods_car":
 			woods.move_car(actor,t)
 		"walker":
@@ -363,7 +369,7 @@ func animate(id: String, t: float, strength: float, truck_at: Vector3, heading: 
 	var sightline := location-truck_at
 	if Vector2(sightline.x,sightline.z).length_squared()>.1:
 		lights.rotation.y = atan2(sightline.x,sightline.z)
-	var show_lights := id not in ["woods_car","the_calm","warm_air","green_flash","moving_moon","missing_time","snow_roof","dry_road","thaw_glaze"]
+	var show_lights := id not in ["empty_oncoming","woods_car","the_calm","warm_air","green_flash","moving_moon","missing_time","snow_roof","dry_road","thaw_glaze"]
 	lights.visible = show_lights and strength>.02
 	var lamp_scale := .72 if id in ["overhead","set_down"] else 1.0
 	if id == "swamp_lights": lamp_scale = 1.55
@@ -390,7 +396,9 @@ func live_evidence(id: String) -> PackedVector3Array:
 	match id:
 		"swamp_lights","pacing_lights","mirror_follow","overhead","yard_visit","angie_lights","far_landing":
 			return lamp_points()
-		"set_down","the_lift","woods_car","empty_oncoming","walker","plow_stopped":
+		"empty_oncoming":
+			if actor and actor.is_visible_in_tree(): points.append(actor.to_global(Oncoming.DRIVER))
+		"set_down","the_lift","woods_car","walker","plow_stopped":
 			if is_instance_valid(actor) and actor.is_visible_in_tree():
 				if id=="the_lift" and actor.position.y < roadside.y+.5: return points
 				if id=="woods_car" and (not actor.visible or (actor.position-roadside).dot(crossroad)<Woods.TRACK_START): return points

@@ -120,6 +120,7 @@ func _mirror_visible(game, points: PackedVector3Array) -> bool:
 	return false
 
 func _range(kind: String, game) -> float:
+	if kind == "empty_oncoming": return preload("res://scripts/oncoming_sedan.gd").RECOGNITION
 	if kind in SKY_LIGHTS: return 340.
 	if kind in ["hoofprints","bootprints","woods_tracks","empty_ditch"]: return 15.
 	if kind in ["green_circle","bare_ring","farm_ring","survey_ring","tou_ring","pressed_lines","roadside_tape"]: return 32.
@@ -143,6 +144,7 @@ func _live_visible(game, director) -> bool:
 	var rig = game.rig
 	if scene.intensity < .35: return false
 	var camera: Camera3D = game.world_view.get_camera_3d()
+	if kind == "empty_oncoming" and scene.actor.to_local(camera.global_position).z>.40: return false
 	if kind in ["moving_moon","green_flash","storm_hole"]:
 		if not scene.has_sensory_evidence(kind,rig.in_cab,false): return false
 		# The sky shader places the moving glow here. The storm opens overhead.
@@ -189,7 +191,7 @@ func sample(dt: float, game, director) -> void:
 	if not kind.is_empty() and not director.aftermath.has(kind):
 		var note := _note("pass/%d/%s" % [director.drive,kind],kind,director.road)
 		if not pending.has(note.key) and not filed.has(note.key) and _live_visible(game,director):
-			var needed := .15 if kind == "green_flash" else (.45 if kind == "empty_oncoming" else LOOK_TIME)
+			var needed := .15 if kind == "green_flash" else (.21 if kind == "empty_oncoming" else LOOK_TIME)
 			_watch(note,step,next,needed)
 	# The lamps often accompany something else. A look up can establish the
 	# lights without disclosing the car or tracks still down in the field.

@@ -347,7 +347,12 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		used = true
 		return
 	if id in ["field_car","nose_car","pressed_lines","green_circle","bare_ring","far_landing","snow_column","snow_up"]: shoulder=scene.ground(at+side*24.)
-	if id=="empty_oncoming": shoulder=scene.ground(at-side*2.)
+	if id=="empty_oncoming":
+		if not Scene.Oncoming.clear_road(game,at,forward,street):
+			active = ""
+			used = true
+			return
+		shoulder=scene.ground(at-side*2.25)
 	var thaw_span := 0.0
 	if id in ["dry_road","snow_roof"]:
 		var stretch := Scene.Thaw.locate(roads,at,forward,id)
@@ -469,6 +474,9 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 		if active=="snow_roof": game.county.shelter_road_snow(intensity)
 		intensity *= strip.coverage(game.rig.get_player_position(),10. if active=="snow_roof" else 4.6) if strip else 0.
 	var light := scene.animate(active,t,intensity,at,Vector3.FORWARD.rotated(Vector3.UP,game.rig.heading))
+	if active=="empty_oncoming" and scene.actor.visible and (scene.actor.position-at).dot(forward)<Scene.Oncoming.CUT_OFF:
+		scene.actor.hide()
+		live_identity.passed = true
 	var safe_electrics: bool = absf(game.rig.acceleration)<3.5 and absf(game.rig.pitch)<.075
 	var electrical := intensity if safe_electrics and active in ["electrics_fade","overhead","set_down","mirror_follow"] else 0.0
 	var calm := intensity*(1.-smoothstep(.44,.55,t)) if active=="deer_line" else intensity

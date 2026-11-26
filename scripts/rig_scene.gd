@@ -93,9 +93,11 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wh
 	g.box(Vector3(0,head_y,(top_end-.56)*.5),Vector3(width*1.63,.115,top_end+.56),body)
 	g.box(Vector3(-.032,head_y+.064,(top_end-.56)*.5),Vector3(width*1.54,.022,top_end+.48),SNOW)
 	var windshield_tilt:=atan2(.40,.62)
-	g.box(Vector3(0,base+.82,-.75),Vector3(width*1.76,.74,.035),GLASS,Vector3(windshield_tilt,0,0))
+	if kind!="oncoming":
+		g.box(Vector3(0,base+.82,-.75),Vector3(width*1.76,.74,.035),GLASS,Vector3(windshield_tilt,0,0))
 	var rear_tilt:=-atan2(cab_end-top_end,.60)
-	g.box(Vector3(0,base+.81,(cab_end+top_end)*.5),Vector3(width*1.72,.72,.036),GLASS,Vector3(rear_tilt,0,0))
+	if kind!="oncoming":
+		g.box(Vector3(0,base+.81,(cab_end+top_end)*.5),Vector3(width*1.72,.72,.036),GLASS,Vector3(rear_tilt,0,0))
 	g.box(Vector3(0,base+.47,-.98),Vector3(width*1.87,.08,.06),BLACK)
 	var tire_radius := .43 if pickup else .355
 	live_wheels = live_wheels or identity.has("wheel_fault") or identity.has("field_berm")
@@ -113,7 +115,7 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wh
 				RoadWheels.wheel(g,Vector3(x,tire_radius,z),s,tire_radius)
 		g.beam(Vector3(x*.956,base+.48,-.98),Vector3(x*.81,head_y,-.56),.064,.076,body)
 		g.beam(Vector3(x*.95,base+.48,cab_end),Vector3(x*.81,head_y,top_end),.078,.087,body)
-		if s>0 or not (open_door or mail):
+		if kind!="oncoming" and (s>0 or not (open_door or mail)):
 			g.box(Vector3(x*.869,base+.80,(top_end-.56)*.50),Vector3(.063,.58,top_end+.56),GLASS,Vector3(0,0,s*.14))
 		if s>0 or not open_door:
 			g.box(Vector3(x*.912,base+.79,.06),Vector3(.069,.62,.067),body,Vector3(0,0,s*.15))

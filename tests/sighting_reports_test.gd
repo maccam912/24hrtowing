@@ -98,10 +98,11 @@ func run() -> void:
 	check(offer.get("vin","") == director.aftermath.field_car.vehicle.vin,
 		"the equipped truck is offered the exact reported car ahead of another eligible recovery")
 
-	rig.set_spawn(Vector3(0,0,450),PI)
+	rig.driving_view = "cab"
+	rig.set_spawn(Vector3(-2.25,0,450),PI)
 	director._start("empty_oncoming",game,rig.truck.position,"County K",false)
-	director._advance_live(director.duration*.27,game,rig.truck.position)
-	watch(director.scene.actor.to_global(Vector3.UP))
+	director._advance_live(director.duration*.39,game,rig.truck.position)
+	watch(director.scene.actor.to_global(director.scene.Oncoming.DRIVER))
 	director.finish(game)
 	resume_shift()
 	director = game.sightings
