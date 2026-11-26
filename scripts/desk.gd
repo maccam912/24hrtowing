@@ -151,6 +151,7 @@ func take_look() -> Vector2:
 func parts_labels() -> Array:
 	var tabs := ["Fuel & parts","Cab & rig","Yard fittings"]
 	if state.get("reserve_offered",false): tabs.append("Diesel reserve")
+	if state.get("fleet_offered",false): tabs.append("Fleet keys")
 	return tabs
 
 func nozzle_held() -> bool:
@@ -408,7 +409,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"tank_main", "tank_reserve", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_hold", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"tank_main", "tank_reserve", "buy_rollback", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_hold", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):

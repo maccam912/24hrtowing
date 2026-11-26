@@ -43,6 +43,8 @@ var active := false
 var mode := "available"
 var job := {}
 var rotation_offer := {}
+var fleet := preload("res://scripts/yard_fleet.gd").new()
+const RollbackDeck := preload("res://scripts/rollback_deck.gd")
 var waiting_hazard: Node3D
 var case_offer := {}
 var dispatch_seed := randi()
@@ -129,6 +131,7 @@ func _ready() -> void:
 	world_view.add_child(world)
 	county = County.new()
 	world.add_child(county)
+	world.add_child(fleet)
 	world.add_child(visits)
 	visits.setup(county)
 	world.add_child(ambience)
@@ -489,10 +492,10 @@ func _action(id: String) -> void:
 				if speaker.begins_with("SCANNER  /  "): sub_time = 0
 				_save()
 		"tank_main","tank_reserve":
-			if desk.page == "bulk_pump" and account.owns("aux_tank") and not desk.nozzle_held():
+			if desk.page == "bulk_pump" and account.owns("aux_tank") and not rig.rollback_active and not desk.nozzle_held():
 				nozzle_reserve = id == "tank_reserve"
 				nozzle_cents = 0.0
-		"buy_aux_tank","buy_reserve_fuel","buy_second_winch","buy_west_hold","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
+		"buy_rollback","buy_aux_tank","buy_reserve_fuel","buy_second_winch","buy_west_hold","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
 		"buy_coffee":
 			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
 				rig.warmth = 1.0
@@ -617,7 +620,7 @@ func _cancel_can_after_refuel() -> void:
 		_speak("DISPATCH","Copy, Brandt. I'll cancel that fuel delivery.")
 
 func _run_nozzle(dt: float) -> void:
-	if not desk.nozzle_held() or not _can_dispense() or (nozzle_reserve and not account.owns("aux_tank")):
+	if not desk.nozzle_held() or not _can_dispense() or (nozzle_reserve and (not account.owns("aux_tank") or rig.rollback_active)):
 		return
 	# The rollers count whole cents; holding the handle meters $3.60 per second.
 	nozzle_cents += dt*360.0
@@ -655,11 +658,22 @@ func _can_refuel() -> bool:
 		return _truck_in_yard()
 	return _at_pump() and rig.is_stopped() and rig.get_truck_position().distance_to(PUMP) < 15.0
 
+func _fleet_offered() -> bool:
+	return account.owns("rollback") or completed >= 12
+
+func _switch_reason() -> String:
+	if mode != "available" or not job.is_empty() or rig.loaded or rig.is_chocked():
+		return "Finish the open ticket before changing trucks."
+	if fuel_wait_left > 0:
+		return "Wait for the plow with the fuel can."
+	if not _truck_in_yard(): return "Bring the other truck back to the yard first."
+	return ""
+
 func _fit_equipment() -> void:
 	rig.tire_chains = account.owns("chains")
-	rig.snatch_block = account.owns("snatch_block")
-	rig.second_winch = account.owns("second_winch")
-	rig.fit_reserve(account.owns("aux_tank"))
+	rig.snatch_block = account.owns("snatch_block") and not rig.rollback_active
+	rig.second_winch = account.owns("second_winch") and not rig.rollback_active
+	rig.fit_reserve(account.owns("aux_tank") and not rig.rollback_active)
 	rig.body.heated_mirrors = account.owns("mirrors")
 	rig.body.fit_lamps(account.owns("lamps"))
 	var extend_lot: bool = account.owns("west_lot")
@@ -718,7 +732,7 @@ func _scanner_available() -> bool:
 func _shop_purchase(id: String) -> void:
 	if id in ["buy_fuel","buy_reserve_fuel"]:
 		var reserve := id == "buy_reserve_fuel"
-		if not _can_refuel() or (reserve and not account.owns("aux_tank")): return
+		if not _can_refuel() or (reserve and (not account.owns("aux_tank") or rig.rollback_active)): return
 		var sale := _buy_diesel(reserve)
 		if sale.cost <= 0: return
 		var pct := roundi(100*float(sale.fuel_after)/(Rig.Reserve.CAPACITY if reserve else 1.0))
@@ -732,6 +746,8 @@ func _shop_purchase(id: String) -> void:
 		shop_receipt = "Winch serviced. Cable and drum ready."
 	else:
 		var part := id.trim_prefix("buy_")
+		if part == "rollback" and not _fleet_offered(): return
+		if part in ["second_winch","aux_tank","snatch_block"] and rig.rollback_active: return
 		if part == "scanner" and not _scanner_available(): return
 		if part == "aux_tank" and campaign.stage < 1: return
 		if part == "west_hold" and not account.owns("west_lot"): return
@@ -740,6 +756,9 @@ func _shop_purchase(id: String) -> void:
 			return
 		_fit_equipment()
 		match part:
+			"rollback":
+				fleet.receive(rig)
+				shop_receipt = "Keys in the carrier. Walk to its driver’s door by the office."
 			"aux_tank": shop_receipt = "Reserve fitted behind the cab. Fill it here or at the pumps."
 			"second_winch": shop_receipt = "Auxiliary winch fitted. Arlene can dispatch freight calls on US 59."
 			"west_hold": shop_receipt = "West Hold 2 ready. Sheriff’s order book is under the metal hood beside its chain."
@@ -767,6 +786,13 @@ func _prepare_offers() -> void:
 		else:
 			# A case may have used the next blank on the clipboard.
 			rotation_offer.number = 1001 + issued
+		if rig.rollback_active and not RollbackDeck.supports(rotation_offer):
+			if fleet.alternate_offer.is_empty():
+				fleet.alternate_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,false,false)
+				_stamp_ticket(fleet.alternate_offer)
+			fleet.alternate_offer.number = 1001 + issued
+		else:
+			fleet.alternate_offer = {}
 		if case_offer.is_empty():
 			match survey.pending_order():
 				"hold":
@@ -788,18 +814,24 @@ func _stamp_ticket(ticket: Dictionary) -> void:
 		ticket.checked_tape.deputy = "Pelz"
 		ticket.checked_tape.badge = "412"
 
+func _offered_rotation() -> Dictionary:
+	if rig.rollback_active and not fleet.alternate_offer.is_empty():
+		return fleet.alternate_offer
+	return rotation_offer
+
 func _sync_waiting_hazard() -> void:
-	var waiting: bool = rotation_offer.get("kind") == "hazard" and not rotation_offer.has("aftermath_key") and rotation_offer.get("recovery") not in ["semi","milk"]
-	var point: Vector3 = county.resolve_point(rotation_offer.point) if waiting else Vector3.ZERO
+	var offer := _offered_rotation()
+	var waiting: bool = offer.get("kind") == "hazard" and not offer.has("aftermath_key") and offer.get("recovery") not in ["semi","milk"]
+	var point: Vector3 = county.resolve_point(offer.point) if waiting else Vector3.ZERO
 	if is_instance_valid(waiting_hazard):
-		if waiting and waiting_hazard.get_meta("offer_pose") == [rotation_offer.vin, point, rotation_offer.angle]:
+		if waiting and waiting_hazard.get_meta("offer_pose") == [offer.vin, point, offer.angle]:
 			return
 		waiting_hazard.hide()
 		waiting_hazard.queue_free()
 		waiting_hazard = null
 	if waiting:
-		waiting_hazard = rig.store_vehicle(rotation_offer.route,point,rotation_offer.angle,rotation_offer)
-		waiting_hazard.set_meta("offer_pose",[rotation_offer.vin, point, rotation_offer.angle])
+		waiting_hazard = rig.store_vehicle(offer.route,point,offer.angle,offer)
+		waiting_hazard.set_meta("offer_pose",[offer.vin, point, offer.angle])
 
 func _take_rotation() -> void:
 	if not rig.in_cab or mode != "available":
@@ -808,7 +840,7 @@ func _take_rotation() -> void:
 	if _can_track_lead() and survey.tracked_lead.is_empty():
 		campaign.calls_past_lead += 1
 	survey.defer_order()
-	_accept(rotation_offer)
+	_accept(_offered_rotation())
 
 func _favor_request() -> String:
 	var chapter := campaign.chapter()
@@ -894,6 +926,12 @@ func _radio_contact() -> Dictionary:
 func _case_lock() -> String:
 	if mode != "available":
 		return ""
+	if rig.rollback_active:
+		var detail := case_offer
+		if detail.is_empty() and _case_due() and Campaign.DETAILS.has(campaign.chapter()):
+			detail = campaign.ticket(1001 + completed + pending_slips.size())
+		if not detail.is_empty() and not RollbackDeck.supports(detail):
+			return "Collect the wrecker at Brandt’s yard for this call."
 	if campaign.chapter() == "unit":
 		if survey.pending_order() != "hold":
 			return ""
@@ -919,6 +957,9 @@ func _radio_case(id: String) -> void:
 			_speak("DISPATCH","Hoffmann place. Milk hauler says every light is on. He knocked twice. I can give you the look-see when you’re free.")
 		"take_case":
 			_prepare_offers()
+			if rig.rollback_active and not RollbackDeck.supports(case_offer):
+				_accept(case_offer)
+				return
 			if survey.pending_order() == "hold":
 				survey.hold_order = "accepted"
 			else:
@@ -947,10 +988,16 @@ func _radio_case(id: String) -> void:
 	_save()
 
 func _accept(ticket: Dictionary) -> void:
+	if rig.rollback_active and not RollbackDeck.supports(ticket):
+		_speak("DISPATCH","Bring the wrecker for that one. I’ll hold the order while you change trucks at the yard.")
+		return
 	job = ticket
 	if job.has("aftermath_key"):
 		sightings.claim_recovery(job)
-	if (not job.has("case_id") and not job.has("sheriff_order") and job.kind in ["ditch","hazard","passenger"]) or (job.get("case_id") == "angie" and rotation_offer.get("vin") == job.vin):
+	if not fleet.alternate_offer.is_empty() and job == fleet.alternate_offer:
+		fleet.alternate_offer = {}
+		_sync_waiting_hazard()
+	elif (not job.has("case_id") and not job.has("sheriff_order") and job.kind in ["ditch","hazard","passenger"]) or (job.get("case_id") == "angie" and rotation_offer.get("vin") == job.vin):
 		rotation_offer = {}
 		_sync_waiting_hazard()
 	if job == case_offer:
@@ -1101,6 +1148,8 @@ func _site_action() -> String:
 		return ""
 	var west_site := west_orders.site_action(self)
 	if not west_site.is_empty(): return west_site
+	if is_instance_valid(fleet.model) and _facing(fleet.door(),2.45):
+		return "fleet_door"
 	if CountyVisits.step_in_reach(self):
 		return "visit_stop"
 	var detail_site := casework.site()
@@ -1178,6 +1227,14 @@ func _interact() -> void:
 		_save()
 		return
 	match site:
+		"fleet_door":
+			var reason := _switch_reason()
+			if not reason.is_empty():
+				_message("BRANDT",reason)
+			else:
+				fleet.switch_trucks(self)
+				_prepare_offers()
+				_message("BRANDT","Carrier keys." if rig.rollback_active else "Wrecker keys.")
 		"visit_stop":
 			var step := int(job.visit_step)
 			if job.id == "dryhouse" and step == 0 and visits.flashes_seen < 2:
@@ -1323,7 +1380,7 @@ func _interact() -> void:
 			_refresh()
 			desk.show_document("coffee",state)
 		"fuel":
-			if account.owns("aux_tank"): _open_nozzle(true)
+			if account.owns("aux_tank") and not rig.rollback_active: _open_nozzle(true)
 			else: _open_shop()
 		_:
 			if mode == "fieldwork" and job.has("sheriff_order") and not job.has("pickup_signature") and rig.action_id()=="flare":
@@ -1666,7 +1723,9 @@ func _procedure() -> String:
 			if job.kind == "hold" and (not signed_card or not packed_tripod):
 				return "Meet Deputy Kowalski, sign the custody card and collect the tripod."
 			return rig.get_status().get("hint","Drive to the scene. Ask dispatch for a landmark if needed.")
-		"haul": return rig.dropoff.approach if job.has("sheriff_order") else audio.lines[rig.dropoff.radio][1]
+		"haul":
+			if rig.rollback_active: return rig.rollback_deck.instruction(rig)
+			return rig.dropoff.approach if job.has("sheriff_order") else audio.lines[rig.dropoff.radio][1]
 		"return": return "Return to the yard to file your slip."
 		"invoice":
 			if job.get("kind") == "hold" and not bay_locked:
@@ -1729,7 +1788,10 @@ func _contract_hint(site: String) -> Dictionary:
 		"haul":
 			title = "Deliver to %s" % rig.dropoff.sign
 			instruction = rig.dropoff.approach
-			if rig.at_dropoff():
+			if rig.rollback_active:
+				instruction = rig.rollback_deck.instruction(rig)
+				if rig.at_dropoff() or rig.rollback_deck.unloading: title = "At %s" % rig.dropoff.sign
+			elif rig.at_dropoff():
 				title = "At %s" % rig.dropoff.sign
 				if rig.tanker and not rig.tanker.is_settled() and rig.is_stopped():
 					instruction = "Let the tank settle before lowering the lift. The load indicator returns to center."
@@ -1767,6 +1829,8 @@ func _prompt(site: String = _site_action()) -> String:
 		"west_release_card": return "Meet Deputy Pelz for the release"
 		"west_order_book": return "Read the west hold order book"
 		"west_chain": return "Unlock the west hold chain" if west_orders.locked else "Lock the west hold chain"
+	if site == "fleet_door":
+		return "Take the carrier keys" if fleet.parked.rollback else "Take the wrecker keys"
 	if site == "rod" and survey.notes.has("rod"):
 		return "Read the survey rod tag"
 	if site == "lock":
@@ -1931,7 +1995,7 @@ func _refresh() -> void:
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
 		"job":ticket,"slips":slips,"pending_slips":pending_slips,"fax_count":_fax_count(),"calls":calls,"can_radio":s.in_cab,"night_time":_clock(),
-		"offer":rotation_offer,"radio_contact":_radio_contact(),"sighting_reports":sightings.report_options(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
+		"offer":_offered_rotation(),"radio_contact":_radio_contact(),"sighting_reports":sightings.report_options(),"pending_case":not survey.pending_order().is_empty() or (_case_due() and Campaign.DETAILS.has(campaign.chapter())),
 		"case_lead":_dispatch_lead_briefing(),
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
@@ -1941,7 +2005,7 @@ func _refresh() -> void:
 		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
 		"heavy_job_filed":heavy_job_filed,"second_winch":account.owns("second_winch"),
 		"nozzle_ready":_can_dispense(),"nozzle_sale":nozzle_sale,"nozzle_esker":nozzle_at_esker,"nozzle_reserve":nozzle_reserve,
-		"reserve_offered":campaign.stage >= 1 or account.owns("aux_tank"),"aux_tank":account.owns("aux_tank"),
+		"reserve_offered":campaign.stage >= 1 or account.owns("aux_tank"),"aux_tank":account.owns("aux_tank") and not rig.rollback_active,
 		"reserve_pct":rig.reserve_fuel/Rig.Reserve.CAPACITY,"reserve_quote":account.fuel_quote(rig.reserve_fuel,INF,Rig.Reserve.CAPACITY),
 		"at_counter":site == "coffee","coffee_left":rig.coffee_left,"mai_lot":sightings.seen.has("streetlights_out") and not mai_lot_heard,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
@@ -1953,6 +2017,11 @@ func _refresh() -> void:
 		"progress":_procedure(),"phase":s.phase,"work_available":s.fuel > 0.0 and rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
+	state["fleet_offered"] = _fleet_offered()
+	state["rollback_owned"] = account.owns("rollback")
+	state["rollback_active"] = rig.rollback_active
+	state["standby"] = fleet.parked
+	state["wrecker_waiting"] = rig.rollback_active and not fleet.alternate_offer.is_empty()
 	var parcel := Addresses.readable(rig,county) if active and not desk.is_blocking() and casework.tower_height < 0.0 else ""
 	state["readable_fire_plate"] = Addresses.number(parcel) if not parcel.is_empty() else ""
 	if desk.page=="west_custody" or site.begins_with("west_"):
@@ -2021,6 +2090,7 @@ func _save() -> void:
 	saved_data = {"completed":completed,"declined_visit":declined_visit,"mode":mode,"rig":rig.save_state(),"slips":slips,"pending_slips":pending_slips,
 		"received_freight":received_freight.delivery_record() if received_freight else {},
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
+		"parked_truck":fleet.parked.duplicate(true),"light_offer":Dispatch.pack(fleet.alternate_offer),
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"west_custody":west_orders.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
@@ -2070,6 +2140,9 @@ func _restore(s: Dictionary) -> void:
 	drop_time = s.drop_time
 	account.restore(s)
 	west_orders.restore(s.get("west_custody",{}))
+	fleet.parked = s.get("parked_truck",{}).duplicate(true)
+	fleet.alternate_offer = Dispatch.unpack(s.get("light_offer",{}))
+	fleet.clear_model()
 	audio.stop_scanner()
 	scanner.restore(s.get("scanner",{}),account.owns("scanner"))
 	broadcast.restore(s.get("broadcast",{}))
@@ -2119,9 +2192,12 @@ func _restore(s: Dictionary) -> void:
 	if mode in ["return","invoice"] and job.get("kind") in ["ditch","looksee"] and job.get("case_id") != "ride":
 		_clear_field_job()
 	_sync_survey_scene()
-	_prepare_offers()
 	visits.sync(job,true)
 	rig.restore_state(rig_state)
+	_prepare_offers()
+	if account.owns("rollback"):
+		if fleet.parked.is_empty(): fleet.receive(rig)
+		else: fleet.show_parked()
 	if s.get("tower") is Dictionary and not rig.in_cab and county.case_landmarks.has("car_ring"):
 		casework.mount_tower(s.tower.get("height",0.0),s.tower.get("glasses",false))
 	_fit_equipment()

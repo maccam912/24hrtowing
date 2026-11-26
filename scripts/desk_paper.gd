@@ -268,7 +268,7 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var trackable: bool = s.get("can_track_lead",false) and s.get("can_radio",true) and fuel_eta == 0 and not s.get("fuel_help",false)
 	var track_width := 200.0
 	if available and not offer.is_empty():
-		lines.append(offer.dispatch)
+		lines.append(("I’ll hold the wrecker call. " if s.get("wrecker_waiting",false) else "")+str(offer.dispatch))
 	if not lead.is_empty():
 		c.multiline(Vector2(x,ry+31),lead,c.subtle,19,c.CREAM,w-track_width-18 if trackable else w,4)
 		ry += 108
@@ -1002,8 +1002,9 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	var scanner_available := bool(s.get("scanner_available",false) or s.get("scanner_fitted",false))
 	var station := "ESKER PUMPS" if at_pump else ("YARD COUNTER" if at_office else "FIELD COPY")
 	var leaf: int = c.desk.parts_page
+	var fleet_leaf: bool = c.desk.parts_labels()[leaf] == "Fleet keys"
 	var titles := ["Fuel & equipment","Cab & rig equipment","Yard fittings","Auxiliary diesel"]
-	_header(c,p,"BRANDT TOWING   /   "+station,titles[leaf],"",c.print_face)
+	_header(c,p,"BRANDT TOWING   /   "+station,"Fleet keys" if fleet_leaf else titles[leaf],"",c.print_face)
 	var x := p.position.x+32
 	var width := p.size.x-64
 	var money := float(s.get("paid",0))
@@ -1023,7 +1024,25 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	var size := Vector2((width-gap)*0.5,126)
 	var left := Rect2(Vector2(x,p.position.y+183),size)
 	var right := Rect2(left.position+Vector2(size.x+gap,0),size)
-	c.text(left.position-Vector2(0,8),["FUEL & MAINTENANCE","WINTER EQUIPMENT","YARD INSTALLATION","LONG-HAUL EQUIPMENT"][leaf],c.MONO,13,GREEN)
+	c.text(left.position-Vector2(0,8),"USED TRUCK INVENTORY" if fleet_leaf else ["FUEL & MAINTENANCE","WINTER EQUIPMENT","YARD INSTALLATION","LONG-HAUL EQUIPMENT"][leaf],c.MONO,13,GREEN)
+	if fleet_leaf:
+		var owned: bool = s.get("rollback_owned",false)
+		_equipment_card(c,left,"buy_rollback","Steel-deck car carrier","Light cars ride on the bed. Half tank on delivery. 126,804 miles.",ShopAccount.PRICES.rollback,
+			"Buy carrier","Paid in full" if owned else "",money,s.get("can_order",false),"Visit yard office")
+		if owned:
+			var standby: Dictionary = s.get("standby",{})
+			var driving := "car carrier" if s.get("rollback_active",false) else "35-ton wrecker"
+			var parked := "35-ton wrecker" if s.get("rollback_active",false) else "car carrier"
+			c.text(right.position+Vector2(6,24),"KEY REGISTER",c.MONO,17,GREEN)
+			c.multiline(right.position+Vector2(6,55),"Out    %s\nYard  %s" % [driving,parked],c.print_face,19,FORM_BLUE,right.size.x-12,3)
+			if not standby.is_empty():
+				left.position.y += size.y+34
+				c.multiline(left.position,"Parked truck  •  %s miles  /  %d%% diesel" % [str(snappedf(standby.odo,.1)),roundi(standby.fuel*100)],c.MONO,17,FORM_BLUE,width,2)
+		_parts_nav(c,p,leaf)
+		var instructions := str(s.get("shop_receipt",""))
+		if instructions.is_empty(): instructions = "Finish the current ticket, park at the yard and walk to the other driver’s door."
+		c.fitted(Rect2(x,p.end.y-38,width,32),instructions,c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+		return
 	if leaf == 0:
 		c.text(right.position-Vector2(0,8),"RECOVERY EQUIPMENT",c.MONO,13,GREEN)
 	if leaf == 1:
@@ -1035,7 +1054,9 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 			"Fit lamps","Fitted" if s.get("aux_lamps",false) else "",money,can_fit,location)
 		right.position.y += size.y+8
 		var winch_status := "Fitted" if s.get("second_winch",false) else ""
-		if winch_status.is_empty() and not s.get("heavy_job_filed",false):
+		if s.get("rollback_active",false):
+			winch_status = "Bring the wrecker"
+		elif winch_status.is_empty() and not s.get("heavy_job_filed",false):
 			winch_status = "File a heavy recovery"
 		elif winch_status.is_empty() and not s.get("snatch_block",false):
 			winch_status = "Fit snatch block first"
@@ -1066,9 +1087,10 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		c.fitted(Rect2(x,p.end.y-38,width,32),s.get("shop_receipt",""),c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 		return
 	if leaf == 3:
+		var on_carrier := bool(s.get("rollback_active",false))
 		var owned := bool(s.get("aux_tank",false))
 		_equipment_card(c,left,"buy_aux_tank","Auxiliary diesel tank","Curb-side transfer pump. Holds half a main tank. Supplied empty.",ShopAccount.PRICES.aux_tank,
-			"Fit fuel tank","Fitted" if owned else "",money,s.get("can_order",false),"Fit at yard office")
+			"Fit fuel tank","Bring the wrecker" if on_carrier else ("Fitted" if owned else ""),money,s.get("can_order",false),"Fit at yard office")
 		if owned:
 			var quote:Dictionary = s.get("reserve_quote",{})
 			var cost := float(quote.get("cost",0))
@@ -1119,7 +1141,7 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	_equipment_card(c,left,"service_winch","Winch service","Restore pulling speed. Cable and drum wear is %d%%." % ceili(wear*100.0),ShopAccount.REPAIR_PRICE,
 		"Service winch","Serviced" if wear <= 0.001 else "",money,can_order,service_location)
 	_equipment_card(c,right,"buy_snatch_block","Snatch block set","Rig heavier recoveries, including the Unit 38 pickup.",ShopAccount.PRICES.snatch_block,
-		"Fit snatch block","Fitted" if s.get("snatch_block",false) else "",money,can_order,service_location)
+		"Fit snatch block","Bring the wrecker" if s.get("rollback_active",false) else ("Fitted" if s.get("snatch_block",false) else ""),money,can_order,service_location)
 	_parts_nav(c,p,leaf)
 	var note := str(s.get("shop_receipt",""))
 	if note.is_empty():
@@ -1187,6 +1209,16 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 			for i in 3:
 				c.rule(sketch.position.x+12,sketch.position.y+30+i*3,35,PAPER_INK)
 		"buy_chains": _chain_illustration(c,sketch)
+		"buy_rollback":
+			var corner := sketch.position
+			var cab := PackedVector2Array()
+			for point: Vector2 in [Vector2(4,30),Vector2(5,21),Vector2(15,19),Vector2(19,11),Vector2(30,11),Vector2(30,31),Vector2(4,31)]:
+				cab.append(corner+point)
+			c.draw_polyline(cab,PAPER_INK,1.8,true)
+			c.draw_line(corner+Vector2(31,20),corner+Vector2(70,28),FORM_BLUE,2,true)
+			c.draw_line(corner+Vector2(29,31),corner+Vector2(67,31),PAPER_INK,1.7,true)
+			for axle: int in [12,49,59]:
+				c.draw_arc(corner+Vector2(axle,32),4,0,TAU,15,PAPER_INK,1.7,true)
 		"service_winch","buy_second_winch": _drum_illustration(c,sketch)
 		"buy_aux_tank","buy_reserve_fuel","buy_fuel","buy_yard_pump": _diesel_illustration(c,sketch)
 		"buy_snatch_block": _block_illustration(c,sketch)

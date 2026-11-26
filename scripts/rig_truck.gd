@@ -37,7 +37,7 @@ var service_body: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
 var stinger: Node3D
-var crossbar := WheelLift.new()
+var crossbar: WheelLift
 var boom: Node3D
 var boom_extension: Node3D
 var boom_tip: Node3D
@@ -53,7 +53,7 @@ var search_head: Node3D
 var search_beam: SpotLight3D
 var search_on := false
 var electric_power := 1.0
-var work_light:=SpotLight3D.new()
+var work_light: SpotLight3D
 var odo_label: Label3D
 var heading_label: Label3D
 var radio_label: Label3D
@@ -67,7 +67,7 @@ var glass_material := ShaderMaterial.new()
 var beacons: Array[MeshInstance3D]=[]
 var seat_gear: Node3D
 
-func build() -> void:
+func build(parked := false, carrier := false) -> void:
 	var k = Kit.new(self)
 	# Frame rails and tandem drives.
 	for s in [-1.0,1.0]:
@@ -92,6 +92,7 @@ func build() -> void:
 		light.position=Vector3(s*.95,1.34,-3.97)
 		light.rotation.x=-.088
 		light.light_color=Color("#fff1d4")
+		light.visible = not parked
 		light.light_energy=3.5
 		light.spot_attenuation=.48
 		light.spot_range=57.0
@@ -157,20 +158,28 @@ func build() -> void:
 	pane.position = Vector3(0,2.693,-1.645)
 	pane.rotation.x = .233
 	_driver_window()
-	service_body = Kit.joint(self,Vector3.ZERO,"ServiceBody")
-	var service_kit := Kit.new(service_body)
-	_bed(service_kit)
-	service_kit.finish()
-	_cabin(k)
+	if not carrier:
+		service_body = Kit.joint(self,Vector3.ZERO,"ServiceBody")
+		var service_kit := Kit.new(service_body)
+		_bed(service_kit)
+		service_kit.finish()
+	else:
+		preload("res://scripts/rollback_deck.gd").new().assemble(self)
+	if parked:
+		k.box(Vector3(0,1.50,-.78),Vector3(1.80,.18,.60),Color("#66564b"))
+		k.box(Vector3(0,1.84,-.41),Vector3(1.80,.63,.18),Color("#66564b"))
+		k.box(Vector3(0,1.98,-1.53),Vector3(1.88,.26,.30),DASH)
+	else:
+		_cabin(k)
 	k.finish()
-	_panel_detail()
+	if not parked: _panel_detail()
 	for s in [-1.0,1.0]:
 		var rot := Vector3(0,s*PI/2,0)
 		Kit.label(self,"BRANDT",Vector3(s*1.074,1.618,-.87),.126,DEEP,rot)
 		Kit.label(self,"TOWING & RECOVERY",Vector3(s*1.074,1.522,-.87),.049,DEEP,rot)
 		Kit.label(self,"ESKER, WIS.  ·  24 HR",Vector3(s*1.071,1.455,-.87),.041,DEEP,rot)
-	_mirror(-1.0)
-	_mirror(1.0)
+	_mirror(-1.0,parked)
+	_mirror(1.0,parked)
 
 func _driver_window() -> void:
 	side_glass = Kit.joint(self,Vector3.ZERO,"DriverWindow")
@@ -311,6 +320,7 @@ func _bed(k) -> void:
 	extension.box(Vector3(0,.29,.752),Vector3(.24,.10,.02),CREAM)
 	extension.finish()
 	boom_tip=Kit.joint(boom_extension,Vector3(0,.19,.71),"Sheave")
+	work_light = SpotLight3D.new()
 	boom_tip.add_child(work_light)
 	work_light.position=Vector3(0,.13,.1)
 	work_light.rotation=Vector3(-.38,PI,0)
@@ -332,6 +342,7 @@ func _bed(k) -> void:
 	var forks=Kit.new(stinger)
 	forks.box(Vector3(0,.47,5.14),Vector3(.27,.16,1.47),STEEL)
 	forks.finish()
+	crossbar = WheelLift.new()
 	crossbar.assemble(stinger,HITCH)
 
 func aim_boom(at: Vector3) -> void:
@@ -455,7 +466,7 @@ func _panel_detail() -> void:
 	pressure_needle=_needle(face,Vector3(0,0,.002),.077)
 	Kit.label(panel,"PTO   IN   OUT",Vector3(.12,.109,.039),.032,CREAM)
 
-func _mirror(s:float) -> void:
+func _mirror(s:float, parked := false) -> void:
 	var at:=Vector3(s*1.91,2.79,-1.68)
 	var m=Kit.new(self)
 	m.beam(Vector3(s*1.02,2.09,-1.67),at+Vector3(0,-.22,0),.035,.032,STEEL)
@@ -465,7 +476,10 @@ func _mirror(s:float) -> void:
 	frame.rotation.y=-s*(.46 if s<0 else .62)
 	var f=Kit.new(frame)
 	f.box(Vector3.ZERO,Vector3(.33,.54,.072),RUBBER)
+	if parked:
+		f.box(Vector3(0,0,.039),Vector3(.29,.49,.01),Color("#77818a"))
 	f.finish()
+	if parked: return
 	var viewport:=SubViewport.new()
 	viewport.size=Vector2i(80,112)
 	viewport.render_target_update_mode=SubViewport.UPDATE_DISABLED

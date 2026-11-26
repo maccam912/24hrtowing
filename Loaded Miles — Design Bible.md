@@ -97,7 +97,7 @@ Brandt orders equipment at the yard office and fits it with the wrecker parked o
 | Auxiliary fuel tank | A reserve holds half a main tank. Buy the fuel at the yard or Esker and use the wrecker’s transfer hose in the field | $155 after filing the Unit 38 hold |
 | Yard fittings | Meter fuel at the bulk tank, get coffee at the office bench, or open twelve more stalls west of the original five. The register keeps the overflow carbons | Pump $145, coffeemaker $39, west fence $245 |
 | Second hold bay | Receive another vehicle under a separate custody order | Planned |
-| Rollback (second truck) | Car jobs are faster and cleaner; it can't do heavy work | Mid-game |
+| Rollback (second truck) | Slide the bed to the snow, draw a light car up its runners and strap both sides. A heavy order waits for the wrecker while Arlene finds work for the carrier | $640 after twelve filed slips. Exchange keys at the parked truck’s driver door |
 
 The plat book grows too. Roads you've driven get inked in, roads that aren't printed get your pencil, and you can pencil a mark wherever you saw something. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and so do the lights.
 
