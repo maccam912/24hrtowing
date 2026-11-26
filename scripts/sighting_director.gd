@@ -330,7 +330,7 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 	else: forward = Vector3(0,0,signf(forward.z))
 	road = street
 	var side := forward.cross(Vector3.UP)
-	var ahead := 105.0 if id in ["the_lift","woods_car"] else 59.0
+	var ahead := 105.0 if id == "the_lift" else (83.0 if id == "woods_car" else 59.0)
 	var at := origin+forward*ahead
 	var roads = game._current_road_map()
 	var near: Dictionary = roads._nearest(Vector2(at.x,at.z))
@@ -338,6 +338,10 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		at.x = near.point.x
 		at.z = near.point.y
 	shoulder = scene.ground(at+side*8.5)
+	if id=="woods_car" and not Scene.Woods.has_room(game,shoulder,forward):
+		active = ""
+		used = true
+		return
 	if id in ["field_car","nose_car","pressed_lines","green_circle","bare_ring","far_landing","snow_column","snow_up"]: shoulder=scene.ground(at+side*24.)
 	if id=="empty_oncoming": shoulder=scene.ground(at-side*2.)
 	var thaw_span := 0.0
@@ -403,7 +407,7 @@ func finish(game) -> void:
 		"far_landing","snow_up","snow_column":
 			_record("bare_ring",shoulder,yaw,game.completed)
 		"woods_car":
-			_record("woods_tracks",shoulder+side*7.,yaw-PI*.5,game.completed)
+			_record("woods_tracks",shoulder+side*Scene.Woods.TRACK_START,yaw-PI*.5,game.completed,0.,road)
 		"deer_line":
 			_record("hoofprints",shoulder,yaw-PI*.5,game.completed)
 		"yard_visit":
@@ -437,6 +441,9 @@ func id_is_case(job: Dictionary) -> bool:
 
 func _advance_live(dt: float,game, at: Vector3) -> void:
 	elapsed += dt
+	if active == "woods_car":
+		var distance := maxf(1.,(shoulder-origin).dot(forward)-24.)
+		elapsed = maxf(elapsed,clampf((at-origin).dot(forward)/distance,0.,1.)*duration*.83)
 	if active == "set_down":
 		# A driver can accelerate mid-descent. Finish the landing and radio cue
 		# while the sedan remains in front of the bumper, even then.
