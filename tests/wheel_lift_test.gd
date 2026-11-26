@@ -122,7 +122,7 @@ func test_clearance_pole() -> void:
 	var step: Vector3 = -rig.truck.global_basis.z*1.8
 	var turn := .19
 	var z: float = rig.line_end*rig.road_wheels.axle_z
-	var pose: Transform3D = rig.forecast_tow(step,turn,z,-z,rig.road_wheels.radius)
+	var pose: Transform3D = rig.forecast_tow(step,turn,z,-z)
 	var size: Vector3 = rig.car.get_meta("body_size")
 	var local := Vector3(size.x,.72,-rig.line_end*size.z)
 	var target: Vector3 = rig.car.to_global(local).lerp(pose*local,.5)

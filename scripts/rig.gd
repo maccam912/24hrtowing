@@ -445,20 +445,33 @@ func _truck_obstacle(step:Vector3, turn:float) -> bool:
 	if loaded and road_wheels:
 		var z := line_end*road_wheels.axle_z
 		var size: Vector3 = car.get_meta("body_size")
-		var pose := forecast_tow(step,turn,z,-z,road_wheels.radius)
+		var pose := forecast_tow(step,turn,z,-z)
 		return load_obstructed(car,pose,size.x,.72,[-size.z,-size.z*.5,0.,size.z*.5,size.z])
 	if loaded and tanker:
-		var pose := forecast_tow(step,turn,Tanker.FRONT_AXLE,Tanker.REAR_AXLE,Tanker.WHEEL_RADIUS)
+		var pose := forecast_tow(step,turn,Tanker.FRONT_AXLE,Tanker.REAR_AXLE)
 		return load_obstructed(tanker,pose,Tanker.SIZE.x,1.0,[-Tanker.SIZE.z,0,Tanker.SIZE.z])
 	return loaded and semi != null and semi.tow_obstructed(self,step,turn)
 
-func forecast_tow(step: Vector3, turn: float, front_axle: float, rear_axle: float, wheel_height: float) -> Transform3D:
-	var next_hitch := truck.position+step+(_hitch()-truck.position).rotated(Vector3.UP,turn)
-	var axle_offset := car.to_global(Vector3(0,wheel_height,rear_axle))-next_hitch
-	var next_heading := heading+turn
-	var yaw := next_heading+clampf(angle_difference(next_heading,atan2(axle_offset.x,axle_offset.z)),-PI/3,PI/3)
-	var pose := Basis(Vector3.UP,yaw+(PI if front_axle>rear_axle else 0.0))
-	var at := next_hitch-pose*Vector3(0,0,front_axle)
+# The horizontal travel of the underlift kingpin about the rear tandem.
+# Sprung body pitch, roll and movement of the lift change the load's pose
+# without driving the tires sideways across the road.
+func _pin_travel(step: Vector3, turn: float) -> Vector3:
+	var arm := truck.global_basis.z*Truck.HITCH.z
+	return step+arm.rotated(Vector3.UP,turn)-arm
+
+func _tow_yaw(pin_travel: Vector3, truck_yaw: float, wheelbase: float, rear_hook: bool) -> float:
+	var yaw := car.rotation.y-(PI if rear_hook else 0.)
+	if not pin_travel.is_zero_approx():
+		var axle := Vector3.BACK.rotated(Vector3.UP,yaw)*wheelbase-pin_travel
+		yaw = atan2(axle.x,axle.z)
+	return truck_yaw+clampf(angle_difference(truck_yaw,yaw),-PI/3,PI/3)
+
+func forecast_tow(step: Vector3, turn: float, front_axle: float, rear_axle: float) -> Transform3D:
+	var travel := _pin_travel(step,turn)
+	var rear_hook := front_axle>rear_axle
+	var yaw := _tow_yaw(travel,heading+turn,absf(front_axle-rear_axle),rear_hook)
+	var pose := Basis(Vector3.UP,yaw+(PI if rear_hook else 0.0))
+	var at := _hitch()+travel-pose*Vector3(0,0,front_axle)
 	at.y = car.position.y
 	return Transform3D(pose,at)
 
@@ -492,8 +505,9 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 	else:
 		camera_yaw=wrapf(camera_yaw-look.x,-PI,PI)
 		camera_pitch=clampf(camera_pitch-look.y,-1.34,1.29)
+	var pin_travel := Vector3.ZERO
 	if in_cab:
-		_drive(move,brake,dt)
+		pin_travel = _drive(move,brake,dt)
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
 		_update_engine(0.0,dt)
@@ -513,7 +527,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 		active_levers.frame_load(self,look,dt)
 	else:
 		_winch(operate,dt)
-	_trail(dt)
+	_trail(dt,pin_travel)
 	_update_eyes()
 	_cable_curve()
 	_update_highlight()
@@ -524,7 +538,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 	body.move_driver_window(climate.cracked,dt)
 	body.animate(dt,speed,steering,engine_rpm,tension,fuel,odo,_compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
 
-func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
+func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 	var forward:Vector3=-truck.global_basis.z
 	var throttle:float=-move.y
 	var road_dist:=_road(truck.position)
@@ -616,6 +630,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 		turn=0.0
 		motion=Vector3.ZERO
 		speed=0
+	var pin_travel := _pin_travel(step,turn) if loaded and not rollback_active else Vector3.ZERO
 	truck.position+=step
 	heading=wrapf(heading+turn,-PI,PI)
 	truck.rotation.y=heading
@@ -632,6 +647,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 		sound_event.emit("reverse")
 	_suspension(dt)
 	_lay_tracks()
+	return pin_travel
 
 func _update_engine(demand:float, dt:float) -> void:
 	# Downshift below the upshift point so easing off won't hunt between gears.
@@ -1449,7 +1465,7 @@ func interact() -> void:
 			phase="loaded"
 			loaded=true
 			body.stinger.position.z=0.0
-			_track_underlift()
+			_track_underlift(Vector3.ZERO,true)
 			_set_car_lamps("tow")
 			if chocks: chocks.queue_free()
 			chocks=null
@@ -1630,7 +1646,7 @@ func _set_car_lamps(mode:String) -> void:
 		mode = "ems_scene"
 	car_lamps=semi.freight_lamps() if semi and mode=="tow" else Scene.car_lamps(car,mode,line_end)
 
-func _track_underlift() -> void:
+func _track_underlift(pin_travel := Vector3.ZERO, first_hook := false) -> void:
 	if rollback_active:
 		rollback_deck.track(self)
 		return
@@ -1645,11 +1661,10 @@ func _track_underlift() -> void:
 		rolling_axle = Vector3(0,wheel_height,Tanker.REAR_AXLE if tanker else Semi.REAR_AXLE)
 		half_wheelbase = (rolling_axle.z-lifted_axle.z)*.5
 	var hitch:=_hitch()+Vector3.UP*Truck.WheelLift.AXLE_HEIGHT
-	# The rolling axle keeps its last ground contact as the crossbar moves. This
-	# gives the tow its own turning arc, in both forward and reverse.
-	var tail:=car.to_global(rolling_axle)-hitch
-	var bend:=wrapf(atan2(tail.x,tail.z)-heading,-PI,PI)
-	var trailing_yaw:=heading+clampf(bend,-PI/3,PI/3)
+	var trailing_yaw := _tow_yaw(pin_travel,heading,2.0*half_wheelbase,line_end>0)
+	if first_hook:
+		var tail := car.to_global(rolling_axle)-hitch
+		trailing_yaw = heading+clampf(angle_difference(heading,atan2(tail.x,tail.z)),-PI/3,PI/3)
 	var rear_contact:=hitch+Vector3.BACK.rotated(Vector3.UP,trailing_yaw)*2.0*half_wheelbase
 	var contact_height := _ground(rear_contact)
 	var tow_roll := 0.0
@@ -1682,7 +1697,7 @@ func _in_wrecker(point:Vector3) -> bool:
 	var local:=truck.to_local(point)
 	return absf(local.x)<1.75 and local.z> -4.5 and local.z<(6.6 if rollback_active else 5.1)
 
-func _trail(dt:float) -> void:
+func _trail(dt:float, pin_travel := Vector3.ZERO) -> void:
 	body.lift.position.y=move_toward(body.lift.position.y,.39 if loaded else .03,dt*.65)
 	_advance_riders(dt)
 	for i in range(departures.size()-1,-1,-1):
@@ -1701,7 +1716,7 @@ func _trail(dt:float) -> void:
 	var extending:=kind!="ditch" and phase in ["rigged","at_lift","dollies","loaded"]
 	body.stinger.position.z=move_toward(body.stinger.position.z,0.0 if extending else -1.31,dt*1.5)
 	if loaded and not (rollback_active and rollback_deck.motion == "tip"):
-		_track_underlift()
+		_track_underlift(pin_travel)
 	if phase not in ["loaded","done","departing"]:
 		flash_time=fmod(flash_time+dt,1.0)
 		car_lamps.visible=_running_car() or flash_time<.5

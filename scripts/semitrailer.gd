@@ -284,7 +284,7 @@ func crosses_wrecker(truck: Node3D, step: Vector3, turn: float, speed: float) ->
 func tow_obstructed(rig, step: Vector3, turn: float) -> bool:
 	# Predict both axle arcs before committing the wrecker's movement. Check
 	# the long sides too, which swing inside the wheels on a tight turn.
-	var tractor:Transform3D = rig.forecast_tow(step,turn,FRONT_AXLE,REAR_AXLE,WHEEL_RADIUS)
+	var tractor:Transform3D = rig.forecast_tow(step,turn,FRONT_AXLE,REAR_AXLE)
 	if rig.load_obstructed(self,tractor,SIZE.x,1.0,[-SIZE.z,0,SIZE.z]):
 		return true
 	var pin := tractor*KINGPIN
