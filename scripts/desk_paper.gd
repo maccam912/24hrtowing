@@ -19,6 +19,7 @@ const TISSUE := Color("#e3d5ce")
 const HATCH := Color("#a6b4a3")
 const RADIO_ENAMEL := preload("res://assets/ui/sign_enamel.jpg")
 const Pencil := preload("res://scripts/plat_pencil.gd")
+const EastPlat := preload("res://scripts/tamarack_east_plat.gd")
 const ATLAS_A := Pencil.NORTHWEST
 const ATLAS_B := Pencil.SOUTHEAST
 var pencil_projection := Transform2D.IDENTITY
@@ -569,6 +570,9 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 				_pencil_symbol(c,row.position+Vector2(21,row.size.y*.5),tool,1.1)
 			row.position.y += 84
 		return
+	if c.desk.east_sheet:
+		EastPlat.directory(c,Rect2(cx,cy,column_w,p.end.y-cy-12))
+		return
 	c.text(Vector2(cx,cy),"ESKER TOWNSHIP",c.scaled,17,GREEN)
 	c.rule(cx,cy+8,column_w,LINE)
 	var entries: Array = s.get("pencil_notes",[])
@@ -631,12 +635,18 @@ func _fire_index(c, column: Rect2) -> void:
 
 func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	c.draw_rect(box,Color("#d5d7bc"))
-	var transform := Pencil.projection(box,12 if detailed else 4)
+	var transform := Pencil.projection(box,12 if detailed else 4,c.desk.east_sheet)
 	var scale_factor := transform.x.x
 	var project := func(v: Vector2) -> Vector2: return transform*v
 	if detailed and c.desk.pencil_open:
 		pencil_projection = transform
-		c.hit("pencil_sheet",Rect2(transform*ATLAS_A,(ATLAS_B-ATLAS_A)*scale_factor))
+		var start := Pencil.EAST_NW if c.desk.east_sheet else ATLAS_A
+		var end := Pencil.EAST_SE if c.desk.east_sheet else ATLAS_B
+		c.hit("pencil_sheet",Rect2(transform*start,(end-start)*scale_factor))
+	if c.desk.east_sheet:
+		EastPlat.draw_sheet(c,box,transform,detailed)
+		_pencil_marks(c,box,s,transform,detailed)
+		return
 	# Engraved parcel lines and lot numbers on the county plat.
 	for xi in range(-2,5):
 		for zi in range(-1,4):
@@ -731,8 +741,13 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 		c.rule(sx,box.end.y-13,400*scale_factor,GREEN,2)
 		c.text(Vector2(sx,box.end.y-18),"1 MILE",c.MONO,10,GREEN)
 
+	_pencil_marks(c,box,s,transform,detailed)
+
+func _pencil_marks(c, box: Rect2, s: Dictionary, transform: Transform2D, detailed: bool) -> void:
 	for mark: Array in s.get("plat_marks",[]):
-		_pencil_symbol(c,transform*Vector2(mark[0],mark[1]),mark[2],1.0 if detailed else .54)
+		var at := transform*Vector2(mark[0],mark[1])
+		if box.grow(-3).has_point(at):
+			_pencil_symbol(c,at,mark[2],1.0 if detailed else .54)
 	if detailed and c.desk.pencil_open and c.hover == "pencil_sheet":
 		var tip: Vector2 = transform*c.desk.pencil_point
 		c.draw_arc(tip,11,0,TAU,24,c.OXBLOOD,1.3,true)

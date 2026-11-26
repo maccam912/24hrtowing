@@ -23,17 +23,17 @@ static func _clear(a: Vector3, b: Vector3, obstacles: Array) -> bool:
 			return false
 	return true
 
-func plot(rig, goal: Vector3, leaving: bool, memorial: bool) -> bool:
+func plot(rig, goal: Vector3, destination := "") -> bool:
 	var obstacles := [_obstacle(rig.truck.global_transform,1.40,4.28)]
-	if not leaving and is_instance_valid(rig.car):
+	if destination.is_empty() and is_instance_valid(rig.car):
 		var bounds: Vector3 = rig.car.get_meta("body_size")
 		obstacles.append(_obstacle(rig.car.global_transform,bounds.x+.18,bounds.z+.18))
-	if leaving:
-		if memorial:
+	match destination:
+		"memorial":
 			for x: float in [847.12,858.88]:
 				for z: float in [23.78,26.82]:
 					obstacles.append(_obstacle(Transform3D(Basis.IDENTITY,Vector3(x,0,z)),.30,.30))
-		else:
+		"esker":
 			for x: float in [-74.7,-67.3]:
 				obstacles.append(_obstacle(Transform3D(Basis.IDENTITY,Vector3(x,0,16)),1.22,.72))
 	var points := PackedVector3Array([person.global_position,goal])

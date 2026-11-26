@@ -14,13 +14,14 @@ const Scene = preload("res://scripts/rig_scene.gd")
 const SURVEY_PICKUP := Vector3(314,0,-409)
 const SURVEY_YAW := .38
 const HOFFMANN_LANE_END := Vector2(457,336)
-const TERRAIN_X := Vector2i(-795, 1100)
+const East := preload("res://scripts/tamarack_highway.gd")
+const TERRAIN_X := Vector2i(-795, 2250)
 const TERRAIN_Z := Vector2i(-610, 1000)
 const YARD := Rect2(-65,-90,68,61)
 const Flowage := preload("res://scripts/flowage_pull.gd")
 const ROADS := [
 	["River Rd",Flowage.ROAD_X,-158,Flowage.ROAD_X,0],
-	["Highway 64", -635, 0, 930, 0], ["County K", 0, -420, 0, 800],
+	["Highway 64", -635, 0, East.CLOSURE_X, 0], ["County K", 0, -420, 0, 800],
 	["Kolpack Rd", 400, 0, 400, 800], ["County FF", 800, 0, 800, 800],
 	["Hendricks Rd", 0, 400, 800, 400], ["Zielinski Rd", 0, 800, 800, 800],
 	["Swamp Rd", -180, -400, 455, -400], ["US 59", -608, -280, -608, 350],
@@ -28,7 +29,7 @@ const ROADS := [
 const PLACES := [
 	["Brandt Towing", -32,-64], ["Fuel & Food",-71,18], ["St. Hedwig’s",22,80],
 	["Brzezinski Dairy",90,425], ["Lindquist",431,246], ["Section 3",314,-400],
-	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Flowage landing",-434,-141], ["Esker Co-op",40,-22], ["Tamarack",895,0],
+	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Flowage landing",-434,-141], ["Esker Co-op",40,-22], ["Tamarack",895,0], ["County Highway Garage",East.CURB.x,East.CURB.z], ["Cedar Creek",1325,0],
 ]
 var alder_open := false
 var case_landmarks := {"angie_house":true,"mailboxes":true}
@@ -378,6 +379,8 @@ func road_distance(x: float, z: float, include_alder := true) -> float:
 	return sqrt(distance)
 
 func _distance_from_lot(x: float, z: float) -> float:
+	if x > 1050:
+		return Vector2(x,z).distance_to(Vector2(x,z).clamp(East.LOT.position,East.LOT.end))
 	var nearest := INF
 	var edge := CaseSites.HOUSE_YARD
 	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
@@ -602,6 +605,7 @@ func _build() -> void:
 	Dairy.new(self,draw).build()
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
+	East.new(self,draw).build()
 	Dryhouse.new(self,draw).build()
 	Flowage.mark_ice(draw,self)
 	preload("res://scripts/tree_recovery.gd").grow_grove(draw,self)
@@ -669,14 +673,14 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,Flowage.ROAD_X,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884])
-	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,4,14,18,24,31,47,146,164,236,246,331,336,341,425,448])
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,Flowage.ROAD_X,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884,1100,1150,East.LOT.position.x,East.LOT.end.x])
+	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,4,14,18,24,31,47,61,146,164,236,246,331,336,341,425,448])
 	var ground := {}
 	var h_rows := []
 	for z: float in zs:
 		var heights := PackedFloat32Array()
 		for x: float in xs:
-			heights.append(ground_height(x,z))
+			heights.append(ground_height(x,z) if x <= 1150 or absf(z) <= 265 else 0.0)
 		h_rows.append(heights)
 	_bake_spindrift_ground(xs, zs, h_rows)
 	for row in range(zs.size()-1):
@@ -685,6 +689,8 @@ func _build_ground(draw) -> void:
 		for col in range(xs.size()-1):
 			var x0 := float(xs[col])
 			var x1 := float(xs[col+1])
+			if x0 >= 1150 and (z0 > 240 or z1 < -240):
+				continue
 			var a := Vector3(x0,h_rows[row][col],z0)
 			var b := Vector3(x1,h_rows[row][col+1],z0)
 			var c := Vector3(x1,h_rows[row+1][col+1],z1)
@@ -692,7 +698,7 @@ func _build_ground(draw) -> void:
 			var center := (a+c)*.5
 			var road := road_distance(center.x,center.z) <= 5.0
 			var yard_floor := Flowage.LANDING.has_point(Vector2(center.x,center.z)) or YARD.has_point(Vector2(center.x,center.z)) or RiverLanes.LOT.has_point(Vector2(center.x,center.z))
-			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z))
+			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z)) or East.LOT.has_point(Vector2(center.x,center.z))
 			var material := "road" if road else ("pavement" if yard_floor or forecourt else "snow")
 			var uv := PackedVector2Array()
 			var highway := absf(center.z)<5.1 or absf(center.z-400)<5.1 or absf(center.z-800)<5.1 or absf(center.z+400)<5.1

@@ -18,6 +18,7 @@ var fax_sheet := -1
 var fire_leaf := -1
 var fire_parcel := ""
 var atlas_notes := false
+var east_sheet := false
 var pencil_open := false
 var pencil_tool := "return"
 var pencil_point := Vector2.ZERO
@@ -117,6 +118,7 @@ func _change_page(id: String) -> void:
 		surface.queue_redraw()
 
 func open_fire_index(id: String) -> void:
+	east_sheet = false
 	pencil_open = false
 	fire_parcel = id
 	fire_leaf = floori(float(maxi(Addresses.PARCELS.keys().find(id),0))/Addresses.PER_LEAF)
@@ -203,7 +205,7 @@ func _input(event: InputEvent) -> void:
 				KEY_UP: direction = Vector2.UP
 				KEY_DOWN: direction = Vector2.DOWN
 			if direction != Vector2.ZERO:
-				pencil_point = (pencil_point+direction*(100 if event.shift_pressed else 22)).clamp(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B)
+				pencil_point = (pencil_point+direction*(100 if event.shift_pressed else 22)).clamp(Surface.Documents.Pencil.EAST_NW if east_sheet else Surface.Documents.ATLAS_A,Surface.Documents.Pencil.EAST_SE if east_sheet else Surface.Documents.ATLAS_B)
 				surface.queue_redraw()
 				get_viewport().set_input_as_handled()
 				return
@@ -337,6 +339,13 @@ func _activate(id: String) -> void:
 			surface.queue_redraw()
 		"impound_prev", "impound_next", "impound_index", "impound_0", "impound_1", "impound_2", "buy_coffee", "talk_mai":
 			action.emit(id)
+		"turn_plat":
+			east_sheet = not east_sheet
+			pencil_open = false
+			fire_leaf = -1
+			surface.hover = ""
+			surface.hit_boxes.clear()
+			surface.queue_redraw()
 		"fire_index":
 			if fire_leaf < 0:
 				open_fire_index("")
@@ -357,6 +366,10 @@ func _activate(id: String) -> void:
 		"plat_pencil":
 			fire_leaf = -1
 			pencil_open = not pencil_open
+			if east_sheet:
+				pencil_point = pencil_point.clamp(Surface.Documents.Pencil.EAST_NW,Surface.Documents.Pencil.EAST_SE)
+			else:
+				pencil_point = pencil_point.clamp(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B)
 			surface.hover = "pencil_sheet" if pencil_open else ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()

@@ -22,8 +22,8 @@ func run() -> void:
 			summer_calls += 1
 		else:
 			riders[rider.id] = call
-	check(riders.size() == 4 and summer_calls == 1,"four rotating rural riders without a second summer-driver encounter")
-	for who: String in ["switchboard","creamery"]:
+	check(riders.size() == 5 and summer_calls == 1,"five rotating rural riders without a second summer-driver encounter")
+	for who: String in ["switchboard","creamery","plow_relief"]:
 		await ride_to_counter(riders[who])
 	# Old summer rides used the job kind and model, without a destination key.
 	var legacy: Dictionary = riders.switchboard.duplicate(true)

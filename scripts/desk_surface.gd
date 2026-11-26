@@ -322,6 +322,8 @@ func _documents() -> void:
 		return
 	# Labeled tabs project beyond the paper's bottom edge.
 	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Shop"]]
+	if desk.page == "map":
+		tabs[1] = ["turn_plat","‹ Esker sheet" if desk.east_sheet else "East sheet ›"]
 	if not str(drawn.get("custody_text","")).is_empty():
 		tabs.append(["custody","Custody"])
 	if drawn.get("field_available",false):

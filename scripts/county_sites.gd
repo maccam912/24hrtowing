@@ -581,7 +581,7 @@ func road_furniture() -> void:
 			var point := start+dir*i
 			# Utility poles are sited on the field side of the roadside ditch.
 			var here := point+side*12.9
-			var skip := (here.x > -507 and here.x < -442) or (Rect2(-102,-96,208,140).has_point(Vector2(here.x,here.z))) or here.distance_to(Vector3(318,0,-412)) < 20
+			var skip: bool = world.East.LOT.has_point(Vector2(here.x,here.z)) or (here.x > -507 and here.x < -442) or (Rect2(-102,-96,208,140).has_point(Vector2(here.x,here.z))) or here.distance_to(Vector3(318,0,-412)) < 20
 			if skip:
 				previous = Vector3.ZERO
 				continue
@@ -603,7 +603,7 @@ func road_furniture() -> void:
 			if i%96==0:
 				for s:float in [-1.,1.]:
 					var foot := point+side*6.5*s
-					if world.road_distance(foot.x,foot.z) < 6.5:
+					if world.East.LOT.has_point(Vector2(foot.x,foot.z)) or world.road_distance(foot.x,foot.z) < 6.5:
 						continue
 					foot.y = world.ground_height(foot.x,foot.z)
 					draw.box(foot+Vector3.UP*.49,Vector3(.07,.98,.08),"wood")
@@ -622,7 +622,7 @@ func road_furniture() -> void:
 	for x:float in [-1.68,1.68]:
 		b(x,.91,0,.14,1.82,.14,"wood")
 	# County closures at the outer survey roads. The yard gate always stays open.
-	for end_point:Array in [[-635,0,PI*.5],[930,0,PI*.5],[455,-400,PI*.5],[-180,-400,PI*.5],[0,-420,0.],[-608,-280,0.],[-608,350,0.]]:
+	for end_point:Array in [[-635,0,PI*.5],[world.East.CLOSURE_X,0,PI*.5],[455,-400,PI*.5],[-180,-400,PI*.5],[0,-420,0.],[-608,-280,0.],[-608,350,0.]]:
 		site(end_point[0],end_point[1])
 		placard(Vector3(0,1.4,0),"ROAD CLOSED",5.6,.7,end_point[2],"oxide",true)
 		for s:float in [-1.,1.]:

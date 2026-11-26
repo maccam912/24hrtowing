@@ -19,6 +19,7 @@ const DepartingDriver := preload("res://scripts/departing_driver.gd")
 const VehicleDrifts = preload("res://scripts/vehicle_drifts.gd")
 const Kit = preload("res://scripts/rig_mesh.gd")
 const YardDrop = preload("res://scripts/yard_drop.gd")
+const Highway := preload("res://scripts/tamarack_highway.gd")
 const GAME_MILE := 400.0
 const CABLE_REACH := 37.0
 const ICE_LINE := 52.0
@@ -203,7 +204,7 @@ func offer_front_seat() -> bool:
 	if kind != "passenger" or phase != "scene" or not witness or not is_stopped():
 		return false
 	var walk := RiderWalk.new(witness,vehicle_identity.driver_variant)
-	if not walk.plot(self,_passenger_step(),false,false):
+	if not walk.plot(self,_passenger_step()):
 		_note("Leave room beside the passenger door and offer the ride again.",5)
 		return false
 	boarding_walk = walk
@@ -222,16 +223,16 @@ func _seat_rider() -> void:
 func let_rider_out(ticket: Dictionary) -> bool:
 	if kind != "passenger" or phase != "passenger" or not is_stopped():
 		return false
-	var memorial: bool = Rides.rider(ticket).drop == "memorial"
+	var drop: String = Rides.rider(ticket).drop
 	var threshold := Rides.inside_door(ticket)
-	var sidewalk := Vector3(threshold.x,0,threshold.z-(1.5 if memorial else 2.25))
+	var sidewalk := Vector3(threshold.x,0,threshold.z-(2.25 if drop == "esker" else 1.5))
 	var walker := RiderWalk.new(witness,vehicle_identity.driver_variant)
 	witness.position = _passenger_step()
 	witness.position.y = _ground(witness.position)
-	if _obstructed(truck.to_global(Vector3(0,.80,Truck.DOOR.z)),truck.global_basis.x*1.80) or not walker.plot(self,sidewalk,true,memorial):
+	if _obstructed(truck.to_global(Vector3(0,.80,Truck.DOOR.z)),truck.global_basis.x*1.80) or not walker.plot(self,sidewalk,drop):
 		_note("Pull ahead a little. The passenger needs a clear step to the curb.",5)
 		return false
-	walker.entering_store = not memorial
+	walker.entering_store = drop == "esker"
 	walker.route.append(threshold)
 	witness.show()
 	witness = null
@@ -570,7 +571,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 		turn=0.0
 	# The storm boundary softens to a stop; reverse remains available.
 	var p:=truck.position+step
-	if (absf(p.x)>1150 or p.x< -775 or p.z>970 or p.z< -580) and Vector2(p.x,p.z).length_squared()>Vector2(truck.position.x,truck.position.z).length_squared():
+	if Highway.boundary_distance(p) > Highway.boundary_distance(truck.position):
 		step=Vector3.ZERO
 		turn=0.0
 		motion=Vector3.ZERO
@@ -632,6 +633,8 @@ func _walk(move:Vector2, dt:float) -> void:
 		var z_move:=Vector3(0,0,dest.z-foot.z)
 		if _obstructed(eye,x_move+x_move.normalized()*.17): dest.x=foot.x
 		if _obstructed(eye,z_move+z_move.normalized()*.17): dest.z=foot.z
+	if Highway.boundary_distance(dest) > Highway.boundary_distance(foot):
+		dest = foot
 	dest.y=_ground(dest)
 	foot=dest
 	walked+=Vector2(foot.x-start.x,foot.z-start.z).length()
@@ -1650,7 +1653,7 @@ func _build_tracks() -> void:
 	m.visible_instance_count=0
 	tracker.multimesh=m
 	tracker.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	tracker.custom_aabb=AABB(Vector3(-810,-20,-630),Vector3(2000,70,1730))
+	tracker.custom_aabb=AABB(Vector3(-810,-20,-630),Vector3(3050,70,1730))
 	add_child(tracker)
 
 func _lay_tracks() -> void:
