@@ -5,6 +5,8 @@ const YardDrop := preload("res://scripts/yard_drop.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Rides := preload("res://scripts/passenger_call.gd")
 const Squad := preload("res://scripts/county_squad.gd")
+const Semi := preload("res://scripts/semitrailer.gd")
+const RiverLanes := preload("res://scripts/river_lanes.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
 # Points are centerline stations on the county plat.
@@ -80,7 +82,7 @@ static func impossible(completed: int, event_id: String, point: Vector3, route: 
 		"dispatch":"Brandt, there's a blue sedan %s at %s. %s Sheriff wants it in storage." % [spec[1],landmark,spec[2]],
 		"directions":approach + " " + str(spec[2]), "schedule":_scheduled_miles(Vector2(point.x,point.z))}
 
-static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_block := false) -> Dictionary:
+static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_block := false, second_winch := false) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	var used := {}
 	var driver_calls := {}
@@ -94,11 +96,16 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var last_plow := -1
 	var last_squad := -1
 	var squad_calls := 0
+	var last_semi := -1
+	var freight_calls := 0
 	for slip: Dictionary in slips:
 		met_angie = met_angie or slip.get("vin", "") == Legacy.JOBS.angie.vin
 		if slip.has("case_id") or slip.kind not in ["ditch", "hazard","passenger"]:
 			continue
 		var site_id := _site_on_slip(slip)
+		if slip.get("recovery") == "semi":
+			last_semi = ditches + hazards
+			freight_calls += 1
 		if slip.get("vin") == Snowplow.VIN:
 			last_plow = ditches + hazards
 		if slip.has("clearance_seconds"):
@@ -130,6 +137,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var passenger_due := summer_due or (rotation_count >= 9 and (last_ride < 0 or rotation_count-last_ride >= 12))
 	var stuck_plow := snatch_block and kind == "ditch" and not passenger_due and rotation_count >= 8 and (last_plow == -1 or rotation_count-last_plow >= 14)
 	var squad := kind == "ditch" and not passenger_due and not stuck_plow and rotation_count >= 12 and (last_squad == -1 or rotation_count-last_squad >= 17)
+	if kind == "hazard" and second_winch and snatch_block and rotation_count >= 12 and (last_semi < 0 or rotation_count-last_semi >= 18):
+		return _freight_ticket(completed,dispatch_seed,freight_calls)
 	var route := ""
 	var best := INF
 	for id: String in SITES:
@@ -257,6 +266,24 @@ static func _named_driver(job: Dictionary, id: String, reply: String, variant: i
 	job.driver_variant = variant
 	job.reply = reply
 
+static func _freight_ticket(completed: int, seed_value: int, previous: int) -> Dictionary:
+	var north := posmod(seed_value+previous,2) == 0
+	var point := RiverLanes.NORTH_SITE if north else RiverLanes.SOUTH_SITE
+	var stop := "north turnout" if north else "south turnout"
+	var side := "north" if north else "south"
+	var site := "freight_"+side
+	var paint := posmod(seed_value+previous,2)
+	var miles := (absf(point.z-RiverLanes.CENTER.z)+absf(point.x-RiverLanes.CENTER.x))/METERS_PER_GAME_MILE
+	return {"number":1001+completed,"kind":"hazard","id":"jackknife","recovery":"semi","heavy_recovery":true,
+		"site":site,"route":site,"run":site+"/east","road":"US 59","location":"US 59 · "+stop,"point":point,
+		"angle":PI if north else 0.0,"fold":-1.12 if north else 1.12,"variant":Semi.VARIANT,"paint":paint,
+		"driver_variant":1,"vehicle":"North Country tractor-trailer","plate":"MN PTR %03d" % (125+posmod(seed_value+completed*37,860)),
+		"vin":"1HTNCC9X5S%07d" % posmod(seed_value+completed*7919,10000000),"schedule":snappedf(miles,.1),
+		"person":"Freight driver","reply":"freight_lights" if previous%2 == 0 else "freight_brake","destination":RiverLanes.DROP.sign,
+		"dispatch":"North Country tractor-trailer folded up at the %s on US 59. Driver's clear. Straighten the trailer with both drums and tow the whole outfit to River Lanes." % stop,
+		"directions":"Cross the river on sixty-four. Turn %s onto US 59 at River Lanes. Look for the east turnout and the white freight box." % ("right" if north else "left"),
+		"haul_line":"Copy, Brandt. River Lanes has the pull-through ready. Get both halves between the amber posts and drop at the panel."}
+
 static func _scheduled_miles(station: Vector2) -> float:
 	# Original street distances down the county grid to the K gate and across the yard.
 	var yard: Vector3 = YardDrop.STORAGE.center
@@ -316,6 +343,8 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 	var hookup := 0 if look_only else 16
 	var winch := 0 if look_only else maxi(1, ceili(seconds / 60.0)) * 6
 	var storage := 12 if towed else 0
+	if job.get("recovery") == "semi":
+		storage = 0
 	var heavy_fee := HEAVY_FEE if job.get("heavy_recovery", false) else 0
 	var rate_fee := float(job.get("rate_fee",0.0)) if revised_rates else 0.0
 	var pay := 38.0 + hookup + winch + mile * 3.25 + storage + heavy_fee + rate_fee
@@ -334,6 +363,8 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		slip.pay = snappedf(slip.pay+slip.clearance_bonus,.01)
 	if job.has("recovery"):
 		slip.recovery = job.recovery
+	if job.get("recovery") == "semi":
+		slip.destination = RiverLanes.DROP.sign
 	if job.kind == "passenger":
 		slip.rider = Rides.rider(job).id
 		slip.destination = Rides.destination(job)

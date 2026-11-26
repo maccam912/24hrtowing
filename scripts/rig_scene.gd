@@ -2,6 +2,7 @@ extends RefCounted
 const K=preload("res://scripts/rig_mesh.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Squad := preload("res://scripts/county_squad.gd")
+const Semi := preload("res://scripts/semitrailer.gd")
 const BLACK=Color("#272b2c")
 const GLASS=Color("#38464b")
 const STEEL=Color("#929895")
@@ -29,6 +30,10 @@ static func snatch_block(parent: Node3D) -> Node3D:
 	return block
 
 static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
+	if variant == Semi.VARIANT:
+		var tractor := Semi.new()
+		tractor.build(parent,identity)
+		return tractor
 	if variant == Snowplow.VARIANT and kind == "ditch":
 		return Snowplow.build(parent)
 	var is_hold:=kind=="hold"

@@ -76,6 +76,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
 	if active_job.has("clearance_seconds"):
 		job_kind = "Squad pull"
+	elif active_job.get("recovery") == "semi":
+		job_kind = "Freight recovery"
 	elif active_job.get("vin") == Dispatch.Snowplow.VIN:
 		job_kind = "Plow pull"
 	var detail: Dictionary = Campaign.DETAILS.get(active_job.get("case_id",""),{})
@@ -113,6 +115,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 			note += "\nPassenger delivered to " + str(active_job.get("destination","Esker Fuel & Food"))
 		if float(active_job.get("heavy_fee",0)) > 0:
 			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
+		if active_job.get("recovery") == "semi":
+			note += "\nReceived by River Lanes Truck Stop"
 		if float(active_job.get("rate_fee",0)) > 0:
 			note += "\n%s   +$%.2f" % [active_job.rate_name,active_job.rate_fee]
 	else:
@@ -751,6 +755,14 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 			"Fit heated glass","Fitted" if s.get("heated_mirrors",false) else "",money,can_fit,location)
 		_equipment_card(c,right,"buy_lamps","Driving bar & spot","Wider beams and an aimable pillar lamp for reading fire plates.",ShopAccount.PRICES.lamps,
 			"Fit lamps","Fitted" if s.get("aux_lamps",false) else "",money,can_fit,location)
+		right.position.y += size.y+8
+		var winch_status := "Fitted" if s.get("second_winch",false) else ""
+		if winch_status.is_empty() and not s.get("heavy_job_filed",false):
+			winch_status = "File a heavy recovery"
+		elif winch_status.is_empty() and not s.get("snatch_block",false):
+			winch_status = "Fit snatch block first"
+		_equipment_card(c,right,"buy_second_winch","Auxiliary winch","Control a trailer on the second line. Opens freight calls on US 59.",ShopAccount.PRICES.second_winch,
+			"Fit second winch",winch_status,money,can_fit,location)
 		if scanner_available:
 			left.position.y += size.y+8
 			_equipment_card(c,left,"buy_scanner","Scanner crystals","Hear the sheriff and county garage from the cab.",ShopAccount.PRICES.scanner,
@@ -866,7 +878,7 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 			for i in 3:
 				c.rule(sketch.position.x+12,sketch.position.y+30+i*3,35,PAPER_INK)
 		"buy_chains": _chain_illustration(c,sketch)
-		"service_winch": _drum_illustration(c,sketch)
+		"service_winch","buy_second_winch": _drum_illustration(c,sketch)
 		"buy_fuel","buy_yard_pump": _diesel_illustration(c,sketch)
 		"buy_snatch_block": _block_illustration(c,sketch)
 	c.multiline(r.position+Vector2(90,56),description,c.print_face,16,PAPER_INK,r.size.x-102,2)

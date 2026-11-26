@@ -167,6 +167,18 @@
     "DEPUTY RUIZ",
     "Backed up to read a plate. Rear wheels dropped right off the edge. My relief's waiting on this car."
   ],
+  "freight_lights": [
+    "FREIGHT DRIVER",
+    "I've been sitting up there watching those three lights. They haven't moved an inch. Folks at River Lanes said to use their pull-through."
+  ],
+  "freight_brake": [
+    "FREIGHT DRIVER",
+    "Trailer tried to pass me on the right. Box is still sealed. The mechanic at River Lanes has a set of air lines waiting."
+  ],
+  "freight_dir": [
+    "DISPATCH",
+    "Stay on US 59 to River Lanes by Highway 64. Take the open apron beside the diner. Pull the tractor and trailer straight between the four amber posts."
+  ],
   "displaced_driver": [
     "DRIVER",
     "I was on the four-lane outside Wausau. Where am I?"

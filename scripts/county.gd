@@ -2,6 +2,7 @@ extends Node3D
 ## A compressed Wisconsin township. All published locations are printed plat coordinates.
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
+const RiverLanes := preload("res://scripts/river_lanes.gd")
 const Fittings := preload("res://scripts/yard_fittings.gd")
 const Memorial = preload("res://scripts/memorial_hospital.gd")
 const FuelStore = preload("res://scripts/fuel_store.gd")
@@ -63,6 +64,7 @@ var fittings_model: Node3D
 var fuel_door: Node3D
 var bay: Node3D
 var drop_guide := Node3D.new()
+var freight_guide := Node3D.new()
 var favor_guide: Node3D
 var bay_locked := false
 var survey_pickup_parked := true
@@ -86,6 +88,13 @@ func _ready() -> void:
 	guide.drop_guide()
 	guide.draw.finish()
 	drop_guide.hide()
+	freight_guide.name = "FreightBayLamps"
+	add_child(freight_guide)
+	freight_guide.position = RiverLanes.CENTER
+	var receiving := RiverLanes.new(self,Batch.new(freight_guide,materials))
+	receiving.build_guide()
+	receiving.draw.finish()
+	freight_guide.hide()
 
 func map_roads() -> Array:
 	var result := []
@@ -117,6 +126,7 @@ func map_places() -> Array:
 	result.append({"name":"N5420 Alder Cut","point":Vector2(462,-470)})
 	result.append({"name":"N5104 Hoffmann","point":Vector2(446,331)})
 	result.append({"name":"Esker water tower","point":Vector2(44,-68)})
+	result.append({"name":"River Lanes receiving","point":RiverLanes.BAY.get_center()})
 	return result
 
 func resolve_point(p: Vector3) -> Vector3:
@@ -356,7 +366,7 @@ func _distance_from_lot(x: float, z: float) -> float:
 	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
 	if Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
-	for lot: Rect2 in [YARD,Memorial.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
+	for lot: Rect2 in [YARD,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
 		var dz := maxf(0,maxf(lot.position.y-z, z-lot.end.y))
 		nearest = minf(nearest, maxf(dx,dz))
@@ -570,6 +580,7 @@ func _build() -> void:
 	var places = Sites.new(self,draw)
 	places.build()
 	_build_yard_fittings()
+	RiverLanes.new(self,draw).build()
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
 	for x: float in [205.45,208.65]:
@@ -659,7 +670,7 @@ func _build_ground(draw) -> void:
 			var d := Vector3(x0,h_rows[row+1][col],z1)
 			var center := (a+c)*.5
 			var road := road_distance(center.x,center.z) <= 5.0
-			var yard_floor := YARD.has_point(Vector2(center.x,center.z))
+			var yard_floor := YARD.has_point(Vector2(center.x,center.z)) or RiverLanes.LOT.has_point(Vector2(center.x,center.z))
 			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z))
 			var material := "road" if road else ("pavement" if yard_floor or forecourt else "snow")
 			var uv := PackedVector2Array()
