@@ -144,8 +144,13 @@ func take_look() -> Vector2:
 	_look = Vector2.ZERO
 	return motion
 
+func parts_labels() -> Array:
+	var tabs := ["Fuel & parts","Cab & rig","Yard fittings"]
+	if state.get("reserve_offered",false): tabs.append("Diesel reserve")
+	return tabs
+
 func nozzle_held() -> bool:
-	return page == "bulk_pump" and (_is_down("nozzle") or Input.is_physical_key_pressed(KEY_SPACE))
+	return page in ["bulk_pump","reserve_transfer"] and (_is_down("nozzle") or Input.is_physical_key_pressed(KEY_SPACE))
 
 func work_held() -> bool:
 	return _is_down("work")
@@ -324,7 +329,7 @@ func _activate(id: String) -> void:
 			notes_page = 0
 			action.emit(id)
 		"parts_leaf", "parts_prev":
-			parts_page = posmod(parts_page + (1 if id == "parts_leaf" else -1),3)
+			parts_page = posmod(parts_page + (1 if id == "parts_leaf" else -1),parts_labels().size())
 			surface.hover = ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()
@@ -382,7 +387,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"buy_second_winch", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"tank_main", "tank_reserve", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):

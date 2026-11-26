@@ -85,6 +85,8 @@ var fuel_plow: FuelPlow
 var shop_receipt := ""
 var nozzle_sale := 0.0
 var nozzle_cents := 0.0
+var nozzle_at_esker := false
+var nozzle_reserve := false
 var seconds_worked := 0.0
 var fax_text := "TAMARACK COUNTY HIGHWAY DEPARTMENT\nTOW BAN IN EFFECT UNTIL FURTHER NOTICE.\nSheriff-requested removals only. Record both odometer readings."
 var caption := preload("res://scripts/county_speech.gd").new()
@@ -263,6 +265,8 @@ func _physics_process(dt: float) -> void:
 			_save()
 	if active and desk.page == "bulk_pump":
 		_run_nozzle(dt)
+	elif active and desk.page == "reserve_transfer":
+		_run_transfer(dt)
 	if playing or at_heater or (active and desk.page == "radio" and fuel_wait_left > 0.0):
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
@@ -449,7 +453,11 @@ func _action(id: String) -> void:
 				audio.stop_scanner()
 				if speaker.begins_with("SCANNER  /  "): sub_time = 0
 				_save()
-		"buy_second_winch","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
+		"tank_main","tank_reserve":
+			if desk.page == "bulk_pump" and account.owns("aux_tank") and not desk.nozzle_held():
+				nozzle_reserve = id == "tank_reserve"
+				nozzle_cents = 0.0
+		"buy_aux_tank","buy_reserve_fuel","buy_second_winch","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
 		"buy_coffee":
 			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
 				rig.warmth = 1.0
@@ -544,26 +552,61 @@ func _at_yard_nozzle() -> bool:
 func _can_pump_at_tank() -> bool:
 	return _at_yard_nozzle() and rig.is_stopped() and rig.get_truck_position().distance_to(County.Fittings.NOZZLE) < 13.0
 
+func _can_dispense() -> bool:
+	return _at_pump() and _can_refuel() if nozzle_at_esker else _can_pump_at_tank()
+
+func _open_nozzle(at_esker: bool) -> void:
+	nozzle_at_esker = at_esker
+	nozzle_reserve = false
+	nozzle_sale = 0.0
+	nozzle_cents = 0.0
+	_refresh()
+	desk.show_document("bulk_pump",state)
+
+func _buy_diesel(reserve: bool, budget := INF) -> Dictionary:
+	var initial:float = rig.reserve_fuel if reserve else rig.fuel
+	var capacity:float = Rig.Reserve.CAPACITY if reserve else 1.0
+	var sale := account.buy_fuel(initial,budget,capacity)
+	if sale.cost > 0.0:
+		if reserve:
+			rig.reserve_fuel = sale.fuel_after
+			rig.aux_tank.set_reading(rig.reserve_fuel)
+		else:
+			rig.fuel = sale.fuel_after
+			_cancel_can_after_refuel()
+	return sale
+
+func _cancel_can_after_refuel() -> void:
+	if fuel_wait_left > 0.0 and rig.fuel > 0.0:
+		fuel_wait_left = 0.0
+		_speak("DISPATCH","Copy, Brandt. I'll cancel that fuel delivery.")
+
 func _run_nozzle(dt: float) -> void:
-	if not desk.nozzle_held() or not _can_pump_at_tank():
+	if not desk.nozzle_held() or not _can_dispense() or (nozzle_reserve and not account.owns("aux_tank")):
 		return
 	# The rollers count whole cents; holding the handle meters $3.60 per second.
 	nozzle_cents += dt*360.0
 	var cents := floori(nozzle_cents)
 	nozzle_cents -= cents
-	if cents <= 0:
-		return
-	var sale := account.buy_fuel(rig.fuel,cents/100.0)
-	if sale.cost <= 0.0:
-		return
-	rig.fuel = sale.fuel_after
+	if cents <= 0: return
+	var sale := _buy_diesel(nozzle_reserve,cents/100.0)
+	if sale.cost <= 0.0: return
 	nozzle_sale = snappedf(nozzle_sale+sale.cost,.01)
-	if fuel_wait_left > 0.0:
-		fuel_wait_left = 0.0
-		_speak("DISPATCH","Copy, Brandt. I'll cancel that fuel delivery.")
 	save_timer += dt
-	if save_timer >= 1.0:
-		_save()
+	if save_timer >= 1.0: _save()
+
+func _run_transfer(dt: float) -> void:
+	if not rig.aux_tank: return
+	var amount := 0.0
+	if desk.nozzle_held() and rig.reserve_valve_in_reach():
+		amount = minf(Rig.Reserve.TRANSFER_RATE*dt,minf(1.0-rig.fuel,rig.reserve_fuel))
+	if amount > 0.0:
+		rig.fuel += amount
+		rig.reserve_fuel -= amount
+		_cancel_can_after_refuel()
+		save_timer += dt
+		if save_timer >= 1.0: _save()
+	rig.aux_tank.set_reading(rig.reserve_fuel,amount>0.0)
 
 func _at_counter() -> bool:
 	return not rig.in_cab and county.inside_fuel_store(rig.foot) and _facing(county.coffee_counter_point(),2.5)
@@ -581,6 +624,7 @@ func _fit_equipment() -> void:
 	rig.tire_chains = account.owns("chains")
 	rig.snatch_block = account.owns("snatch_block")
 	rig.second_winch = account.owns("second_winch")
+	rig.fit_reserve(account.owns("aux_tank"))
 	rig.body.heated_mirrors = account.owns("mirrors")
 	rig.body.fit_lamps(account.owns("lamps"))
 	var extend_lot: bool = account.owns("west_lot")
@@ -595,17 +639,13 @@ func _scanner_available() -> bool:
 	return signed_card or held or campaign.released or account.owns("scanner")
 
 func _shop_purchase(id: String) -> void:
-	if id == "buy_fuel":
-		if not _can_refuel():
-			return
-		var sale := account.buy_fuel(rig.fuel)
-		if sale.cost <= 0:
-			return
-		rig.fuel = sale.fuel_after
-		if fuel_wait_left > 0.0:
-			fuel_wait_left = 0.0
-			_speak("DISPATCH","Copy, you found diesel. I'll call off the plow.")
-		shop_receipt = "Diesel   $%.2f   ·   Tank %d%%" % [sale.cost,roundi(rig.fuel*100)]
+	if id in ["buy_fuel","buy_reserve_fuel"]:
+		var reserve := id == "buy_reserve_fuel"
+		if not _can_refuel() or (reserve and not account.owns("aux_tank")): return
+		var sale := _buy_diesel(reserve)
+		if sale.cost <= 0: return
+		var pct := roundi(100*float(sale.fuel_after)/(Rig.Reserve.CAPACITY if reserve else 1.0))
+		shop_receipt = "Diesel   $%.2f   ·   %s %d%%" % [sale.cost,"Reserve" if reserve else "Tank",pct]
 	elif not _at_office() or not _truck_in_yard():
 		return
 	elif id == "service_winch":
@@ -616,11 +656,13 @@ func _shop_purchase(id: String) -> void:
 	else:
 		var part := id.trim_prefix("buy_")
 		if part == "scanner" and not _scanner_available(): return
+		if part == "aux_tank" and campaign.stage < 1: return
 		if part == "second_winch" and (not heavy_job_filed or not account.owns("snatch_block")): return
 		if not account.buy(part):
 			return
 		_fit_equipment()
 		match part:
+			"aux_tank": shop_receipt = "Reserve fitted behind the cab. Fill it here or at the pumps."
 			"second_winch": shop_receipt = "Auxiliary winch fitted. Arlene can dispatch freight calls on US 59."
 			"west_lot": shop_receipt = "West gate open. Twelve numbered storage spaces on the back lot."
 			"yard_pump": shop_receipt = "Meter and hose fitted to the bulk tank by storage."
@@ -884,7 +926,7 @@ func _directions() -> void:
 		_speak("DISPATCH",_fuel_eta())
 		return
 	if _needs_fuel_can():
-		_speak("DISPATCH","Duane can bring diesel. Request a fuel can on the cab radio.")
+		_speak("DISPATCH",rig.reserve_hint() if rig.reserve_fuel > .0001 else "Duane can bring diesel. Request a fuel can on the cab radio.")
 		return
 	var words: String = _road_note().get("instruction","")
 	if not words.is_empty():
@@ -948,6 +990,7 @@ func _site_action() -> String:
 			return "let_out"
 	if casework.tower_height >= 0.0:
 		return casework.tower_action()
+	if rig.reserve_valve_in_reach(): return "reserve_valve"
 	if rig.in_cab or rig.at_dry_rig_door():
 		return ""
 	var detail_site := casework.site()
@@ -1118,11 +1161,10 @@ func _interact() -> void:
 			yard_card = _storage_tag(_storage_row_in_reach())
 			_refresh()
 			desk.show_document("storage_tag",state)
-		"bulk_pump":
-			nozzle_sale = 0
-			nozzle_cents = 0
+		"bulk_pump": _open_nozzle(false)
+		"reserve_valve":
 			_refresh()
-			desk.show_document("bulk_pump",state)
+			desk.show_document("reserve_transfer",state)
 		"yard_coffee":
 			if rig.coffee_left > 0:
 				_message("BRANDT","Still have coffee in my cup.")
@@ -1134,7 +1176,8 @@ func _interact() -> void:
 			_refresh()
 			desk.show_document("coffee",state)
 		"fuel":
-			_open_shop()
+			if account.owns("aux_tank"): _open_nozzle(true)
+			else: _open_shop()
 		_:
 			if mode == "fieldwork" and job.get("case_id") == "angie" and not campaign.evidence.has("angie_consent") and rig.action_id() == "flare":
 				_message("BRANDT","The owner’s on the porch. I need her signature before I hook this car.")
@@ -1453,10 +1496,12 @@ func _contract_hint(site: String) -> Dictionary:
 	var instruction := ""
 	if fuel_wait_left > 0.0:
 		return {"hint_title":"Roadside fuel requested","hint_action":_fuel_eta()}
+	if _needs_fuel_can() and rig.reserve_fuel > .0001:
+		return {"hint_title":"Main tank empty","hint_action":rig.reserve_hint()}
 	if _needs_fuel_can():
 		return {"hint_title":"Out of diesel","hint_action":"Tap RADIO for a county fuel can." if desk.is_touch_mode() else "Press R to call for a county fuel can."}
 	if rig.is_chocked() and rig.fuel <= 0.0:
-		return {"hint_title":"Out of diesel","hint_action":Rig.DRY_RIG_HINT}
+		return {"hint_title":"Out of diesel","hint_action":rig.reserve_hint()}
 	if not survey.tracked_lead.is_empty():
 		return {"hint_title":"Next stop · " + casework.lead_label(),"hint_action":casework.lead_instruction()}
 	match mode:
@@ -1534,6 +1579,7 @@ func _prompt(site: String = _site_action()) -> String:
 			return obstruction
 	if site == "offer_ride":
 		return "Offer a ride to " + Rides.destination(job)
+	if site == "reserve_valve": return "Open the reserve transfer pump"
 	if site == "grower":
 		return "Ask Roman Duda about County K"
 	if site == "let_out":
@@ -1694,7 +1740,9 @@ func _refresh() -> void:
 		"west_lot":county.west_lot_open,"storage_tag":yard_card,"checked_tape":open_tape,
 		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
 		"heavy_job_filed":heavy_job_filed,"second_winch":account.owns("second_winch"),
-		"nozzle_ready":_can_pump_at_tank(),"nozzle_sale":nozzle_sale,
+		"nozzle_ready":_can_dispense(),"nozzle_sale":nozzle_sale,"nozzle_esker":nozzle_at_esker,"nozzle_reserve":nozzle_reserve,
+		"reserve_offered":campaign.stage >= 1 or account.owns("aux_tank"),"aux_tank":account.owns("aux_tank"),
+		"reserve_pct":rig.reserve_fuel/Rig.Reserve.CAPACITY,"reserve_quote":account.fuel_quote(rig.reserve_fuel,INF,Rig.Reserve.CAPACITY),
 		"at_counter":site == "coffee","coffee_left":rig.coffee_left,"mai_lot":sightings.seen.has("streetlights_out") and not mai_lot_heard,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
 		"can_refuel":_can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":_needs_fuel_can(),

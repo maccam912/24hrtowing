@@ -8,6 +8,7 @@ const TreeRecovery := preload("res://scripts/tree_recovery.gd")
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
+const Reserve := preload("res://scripts/reserve_tank.gd")
 const Tanker := preload("res://scripts/milk_tanker.gd")
 const Dairy := preload("res://scripts/dairy_transfer.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
@@ -40,6 +41,8 @@ var torch:=SpotLight3D.new()
 var car:Node3D
 var semi: Semi
 var tanker: Tanker
+var aux_tank: Reserve
+var reserve_fuel := 0.0
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
@@ -289,6 +292,27 @@ func recover_to_yard(at: Vector3, yaw: float) -> void:
 	set_spawn(at,yaw)
 	eyes.make_current()
 
+func fit_reserve(owned: bool) -> void:
+	if owned and not aux_tank:
+		aux_tank = Reserve.new()
+		aux_tank.install(body)
+	if aux_tank:
+		aux_tank.visible = owned
+		aux_tank.set_reading(reserve_fuel if owned else 0)
+	if not owned:
+		reserve_fuel = 0.0
+
+func reserve_valve_in_reach() -> bool:
+	if in_cab or not is_stopped() or not aux_tank or not aux_tank.visible:
+		return false
+	var local := body.to_local(foot)
+	return local.x > 1.1 and _in_range(body.to_global(Reserve.PUMP),1.95)
+
+func reserve_hint() -> String:
+	if reserve_fuel > .0001 and aux_tank and aux_tank.visible:
+		return "Transfer reserve diesel at the curb-side bed rail, just behind the cab."
+	return DRY_RIG_HINT
+
 func _stop_motion() -> void:
 	speed = 0.0
 	motion = Vector3.ZERO
@@ -493,7 +517,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 				demand = minf(1.0, demand * 1.2)
 	else:
 		speed=move_toward(speed,0,coast_decel*dt)
-	if fuel<=0 and info_timer<=0: _note("Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
+	if fuel<=0 and info_timer<=0: _note(reserve_hint() if reserve_fuel > .0001 else "Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
 	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
 	if loaded and tanker:
@@ -1025,10 +1049,10 @@ func context_text() -> String:
 	if tree_recovery:
 		match action:
 			"tree_block": return "Shackle the block to the hanging sling"
-			"tree_boom": return "Take the boom levers at the side panel" if fuel > 0 else DRY_RIG_HINT
+			"tree_boom": return "Take the boom levers at the side panel" if fuel > 0 else reserve_hint()
 			"tree_leave": return "Let go of the boom controls"
 	if action in ["winch","lift","sling"] and fuel <= 0.0:
-		return DRY_RIG_HINT
+		return reserve_hint()
 	if action == "enter" and is_chocked() and fuel > 0.0:
 		return "Finish or stow the rigging before entering the cab."
 	if action == "haul":
@@ -1056,7 +1080,7 @@ func context_text() -> String:
 
 func _hint() -> String:
 	if not in_cab and is_chocked() and fuel <= 0.0:
-		return DRY_RIG_HINT
+		return reserve_hint()
 	if semi:
 		var freight_note := semi.instructions(phase)
 		if not freight_note.is_empty(): return freight_note
@@ -1114,7 +1138,7 @@ func interact() -> void:
 		_update_highlight()
 		return
 	if a in ["lift","sling","winch","tree_boom"] and fuel <= 0.0:
-		_note(DRY_RIG_HINT,6.0)
+		_note(reserve_hint(),6.0)
 		return
 	match a:
 		"exit":
@@ -1263,7 +1287,7 @@ func _winch(operate:bool,dt:float) -> void:
 		dt = fuel / WINCH_FUEL_PER_SECOND
 		fuel = 0.0
 		working = false
-		_note(DRY_RIG_HINT,6.0)
+		_note(reserve_hint(),6.0)
 	else:
 		fuel -= dt * WINCH_FUEL_PER_SECOND
 	if semi and semi.rigging == "both":
@@ -1547,6 +1571,7 @@ func save_state() -> Dictionary:
 	d["driving_view"] = driving_view
 	d.special_work = special_work
 	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
+	if aux_tank and aux_tank.visible: d.reserve_fuel = reserve_fuel
 	if semi: d.freight = semi.snapshot()
 	if tanker: d.milk = tanker.snapshot()
 	d.second_line = second_line
@@ -1608,6 +1633,7 @@ func restore_state(d:Dictionary) -> void:
 	camera_pitch=d.get("pitch",-.067)
 	odo=d.get("odo",START_ODO)
 	fuel=d.get("fuel",.84)
+	reserve_fuel = clampf(d.get("reserve_fuel",0.0),0.0,Reserve.CAPACITY)
 	warmth=d.get("warmth",1.0)
 	climate.restore(d.get("cab_heat",{}))
 	body.move_driver_window(climate.cracked,3.)
