@@ -1,7 +1,7 @@
 extends SceneTree
 
 const Game := preload("res://scripts/game.gd")
-const CAB_CONTROLS := ["steer_l", "steer_r", "gas", "brake", "interact", "radio", "map", "slip", "camera", "pause"]
+const CAB_CONTROLS := ["steer_l", "steer_r", "gas", "horn", "brake", "interact", "radio", "map", "slip", "camera", "pause"]
 const PAPER_TABS := ["radio", "slip", "map", "fax", "parts", "custody", "field"]
 const PAPER_STATE := {
 	"in_cab": true, "field_available": true, "custody_text": "Evidence hold",
@@ -122,6 +122,19 @@ func check_sighting_pages() -> void:
 	await process_frame
 
 func check_driving(centers: Dictionary) -> void:
+	var horn: AudioStreamPlayer3D = game.audio.recovery.driving.horn
+	touch(3,centers.horn,true)
+	ticks(35)
+	check(game.rig.horn_held and horn.stream.loop_mode==AudioStreamWAV.LOOP_FORWARD and horn.volume_db>-20.,"The cord holds both roof bells on")
+	check(desk.get_move()==Vector2.ZERO,"Pulling the horn leaves the wheel and pedals alone")
+	touch(3,centers.horn,false)
+	ticks(25)
+	check(not game.rig.horn_held and horn.volume_db < -65.,"The horn valve closes after letting go")
+	touch(3,centers.horn,true)
+	touch(3,centers.horn,false)
+	ticks(5)
+	check(game.rig.horn_tap>0. and horn.volume_db>-35.,"A quick tap still produces a short blast")
+	ticks(18)
 	check(not centers.has("reverse"), "The shared pedal should be the only reverse control")
 	touch(0, centers.steer_l, true)
 	touch(1, centers.gas, true)
@@ -230,7 +243,7 @@ func run() -> void:
 		desk.update_view(foot_state)
 		await process_frame
 		centers = check_layout(["stick", "interact", "work", "pause"])
-		check(not centers.has("camera"), "Driving camera switch should be stowed on foot")
+		check(not centers.has("camera") and not centers.has("horn"), "Cab controls stay in the truck when Brandt steps out")
 		if failed:
 			break
 		touch(0, centers.work, true)

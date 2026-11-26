@@ -4,6 +4,7 @@ const County := preload("res://scripts/county.gd")
 const LINK_TRAVEL := TAU*.59/12. # Twelve crosslinks per revolution of a drive tire.
 const FAST_CHAIN_SPEED := LINK_TRAVEL*18.
 var chains: AudioStreamPlayer3D
+var horn: AudioStreamPlayer3D
 var blade: AudioStreamPlayer3D
 var exhaust: AudioStreamPlayer3D
 var previous_odo := -1.
@@ -14,6 +15,7 @@ var wiper_turn := -1
 
 func mount(field) -> void:
 	chains = field.voice()
+	horn = field.voice()
 	blade = field.voice()
 	exhaust = field.voice()
 
@@ -27,6 +29,7 @@ func pavement(rig, contact: Vector3) -> float:
 	return 1.-smoothstep(4.65,6.20,distance)
 
 func mix(field, rig, active: bool, inside_store: bool, dt: float) -> void:
+	mix_horn(field,rig,active,inside_store,dt)
 	var axle: Vector3 = rig.body.to_global(Vector3(0,.50,rig.Truck.REAR_AXLE_Z))
 	var travel := 0.
 	if previous_odo >= 0.:
@@ -77,3 +80,17 @@ func mix(field, rig, active: bool, inside_store: bool, dt: float) -> void:
 	var load:float = rig.compression_brake
 	exhaust.pitch_scale = clampf(float(rig.engine_rpm)/1320.,.61,1.75)
 	field.loop_at(exhaust,"exhaust_brake",pipe,active and rig.in_cab and load>.015,dt,inside_store,linear_to_db(maxf(.001,load)))
+
+func mix_horn(field, rig, active: bool, inside_store: bool, dt: float) -> void:
+	var sounding: bool = active and rig.in_cab and (rig.horn_held or rig.horn_tap>0.)
+	if not sounding and horn.volume_db<=-79.9: return
+	var target_db := -80.
+	if sounding:
+		horn.global_position = rig.body.to_global(Vector3(-.76,3.39,-.90))
+		target_db = field.gain("truck_horn",horn.global_position,inside_store)
+		if not horn.stream: horn.stream = field.sample("truck_horn")
+		if field.audible and not horn.playing:
+			horn.volume_db = target_db-16.
+			horn.play()
+	horn.volume_db = move_toward(horn.volume_db,target_db,dt*(620. if sounding else 460.))
+	if horn.playing and not sounding and horn.volume_db<=-65.: horn.stop()

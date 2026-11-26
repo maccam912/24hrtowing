@@ -8,7 +8,7 @@ const EVENT := {
 }
 const LEVEL := {
 	"flare_strike":-7.,"rope_slip":-6.,"strap_ratchet":-13.,"shackle_pin":-12.,"drum_clutch":-14.,
-	"chain_link":-12.,"chains_pavement":-17.,"wiper_sweep":-19.,"exhaust_brake":-11.,
+	"truck_horn":-2.,"chain_link":-12.,"chains_pavement":-17.,"wiper_sweep":-19.,"exhaust_brake":-11.,
 	"hydraulic_valve":-12.,"drum_under_load":-13.,"hydraulic_pump":-15.,"rope_payout":-13.,"flare_burn":-20.,
 }
 var audible := DisplayServer.get_name() != "headless"
@@ -67,12 +67,13 @@ func gain(id: String, source: Vector3, inside_store: bool) -> float:
 	var enclosure := 0.
 	if rig.in_cab:
 		enclosure = -8. if rig.climate.cracked else -20.
+		if id=="truck_horn": enclosure = -2. if rig.climate.cracked else -7.
 		if id=="wiper_sweep": enclosure = -1. if rig.climate.cracked else -2.
 		if id in ["chain_link","chains_pavement","exhaust_brake"]: enclosure = -3. if rig.climate.cracked else -10.
 	elif inside_store: enclosure = -23.
 	# The physical driver's seat remains the listening point in chase view.
 	var strength := (1.-smoothstep(48.,94.,distance))/(1.+distance/7.5)
-	return maxf(-80.,float(LEVEL[id])+linear_to_db(maxf(.00001,strength))+enclosure-storm_hush*68.)
+	return maxf(-80.,float(LEVEL[id])+linear_to_db(maxf(.00001,strength))+enclosure-(0. if id=="truck_horn" else storm_hush*68.))
 
 func effect(id: String, inside_store := false) -> bool:
 	if not EVENT.has(id): return false

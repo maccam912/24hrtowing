@@ -39,9 +39,20 @@ def exhaust_brake(t, low, band, bright):
     return (train-.178)*.66 + resonance + (.40+1.1*train)*low + (.24+.68*train)*band + .047*bright
 
 
+def twin_horn(t, low, band, bright):
+    # Two bells on a common air valve carry slightly different reeds.
+    def bell(hz, wobble):
+        phase = t + .000075*sine(wobble,t)
+        return (.45*sine(hz,phase) + .34*sine(2*hz,phase)
+                + .20*sine(3*hz,phase) + .15*sine(5*hz,phase)
+                + .06*sine(7*hz,phase))
+    return bell(311,4) + .83*bell(392,5) + .16*band + .05*bright
+
+
 if __name__ == "__main__":
     for i, (name, generator, seconds, loop) in enumerate([
         ("chain_link",link,.115,False), ("chains_pavement",chain_run,2.,True),
         ("wiper_sweep",wipers,.98,False), ("exhaust_brake",exhaust_brake,2.,True),
+        ("truck_horn",twin_horn,1.,True),
     ]):
         bake(name,generator,seconds,loop,6540+i*83)

@@ -241,6 +241,8 @@ func _physics_process(dt: float) -> void:
 	if not rig or not desk or shutting_down:
 		return
 	var playing: bool = active and not desk.is_blocking()
+	rig.horn_held = playing and rig.in_cab and (desk._is_down("horn") or Input.is_physical_key_pressed(KEY_B))
+	rig.horn_tap = maxf(0.,rig.horn_tap-dt) if playing and rig.in_cab else 0.
 	var at_heater: bool = active and desk.page == "cab_heat"
 	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or at_heater or desk.is_title() else SubViewport.UPDATE_DISABLED
 	if playing:
@@ -337,6 +339,7 @@ func _input(event: InputEvent) -> void:
 		match event.physical_keycode:
 			KEY_E: _action("interact")
 			KEY_C: _action("camera")
+			KEY_B: _action("horn")
 			KEY_L: _action("spot")
 			KEY_G: _action("read_fire_plate")
 			KEY_V: _action("cab_heat")
@@ -346,6 +349,8 @@ func _input(event: InputEvent) -> void:
 
 func _action(id: String) -> void:
 	match id:
+		"horn":
+			if active and rig.in_cab and not desk.is_blocking(): rig.horn_tap = .18
 		"confirm_yard_recovery":
 			if active and desk.page == "yard_recovery":
 				_recover_to_yard()

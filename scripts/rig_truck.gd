@@ -148,6 +148,14 @@ func build(parked := false, carrier := false) -> void:
 		beacons.append(bk.finish())
 	for x in [-.84,-.48,0,.48,.84]:
 		k.box(Vector3(x,3.24,-1.62),Vector3(.075,.047,.053),AMBER,Vector3.ZERO,"lamp")
+	# The two roof horns share the driver’s air valve; each bell has its own pitch.
+	for i in 2:
+		var x := -.74+float(i)*.19
+		var mouth := -1.51+float(i)*.13
+		k.box(Vector3(x,3.32,-.77),Vector3(.095,.13,.16),STEEL)
+		k.tube(Vector3(x,3.39,-.63),Vector3(x,3.39,mouth+.14),.042,CHROME,12,"metal",.064)
+		k.tube(Vector3(x,3.39,mouth+.14),Vector3(x,3.39,mouth),.064,CHROME,12,"metal",.113)
+		k.tube(Vector3(x,3.39,mouth-.004),Vector3(x,3.39,mouth-.009),.096,INK,12)
 	# The glass is fitted inside the A-pillars. Only the cold gasket catches snow.
 	var glass := QuadMesh.new()
 	glass.size = Vector2(1.91,1.08)

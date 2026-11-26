@@ -27,6 +27,9 @@ func run() -> void:
 	rig.set_spawn(center+Vector3(1.8,0,24),0.)
 	director._advance_live(director.duration*.17,game,rig.truck.position)
 	check(herd.deer[2].position.x==center.x,"a slowly approaching operator can stop and watch from the cab")
+	game._action("horn")
+	for tick in 6: game._physics_process(DT)
+	check(game.audio.recovery.driving.horn.volume_db>-22. and herd.deer[2].position.x==center.x and herd.heads[2].rotation.x>.60,"the roof horn sounds through the calm while the line holds")
 	var eye: Vector3 = rig.get_camera().global_position
 	watch(eye+(eye-center))
 	check(choice("Deer standing in a line").is_empty(),"turning away from the moving set piece does not earn a report")

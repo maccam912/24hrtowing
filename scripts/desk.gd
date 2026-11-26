@@ -255,6 +255,7 @@ func _press(index: int, point: Vector2) -> void:
 		if is_blocking():
 			return
 		id = "look"
+	if id == "horn": action.emit("horn")
 	_touches[index] = {"id": id, "origin": point}
 	if id == "stick":
 		_stick = surface.stick_input(point)
@@ -282,7 +283,7 @@ func _release(index: int, point: Vector2, canceled := false) -> void:
 	_touches.erase(index)
 	if id == "stick":
 		_stick = Vector2.ZERO
-	elif not canceled and id == surface.hit_at(point) and id not in ["steer_l", "steer_r", "gas", "reverse", "brake", "work", "look"]:
+	elif not canceled and id == surface.hit_at(point) and id not in ["steer_l", "steer_r", "gas", "reverse", "brake", "horn", "work", "look"]:
 		if id == "pencil_sheet":
 			pencil_point = surface.docs.pencil_projection.affine_inverse() * point
 			surface.hover = id

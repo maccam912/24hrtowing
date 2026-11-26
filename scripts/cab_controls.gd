@@ -51,6 +51,7 @@ static func paint(surface, id: String, bounds: Rect2, caption: String, down: boo
 		"slip": texture = SLIP
 		"interact": texture = LATCH if caption.ends_with("CAB") else GLOVE
 		"work": texture = PENDANT
+		"horn": _horn_cord(surface,art,down)
 		"spot": _switch(surface,art.get_center(),25.0,caption == "SPOT ON",down)
 		"camera": _switch(surface, art.get_center(), 27.0, true, down)
 	if texture:
@@ -68,6 +69,17 @@ static func paint(surface, id: String, bounds: Rect2, caption: String, down: boo
 			image.position.y += 3.0
 		_draw_hardware(surface, texture, image, down)
 	_caption(surface, bounds, caption, down)
+
+static func _horn_cord(surface, bounds: Rect2, down: bool) -> void:
+	var top := Vector2(bounds.get_center().x,bounds.position.y+3)
+	var handle := top+Vector2(0,bounds.size.y*(.75 if down else .59))
+	surface.draw_line(top,handle,SHADOW,7.,true)
+	surface.draw_line(top,handle,Color("#ad7657"),3.5,true)
+	for knot in 5:
+		var at := top.lerp(handle,(knot+.5)/5.)
+		surface.draw_line(at-Vector2(2,1),at+Vector2(2,2),METAL,1.7,true)
+	surface.draw_arc(handle+Vector2.DOWN*7.,9.,0.,TAU,24,INK,6.,true)
+	surface.draw_arc(handle+Vector2.DOWN*7.,9.,0.,TAU,24,AMBER if down else METAL,3.,true)
 
 static func _draw_hardware(surface, texture: Texture2D, rect: Rect2, down: bool) -> void:
 	var shade := rect

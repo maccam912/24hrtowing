@@ -289,7 +289,7 @@ func _menu() -> void:
 			var line_y := y+94
 			var entries: Array
 			if desk.is_touch_mode():
-				entries = [["DRIVE","Hold either side of the wheel to steer. Hold GAS to accelerate."],["BRAKE / REV","Hold the brake to stop. Press it again from rest to back up."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","Tap RADIO to take a call or report a sighting."],["PAPER","PLAT and SLIP open a lap view while moving."]]
+				entries = [["DRIVE","Hold either side of the wheel to steer. Hold GAS to accelerate. Pull the horn cord to sound the air horns."],["BRAKE / REV","Hold the brake to stop. Press it again from rest to back up."],["CAMERA","Tap CAB VIEW or CHASE VIEW to switch while driving."],["ON FOOT","Stop and tap EXIT CAB. Walk with the pad. Drag to look."],["SIDE PANEL","Hold WINCH to reel. Release it to let tension ease."],["DISPATCH","Tap RADIO to take a call or report a sighting."],["PAPER","PLAT and SLIP open a lap view while moving."]]
 			else:
 				entries = [["W A S D","Drive or walk. Use the mouse to look around."],["E","Step out, climb aboard, or use the point you face."],["SPACE","Brake in the cab. Hold at the side panel to winch."],["R   /   T","R opens the cab radio. T asks Arlene for directions."],["M   /   J","Open the plat book or tow slip. Press again to stow."],["C","Switch between chase and cab view while driving."],["ESC","Put down a document or open the truck log."]]
 			for entry in entries:
@@ -594,8 +594,9 @@ func _mobile() -> void:
 		var reverse_label: bool = reversing or (stopped and not desk.brake_held())
 		_control("gas",Rect2(pedal_x,bottom-164,THUMB_WIDTH,164),"GAS")
 		_control("brake",Rect2(brake_x,bottom-130,THUMB_WIDTH,130),"REVERSE" if reverse_label else "BRAKE")
+		_control("horn",Rect2(HUD_MARGIN,bottom-178-THUMB_GAP-94,102,94),"HORN")
 		if drawn.get("aux_lamps",false):
-			_control("spot",Rect2(HUD_MARGIN,bottom-178-THUMB_GAP-94,132,94),"SPOT ON" if drawn.get("spot_on",false) else "SPOT OFF")
+			_control("spot",Rect2(HUD_MARGIN+102+THUMB_GAP,bottom-178-THUMB_GAP-94,132,94),"SPOT ON" if drawn.get("spot_on",false) else "SPOT OFF")
 		if stopped:
 			_control("interact",Rect2(pedal_x,bottom-164-THUMB_GAP-96,THUMB_WIDTH,96),"LET OUT" if drawn.get("passenger_drop",false) else "EXIT CAB")
 	else:
