@@ -50,6 +50,8 @@ var torch:=SpotLight3D.new()
 var car:Node3D
 var semi: Semi
 var tanker: Tanker
+const Redirect := preload("res://scripts/field_redirect.gd")
+var redirect: Redirect
 var axle_fault: WheelFault
 var road_wheels: Scene.RoadWheels
 var aux_tank: Reserve
@@ -816,7 +818,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["wheel_fault", "wheel_side", "sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
+	for key in ["field_gate", "wheel_fault", "wheel_side", "sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -859,6 +861,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		flowage = Flowage.new()
 		flowage.fit_marks(self)
 	if _recovery() == "roof" and vehicle_identity.get("canopy_spreader",false): roof = Roof.new()
+	if vehicle_identity.has("field_gate"): redirect = Redirect.new(int(vehicle_identity.field_gate))
 	if vehicle_identity.has("wheel_fault"):
 		axle_fault = WheelFault.new(vehicle_identity)
 		if phase in ["scene","flared","cable","rigged"]: axle_fault.drag_mark(self)
@@ -914,6 +917,8 @@ func send_cot_inside() -> bool:
 	return true
 
 func end_job() -> void:
+	if redirect: redirect.remove_webbing()
+	redirect = null
 	if rollback_deck: rollback_deck.reset()
 	if roof: roof.clear()
 	roof = null
@@ -1132,6 +1137,9 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if redirect:
+		var task := redirect.action(self,panel_range)
+		if not task.is_empty(): return task
 	if axle_fault:
 		var task := axle_fault.action(self,panel_range)
 		if not task.is_empty(): return task
@@ -1207,6 +1215,7 @@ func _at_door() -> bool:
 
 func context_text() -> String:
 	var action:=action_id()
+	if redirect and action.begins_with("field_"): return redirect.prompt(action)
 	if axle_fault and action.begins_with("axle_"): return axle_fault.prompt(action)
 	if action == "deck_unload": return "Lower the bed at %s" % dropoff.sign
 	if action == "deck_store": return "Aim the tail at the amber lamps at %s" % dropoff.sign
@@ -1277,6 +1286,9 @@ func _hint() -> String:
 	if roof:
 		var roof_note := roof.hint(self)
 		if not roof_note.is_empty(): return roof_note
+	if redirect:
+		var field_note := redirect.hint(self)
+		if not field_note.is_empty(): return field_note
 	if axle_fault:
 		var note := axle_fault.instruction(self)
 		if not note.is_empty(): return note
@@ -1332,6 +1344,9 @@ func _hint() -> String:
 
 func interact() -> void:
 	var a:=action_id()
+	if redirect and a.begins_with("field_"):
+		redirect.handle(self,a)
+		return
 	if roof and a.begins_with("roof_"):
 		if a in ["roof_setup","roof_boom"] and fuel <= 0.: _note(reserve_hint(),5.)
 		else: roof.handle(self,a)
@@ -1447,8 +1462,14 @@ func interact() -> void:
 			line_end=_nearest_eyelet()
 			phase="rigged"
 			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
+			if redirect and redirect.selected>=0:
+				redirect.route_used = true
+				free_line = _flat_distance(redirect.anchor(self,redirect.selected),_eyelet(line_end))+.45
 			sound_event.emit("hook")
 		"restow","unhook","ice_repack":
+			if redirect:
+				redirect.remove_webbing()
+				redirect.easing=false
 			if flowage:
 				flowage.creep = false
 				flowage.cable_out = 0.
@@ -1518,6 +1539,7 @@ func _winch(operate:bool,dt:float) -> void:
 	if working and cot_at_line(): working = false
 	if flowage and not flowage.prepare(self,operate,dt): working = false
 	if (active_levers and special_work < 1.) or (rollover and not rollover.check_cleared): working = false
+	if redirect and redirect.easing: working = false
 	if working and axle_fault and rollback_active and not axle_fault.skates: working=false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
@@ -1549,11 +1571,15 @@ func _winch(operate:bool,dt:float) -> void:
 		return
 	var attach:=_eyelet(line_end)
 	var fairlead:=_drum()
+	var pulling_round_tree := redirect != null and redirect.selected>=0
+	if pulling_round_tree: fairlead = redirect.anchor(self,redirect.selected)
 	var toward:=fairlead-attach
 	toward.y=0
 	var gap:=toward.length()
 	var axial:float=absf(toward.normalized().dot(car.global_basis.z))
-	var sideways:float=1.0-absf(toward.normalized().dot(truck.global_basis.z))
+	var drum_lead := _drum()-fairlead if pulling_round_tree else toward
+	drum_lead.y=0
+	var sideways:float=1.0-absf(drum_lead.normalized().dot(truck.global_basis.z))
 	var resistance:=.48+(.13 if kind=="hold" else 0.0)+(1-axial)*.32+sideways*.17
 	if _road(car.position)>6.8: resistance+=.12
 	if warmth<.24: resistance+=.04
@@ -1566,6 +1592,7 @@ func _winch(operate:bool,dt:float) -> void:
 		# that load across two strands and halves travel per turn of the drum.
 		resistance=(resistance+.68)*.5
 		shortening*=.5
+	if pulling_round_tree: resistance += .035
 	if axle_fault: resistance += .075
 	if tanker:
 		resistance += clampf(tanker.surge.length()*.28,0,.31)
@@ -1596,7 +1623,14 @@ func _winch(operate:bool,dt:float) -> void:
 	if axle_fault:
 		WheelFault.settle_on_shoulder(car,_ground)
 		axle_fault.roll_free_wheels(self)
-	if gap<=1.15 or (kind=="ditch" and _road(car.position)<4.55 and car.position.distance_to(job_site)>3.0):
+	if pulling_round_tree and gap <= Redirect.BLOCK_CLEARANCE:
+		redirect.easing = true
+		free_line = gap+.55
+		working = false
+		tension = 0.
+		_note("Past the corner. Slack is off. Walk to the tree and take the block out.",6.)
+		return
+	if not pulling_round_tree and ((gap<=1.15 and not redirect) or (kind=="ditch" and _road(car.position)<4.55 and car.position.distance_to(job_site)>3.0)):
 		tension=0
 		working=false
 		if kind=="ditch":
@@ -1741,6 +1775,9 @@ func _cable_curve() -> void:
 	if roof and special_work<1.:
 		if roof.installed: roof.lines(self)
 		return
+	if redirect and redirect.selected>=0:
+		redirect.lines(self)
+		return
 	if semi:
 		semi.draw_lines(self)
 		return
@@ -1796,6 +1833,11 @@ func _cable_strand(a: Vector3, b: Vector3) -> void:
 	cable_mesh.surface_end()
 
 func _update_highlight() -> void:
+	if redirect and (phase=="cable" or redirect.easing):
+		var eye := redirect.marker(self) if assist and not in_cab else Vector3.INF
+		highlight.visible = eye.is_finite() and foot.distance_to(eye)<9.
+		if highlight.visible: highlight.global_position = eye
+		return
 	if roof and special_work<1. and phase in ["cable","rigged"]:
 		highlight.visible = false
 		if assist and roof.on_roof and roof.slings != 3:
@@ -1872,6 +1914,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
+	if redirect: d.field_block = {"selected":redirect.selected,"easing":redirect.easing,"used":redirect.route_used}
 	if axle_fault: d.axle_work = {"checked":axle_fault.checked,"skates":axle_fault.skates!=null,"dollies":dollies!=null}
 	d.special_work = special_work
 	if rollback_active:
@@ -1983,6 +2026,12 @@ func restore_state(d:Dictionary) -> void:
 			rollover.controls = drums.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
 			rollover.watch_load = drums.get("watch_load",true)
 		if roof: roof.restore(self,d.get("roof_spreader",{}))
+		if redirect:
+			var route: Dictionary = d.get("field_block",{})
+			var selected := int(route.get("selected",-1))
+			if selected>=0 and selected<Redirect.ANCHORS.size(): redirect.fit_strap(self,selected)
+			redirect.easing = selected>=0 and route.get("easing",false)
+			redirect.route_used = route.get("used",false)
 		if axle_fault:
 			var work: Dictionary = d.get("axle_work",{})
 			axle_fault.checked = work.get("checked",false)

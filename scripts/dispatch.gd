@@ -1,5 +1,6 @@
 extends RefCounted
 
+const Redirect := preload("res://scripts/field_redirect.gd")
 const PoolRepair := preload("res://scripts/pool_repair.gd")
 const Speech := preload("res://scripts/county_speech.gd")
 const Legacy := preload("res://scripts/legacy_dispatch.gd")
@@ -123,6 +124,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var milk_calls := 0
 	var last_repair := -1
 	var repair_calls := 0
+	var last_gate := -1
+	var gate_calls := 0
 	var dollies_issued := false
 	for slip: Dictionary in slips:
 		dollies_issued = dollies_issued or slip.kind=="hold"
@@ -130,6 +133,9 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		if slip.has("case_id") or slip.kind not in ["ditch", "hazard","passenger"]:
 			continue
 		var site_id := _site_on_slip(slip)
+		if slip.has("field_gate"):
+			last_gate = ditches+hazards
+			gate_calls += 1
 		if slip.has("wheel_fault"):
 			last_repair = ditches+hazards
 			repair_calls += 1
@@ -180,6 +186,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		return _milk_ticket(completed,dispatch_seed,milk_calls)
 	if kind=="hazard" and dollies_issued and rotation_count>=8 and (last_repair<0 or rotation_count-last_repair>=13) and (last_semi<0 or rotation_count-last_semi>=3) and (last_milk<0 or rotation_count-last_milk>=3):
 		return PoolRepair.ticket(completed,dispatch_seed,repair_calls)
+	if kind=="ditch" and snatch_block and not (passenger_due or stuck_plow or squad) and rotation_count>=11 and (last_gate<0 or rotation_count-last_gate>=15):
+		return Redirect.ticket(completed,dispatch_seed,gate_calls)
 	var route := ""
 	var best := INF
 	for id: String in SITES:
@@ -424,6 +432,9 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		"start_odo":start, "pickup_odo":pickup, "drop_odo":drop, "loaded":mile,
 		"schedule":job.get("schedule",0.0), "call_out":38, "hookup":hookup, "winch":winch,
 		"storage":storage, "heavy_fee":heavy_fee, "pay":snappedf(pay,.01), "time":clock}
+	if job.has("field_gate"):
+		slip.field_gate = job.field_gate
+		slip.pull = job.get("pull","Open gate")
 	if job.has("wheel_fault"):
 		slip.wheel_fault = job.wheel_fault
 		slip.wheel_side = job.wheel_side

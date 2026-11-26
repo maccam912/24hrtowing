@@ -1334,7 +1334,8 @@ func _interact() -> void:
 				_speak("EMT KIT","I’ve got the cot. I’ll take it in through the lit doors.")
 		"driver":
 			talked = true
-			_say(job.reply)
+			if job.has("driver_line"): _speak(job.person,job.driver_line)
+			else: _say(job.reply)
 		"fax":
 			if _can_file_here() or mode in ["return","invoice"]:
 				_file_invoice()
@@ -1420,6 +1421,7 @@ func _recovered(kind: String) -> void:
 		pickup_odo = rig.get_status().odo
 		pickup_time = _clock()
 	if kind == "ditch":
+		if rig.redirect: job.pull = "Tree strap and snatch block" if rig.redirect.route_used else "Straight pull through the gate"
 		drop_odo = pickup_odo
 		drop_time = pickup_time
 		if job.get("vin") == Dispatch.Ambulance.VIN:
@@ -1690,6 +1692,8 @@ func _file_slip(slip: Dictionary) -> void:
 		fax_text += "\nCounty shop   /   REPAIR 03\n%s\n%s" % [slip.get("diagnosis","Shop inspection requested."),slip.handling]
 	elif slip.get("recovery") == "milk":
 		fax_text += "\nBrzezinski transfer   %d gal   /   Seal %s" % [int(slip.gallons),slip.seal]
+	if slip.has("field_gate"):
+		fax_text += "\nPasture gate   /   " + str(slip.pull)
 	if slip.has("clearance_bonus"):
 		var responder := "Ambulance" if slip.get("vin") == Dispatch.Ambulance.VIN else "Squad"
 		fax_text += "\n%s clearance  %s    Bonus  $%.2f" % [responder,Dispatch.Squad.clock(slip.clearance_seconds),slip.clearance_bonus]

@@ -651,6 +651,7 @@ func _build() -> void:
 	Memorial.new(self,draw).build()
 	East.new(self,draw).build()
 	PoolRepair.new(self,draw).build()
+	preload("res://scripts/field_redirect.gd").grow(self,draw)
 	Dryhouse.new(self,draw).build()
 	Flowage.mark_ice(draw,self)
 	preload("res://scripts/tree_recovery.gd").grow_grove(draw,self)

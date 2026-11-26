@@ -85,6 +85,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
 	if active_job.has("sheriff_order"):
 		job_kind = "Sheriff hold"
+	elif active_job.has("field_gate"):
+		job_kind = "Pasture gate pull"
 	elif active_job.has("wheel_fault"):
 		job_kind = "Motor pool repair"
 	elif active_job.has("clearance_seconds"):
@@ -129,6 +131,7 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		var shoulder: String = str(active_job.get("run","")).get_slice("/",1)
 		if not shoulder.is_empty():
 			note += "    /    %s shoulder" % shoulder.capitalize()
+		if active_job.has("field_gate"): note += "\n"+str(active_job.pull)
 		if active_job.has("finding"):
 			note += "\n"+str(active_job.finding)
 		if active_job.get("kind","") == "passenger":

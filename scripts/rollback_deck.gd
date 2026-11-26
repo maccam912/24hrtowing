@@ -38,7 +38,7 @@ static func supports(ticket: Dictionary) -> bool:
 	if ticket.is_empty(): return true
 	var kind: String = ticket.get("kind","")
 	if kind in ["looksee","field_visit","passenger"]: return true
-	if kind not in ["ditch","hazard"] or ticket.get("heavy_recovery",false): return false
+	if kind not in ["ditch","hazard"] or ticket.get("heavy_recovery",false) or ticket.has("field_gate"): return false
 	var model := int(ticket.get("variant",0))
 	if model > 3 and model != preload("res://scripts/county_squad.gd").VARIANT: return false
 	return ticket.get("recovery","") in ["","gate","level_field"]
