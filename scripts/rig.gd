@@ -87,10 +87,9 @@ var dollies:Node3D
 var cable:=MeshInstance3D.new()
 var cable_mesh:=ImmediateMesh.new()
 var cable_mat:=StandardMaterial3D.new()
-var tracker:MultiMeshInstance3D
-var track_index:=0
-var track_count:=0
-var track_previous:=Vector3.INF
+const SnowTracks := preload("res://scripts/snow_tracks.gd")
+var truck_tracks := SnowTracks.new()
+var tow_tracks := SnowTracks.new()
 var camera_yaw:=0.0
 var camera_pitch:=-.067
 var driving_view := "chase"
@@ -219,7 +218,8 @@ func setup(county:Node3D) -> void:
 	highlight.mesh=ring
 	add_child(highlight)
 	highlight.visible=false
-	_build_tracks()
+	truck_tracks.build(self,world)
+	tow_tracks.build(self,world)
 	_ready_to_run=true
 	set_spawn(Vector3.ZERO)
 	if rollback_active: use_rollback(true)
@@ -538,6 +538,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 	else:
 		_winch(operate,dt)
 	_trail(dt,pin_travel)
+	if absf(speed)>.05: _lay_tracks()
 	var backing := in_cab and speed < -.10
 	var signals: Truck.RoadSignals = rollback_deck.signals if rollback_active else body.signals
 	signals.set_lit(braking,backing)
@@ -666,7 +667,6 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 		reverse_timer=1.0
 		sound_event.emit("reverse")
 	_suspension(dt)
-	_lay_tracks()
 	return pin_travel
 
 func _update_engine(demand:float, dt:float) -> void:
@@ -1901,35 +1901,20 @@ func _update_highlight() -> void:
 		highlight.global_position=_side_eye(1.0 if second_line else -1.0) if _roll_job() else _eyelet(e)
 		highlight.rotation=Vector3(PI/2,car.rotation.y,0)
 
-func _build_tracks() -> void:
-	tracker=MultiMeshInstance3D.new()
-	var m:=MultiMesh.new()
-	m.transform_format=MultiMesh.TRANSFORM_3D
-	m.instance_count=1400
-	var tile:=PlaneMesh.new()
-	tile.size=Vector2(.27,1.08)
-	var mat:=StandardMaterial3D.new()
-	mat.albedo_color=Color("#778591")
-	mat.roughness=1
-	tile.material=mat
-	m.mesh=tile
-	m.visible_instance_count=0
-	tracker.multimesh=m
-	tracker.cast_shadow=GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	tracker.custom_aabb=AABB(Vector3(-810,-20,-630),Vector3(3050,70,1730))
-	add_child(tracker)
-
 func _lay_tracks() -> void:
-	if absf(speed)<.35 or (track_previous!=Vector3.INF and _flat_distance(track_previous,truck.position)<.92): return
-	track_previous=truck.position
-	for s in [-1.0,1.0]:
-		var p:Vector3=truck.to_global(Vector3(s*1.02,0,2.9))
-		p.y=_ground(p)+.033
-		var orientation:=Basis.from_euler(Vector3(pitch,heading,roll),EULER_ORDER_YXZ)
-		tracker.multimesh.set_instance_transform(track_index,Transform3D(orientation,p))
-		track_index=posmod(track_index+1,tracker.multimesh.instance_count)
-		track_count=mini(track_count+1,tracker.multimesh.instance_count)
-	tracker.multimesh.visible_instance_count=track_count
+	truck_tracks.mark(truck.to_global(Vector3.BACK*Truck.LAST_DRIVE_Z),heading,Truck.HALF_TRACK,.27)
+	if not loaded or rollback_active: return
+	if road_wheels:
+		var free_axle := car.to_global(Vector3(0,road_wheels.radius,-line_end*road_wheels.axle_z))
+		if dollies:
+			# The outer casters on the two Go-Jacks run beyond the carried tires.
+			tow_tracks.mark(free_axle,car.rotation.y,road_wheels.track+.27,.10)
+		else:
+			tow_tracks.mark(free_axle,car.rotation.y,road_wheels.track,.22)
+	elif tanker:
+		tow_tracks.mark(tanker.to_global(Vector3.BACK*Tanker.REAR_AXLE),tanker.rotation.y,Tanker.HALF_TRACK,.28)
+	elif semi:
+		tow_tracks.mark(semi.trailer.to_global(Vector3.BACK*Semi.BOGIE),semi.trailer.global_rotation.y,1.13,.28)
 
 func _note(message:String,seconds:float) -> void:
 	info=message
@@ -1948,6 +1933,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
+	d["snow_tracks"] = [truck_tracks.snapshot(),tow_tracks.snapshot()]
 	if berm: d.berm = berm.save_state()
 	if redirect: d.field_block = {"selected":redirect.selected,"easing":redirect.easing,"used":redirect.route_used}
 	if axle_fault: d.axle_work = {"checked":axle_fault.checked,"skates":axle_fault.skates!=null,"dollies":dollies!=null}
@@ -1989,6 +1975,9 @@ func save_state() -> Dictionary:
 
 func restore_state(d:Dictionary) -> void:
 	if d.is_empty(): return
+	var saved_tracks = d.get("snow_tracks",[])
+	truck_tracks.restore(saved_tracks[0] if saved_tracks is Array and saved_tracks.size()>0 and saved_tracks[0] is Array else [])
+	tow_tracks.restore(saved_tracks[1] if saved_tracks is Array and saved_tracks.size()>1 and saved_tracks[1] is Array else [])
 	use_rollback(d.get("rollback_active",false))
 	set_spawn(_unpack(d.get("truck"),truck.position),float(d.get("heading",heading)))
 	for driver in departures:
