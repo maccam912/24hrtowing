@@ -135,7 +135,7 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 	var facing := Vector3.FORWARD.rotated(Vector3.UP,float(entry.get("yaw",0)))
 	var points := PackedVector3Array()
 	match id:
-		"field_car","nose_car","tree_car","roof_car","ice_car","gate_car","shoulder_car","walker_car","roadside_tape":
+		"field_car","level_field_car","nose_car","tree_car","roof_car","ice_car","gate_car","shoulder_car","walker_car","roadside_tape":
 			var vehicle: Dictionary = entry.get("vehicle",{})
 			var car := _vehicle(parent,int(vehicle.get("variant",0)),not vehicle.get("untaped",true),vehicle,id != "roadside_tape")
 			car.position = ground(at)+Vector3.UP*float(entry.get("height",0))

@@ -696,7 +696,7 @@ func _prepare_offers() -> void:
 		var issued := completed + pending_slips.size()
 		visit_offer = CountyVisits.offer(dispatch_seed,slips+pending_slips,issued,declined_visit)
 		if rotation_offer.is_empty() and campaign.stage >= 2:
-			rotation_offer = sightings.recovery_offer(issued,county,account.owns("snatch_block"),campaign.stage == Campaign.ORDER.size())
+			rotation_offer = sightings.recovery_offer(issued,county,account.owns("snatch_block"),campaign.stage == Campaign.ORDER.size(),account.owns("second_winch"))
 		if rotation_offer.is_empty():
 			rotation_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,account.owns("snatch_block"),account.owns("second_winch"))
 			_stamp_ticket(rotation_offer)
@@ -1822,6 +1822,8 @@ func _refresh() -> void:
 		state.feedback = "E   "+_prompt(site)
 	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
+	if rig.rollover and rig.rollover.controls:
+		state["drum_instruction"] = rig.rollover.instruction(rig)
 	if rig.tree_recovery and rig.tree_recovery.controls:
 		state["boom_instruction"] = rig.tree_recovery.instruction(rig)
 	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM

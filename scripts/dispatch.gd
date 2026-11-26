@@ -64,6 +64,7 @@ const DRIVERS := [
 ]
 
 const RECOVERIES := {
+	"level_field_car": ["level_field", "sitting upright in the hay", "Back in from Kolpack Road. The stock drum will reach from the firm edge of the field.", "", 0.0],
 	"field_car": ["roll", "upside down in a field", "Rig two lines and roll it onto its wheels.", "Vehicle inverted, no approach", 85.0],
 	"nose_car": ["nose", "standing on its front bumper", "Check it with a second line before lowering it.", "Vehicle inverted, no approach", 85.0],
 	"roof_car": ["roof", "on the co-op roof", "Set up on the street side and lower it with the boom.", "Vehicle on structure", 95.0],
@@ -79,13 +80,21 @@ static func impossible(completed: int, event_id: String, point: Vector3, route: 
 		return {}
 	var spec: Array = RECOVERIES[event_id]
 	var heavy := event_id in ["field_car", "nose_car", "tree_car"]
-	return {"id":event_id, "number":1001+completed, "kind":"hazard", "route":route, "site":route,
+	var ticket := {"id":event_id, "number":1001+completed, "kind":"hazard", "route":route, "site":route,
 		"point":point, "angle":PI if event_id == "ice_car" else 0.0, "variant":0, "vehicle":"Blue compact sedan",
 		"plate":"TMR %03d" % (100 + posmod(completed*37,900)), "vin":"1BTRS39C5WJ%06d" % posmod(completed*2317,1000000),
 		"road":road, "location":road+" · "+landmark, "recovery":spec[0], "heavy_recovery":heavy,
 		"rate_name":spec[3], "rate_fee":spec[4], "running":true, "reply":"clear", "run":route,
 		"dispatch":"Brandt, there's a blue sedan %s at %s. %s Sheriff wants it in storage." % [spec[1],landmark,spec[2]],
 		"directions":approach + " " + str(spec[2]), "schedule":_scheduled_miles(Vector2(point.x,point.z))}
+	if event_id in ["field_car","nose_car"]:
+		ticket.two_drum_roll = true
+		var position := "upside down" if event_id == "field_car" else "standing on its front bumper"
+		ticket.dispatch = "Brandt, the blue sedan is %s off %s. Nobody inside. Take the snatch block and both drums. Sheriff wants it in storage." % [position,road]
+	elif event_id == "level_field_car":
+		ticket.dispatch = "Blue sedan three fence posts into the hay strip west of Kolpack Road. Four wheels down, engine running. You can get it out on the main drum. Bring it to storage."
+		ticket.directions = "Follow Kolpack Road south from Highway 64. The car is in the hay west of the road, north of the Lindquist place. Set up at the field edge."
+	return ticket
 
 static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_block := false, second_winch := false) -> Dictionary:
 	var rng := RandomNumberGenerator.new()

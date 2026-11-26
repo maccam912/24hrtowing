@@ -9,11 +9,11 @@ const FAR := ["swamp_lights","the_calm","green_flash"]
 const PACING := ["pacing_lights","field_car","far_landing","cow_ring","deer_line","green_flash","electrics_fade","dry_road","moving_moon","plow_stopped","warm_air","compass_turns","power_lines","empty_ditch","thaw_glaze","radio_pulse","bare_ring"]
 const CLOSE := ["the_lift","woods_car","mirror_follow","empty_oncoming","streetlights_out","walker","yard_visit","snow_up","nose_car","roof_car","ice_car","tree_car","green_circle","pressed_lines","snow_column","missing_time"]
 const HIGH := ["overhead","snow_roof","storm_hole","hanging_snow","gate_car"]
-const CASUALTIES := ["field_car","nose_car","roof_car","ice_car","tree_car","gate_car","shoulder_car","walker_car"]
+const CASUALTIES := ["field_car","level_field_car","nose_car","roof_car","ice_car","tree_car","gate_car","shoulder_car","walker_car"]
 const FIXED := {
 	"cow_ring":Vector3(414,0,232), "roof_car":Vector3(37,4.75,-13.6),
 	"ice_car":Vector3(-477,0,-153), "tree_car":preload("res://scripts/tree_recovery.gd").SITE,
-	"gate_car":Vector3(-8,0,-56), "yard_visit":Vector3(-44,0,-77),
+	"level_field_car":preload("res://scripts/rollover.gd").HAYFIELD, "gate_car":Vector3(-8,0,-56), "yard_visit":Vector3(-44,0,-77),
 }
 var scene: Scene
 var drive := -1
@@ -126,6 +126,8 @@ func report(key: String, game) -> String:
 		return reply + " The sheriff signed for that one. Take its tow slip when you're clear and bring it to storage."
 	if game.campaign.stage < 2:
 		return reply + " Leave it there. I'll hold the location for the sheriff."
+	if kind in ["field_car","nose_car"] and not game.account.owns("second_winch"):
+		return reply + " I'll keep the location. That job takes the auxiliary drum and a snatch block."
 	if needs_block(kind) and not game.account.owns("snatch_block"):
 		return reply + " Leave it there. You'll need the snatch block and a tow order."
 	return reply + " I'll put it on the recovery list. Wait for the tow slip, then bring it to storage."
@@ -154,11 +156,12 @@ func _snow_over(filed: int) -> void:
 			scene.remove_remnant(key)
 			aftermath.erase(key)
 
-func recovery_offer(issued: int, county: Node3D, has_block := true, after_story := true) -> Dictionary:
+func recovery_offer(issued: int, county: Node3D, has_block := true, after_story := true, second_drum := true) -> Dictionary:
 	if not is_instance_valid(scene): return {}
 	# Back ordinary dispatch between extraordinary tows. The last set-down is
 	# the next available order regardless of its position in that rotation.
 	if not aftermath.has("shoulder_car") and issued%11 not in [0,5]: return {}
+	var waiting_roll := ""
 	var choices := ["shoulder_car"]
 	for key: String in aftermath:
 		if aftermath[key].get("reported",false): choices.append(key)
@@ -168,12 +171,15 @@ func recovery_offer(issued: int, county: Node3D, has_block := true, after_story 
 		var spot: Dictionary = aftermath[key]
 		var id: String = spot.id
 		if not id in CASUALTIES: continue
+		if id in ["field_car","nose_car"] and not second_drum:
+			waiting_roll = spot.observation_key
+			continue
 		if not has_block and needs_block(id): continue
 		var point := Vector3(spot.x,spot.height,spot.z)
 		var street: String = spot.road
 		if street.is_empty(): street = "County K"
 		var landmark: String = {"roof_car":"Esker Co-op roof","tree_car":"tamaracks at the Swamp Road bend",
-			"ice_car":"flowage above the dam","gate_car":"Brandt yard gate","field_car":"upturned sedan in the field",
+			"level_field_car":"the hay strip west of Kolpack Road","ice_car":"flowage above the dam","gate_car":"Brandt yard gate","field_car":"upturned sedan in the field",
 			"nose_car":"sedan standing on its nose","walker_car":"abandoned shoulder car",
 			"shoulder_car":"running sedan at the edge of the road"}[id]
 		var order: Dictionary = Dispatch.impossible(issued,id,point,key,street,landmark,"Stay on %s. Watch for the %s." % [street,landmark])
@@ -181,15 +187,22 @@ func recovery_offer(issued: int, county: Node3D, has_block := true, after_story 
 		order.aftermath_key = key
 		order.angle = spot.yaw
 		return order
+	# A level car out in the hay can be brought in on the stock drum. Keep
+	# the reported rollover on its own card with its original VIN and pose.
+	if not waiting_roll.is_empty() and not once.has("field_tow/"+waiting_roll):
+		once["field_tow/"+waiting_roll] = true
+		_record("level_field_car",FIXED.level_field_car,PI*.5,issued,0.,"Kolpack Rd")
+		return recovery_offer(issued,county,has_block,after_story,second_drum)
 	# Keep the special procedures in rotation even if the player missed the
 	# original roadside encounter. The vehicle exists before dispatch calls.
 	if after_story and once.has("story_set_down") and has_block:
-		var options := ["roof_car","ice_car","tree_car","field_car","nose_car","gate_car"]
+		var options := ["roof_car","ice_car","tree_car","level_field_car","gate_car"]
+		if second_drum: options.append_array(["field_car","nose_car"])
 		var key: String = options[posmod((issued/11)*2+int(issued%11==5),options.size())]
 		var point: Vector3 = FIXED.get(key,Vector3(383,0,275))
 		var street: String = {"roof_car":"Highway 64","ice_car":"Highway 64","tree_car":"Swamp Rd","gate_car":"County K"}.get(key,"Kolpack Rd")
 		_record(key,point,0,issued,point.y,street)
-		return recovery_offer(issued,county,has_block,after_story)
+		return recovery_offer(issued,county,has_block,after_story,second_drum)
 	return {}
 
 func claim_recovery(ticket: Dictionary) -> void:

@@ -601,6 +601,7 @@ func _build() -> void:
 	Memorial.new(self,draw).build()
 	Dryhouse.new(self,draw).build()
 	preload("res://scripts/tree_recovery.gd").grow_grove(draw,self)
+	preload("res://scripts/rollover.gd").hayfield(draw,self)
 	CaseSites.new(self,draw).alder_cut()
 	draw.finish()
 	tower_meshes.clear()

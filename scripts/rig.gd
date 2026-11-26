@@ -4,6 +4,8 @@ signal recovered(kind:String)
 signal dropped
 signal sound_event(id:String)
 
+const Rollover := preload("res://scripts/rollover.gd")
+const Levers := preload("res://scripts/recovery_levers.gd")
 const TreeRecovery := preload("res://scripts/tree_recovery.gd")
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
@@ -46,6 +48,9 @@ var reserve_fuel := 0.0
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
+var rollover: Rollover
+var active_levers: Levers:
+	get: return tree_recovery if tree_recovery else rollover
 var tree_recovery: TreeRecovery
 var special_work := 0.0
 var second_line := false
@@ -437,7 +442,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
 		_update_engine(0.0,dt)
-		if not on_ladder and not (tree_recovery and tree_recovery.holds_operator(move)):
+		if not on_ladder and not (active_levers and active_levers.holds_operator(move)):
 			_walk(move,dt)
 		_face_operator(dt)
 		_suspension(dt)
@@ -448,9 +453,9 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 			body.point_spot(spot_on,spot_yaw,camera_pitch if driving_view == "cab" else -.06)
 		elif body.search_on:
 			body.point_spot(false,0,0)
-	if tree_recovery and tree_recovery.controls:
-		tree_recovery.stroke(self,move,dt)
-		tree_recovery.frame_load(self,look,dt)
+	if active_levers and active_levers.controls:
+		active_levers.stroke(self,move,dt)
+		active_levers.frame_load(self,look,dt)
 	else:
 		_winch(operate,dt)
 	_trail(dt)
@@ -724,7 +729,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "mail", "running", "open_door", "untaped"]:
+	for key in ["case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -761,6 +766,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 				car.rotation.x = clampf(atan2(_ground(nose)-_ground(tail),6.6),-.17,.17)
 				VehicleDrifts.place(car,_ground)
 	if _recovery() == "tree": tree_recovery = TreeRecovery.new()
+	if _roll_job() and vehicle_identity.get("two_drum_roll",false): rollover = Rollover.new()
 	_set_car_lamps("running" if _running_car() else "hazard")
 	if phase == "scene" and uses_warning_triangle(kind,vehicle_identity):
 		# Face traffic from either direction, on the road side of the car.
@@ -783,6 +789,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 func end_job() -> void:
 	if tree_recovery: tree_recovery.clear_sling()
 	tree_recovery = null
+	rollover = null
 	boarding_walk = null
 	# The customer keeps the same car and driver when the radio assigns a new scene.
 	if kind=="passenger" and phase=="passenger":
@@ -984,6 +991,10 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if rollover:
+		var nearby := rollover.action(self,panel_range)
+		if not nearby.is_empty(): return nearby
+		if phase == "cable" and second_line and not rollover.fetched: return ""
 	if tree_recovery:
 		var nearby := tree_recovery.action(self,panel_range)
 		if not nearby.is_empty(): return nearby
@@ -996,7 +1007,7 @@ func action_id() -> String:
 		if panel_range: return "milk_seal"
 	if phase=="flared" and panel_range:
 		if not _reaches(): return "too_far"
-		if semi and not second_winch: return "need_second_winch"
+		if (semi or rollover) and not second_winch: return "need_second_winch"
 		if semi or tanker:
 			var set_up := car.to_local(_drum())
 			var nose:float = car.get_meta("body_size").z
@@ -1046,6 +1057,13 @@ func context_text() -> String:
 			"milk_position": return "Park ahead of the milk truck with its grille facing the lift"
 			"milk_settle": return "Hold the lift steady while the milk settles"
 			"attach": return "Shackle the block to the front eye"
+	if rollover:
+		match action:
+			"roll_fetch": return "Take the check hook off the auxiliary drum"
+			"roll_levers": return "Take the two drum levers" if fuel > 0. else DRY_RIG_HINT
+			"roll_leave": return "Let go of the drum levers"
+			"roll_clear": return "Unpin the check hook from the far side"
+			"roll_hold": return "Walk around the car and release the check hook"
 	if tree_recovery:
 		match action:
 			"tree_block": return "Shackle the block to the hanging sling"
@@ -1093,6 +1111,10 @@ func _hint() -> String:
 	if kind=="passenger":
 		if phase == "boarding": return "Keep the wrecker stopped while the passenger walks to its right-hand door."
 		return "Take the passenger to %s." % Rides.destination(vehicle_identity) if phase == "passenger" else "Pull up beside the driver, step down and ask if they need a lift."
+	if rollover and phase == "cable" and second_line and not rollover.fetched:
+		return "The main line is shackled. Go back to the panel for the check hook off the auxiliary drum."
+	if rollover and phase == "rigged" and special_work < 1.:
+		return rollover.instruction(self) + " at the drum levers."
 	if tree_recovery and phase == "cable":
 		return "Return to the side panel and take the boom levers." if tree_recovery.block_set else "Reeve the block into the orange sling hanging beside the sedan."
 	if tree_recovery and phase == "rigged" and special_work < 1.:
@@ -1137,7 +1159,7 @@ func interact() -> void:
 		semi.handle_work(self,a)
 		_update_highlight()
 		return
-	if a in ["lift","sling","winch","tree_boom"] and fuel <= 0.0:
+	if a in ["lift","sling","winch","tree_boom","roll_levers"] and fuel <= 0.0:
 		_note(reserve_hint(),6.0)
 		return
 	match a:
@@ -1192,7 +1214,17 @@ func interact() -> void:
 			sound_event.emit("ratchet")
 			_note("Block set. Take the boom levers at the truck.",4)
 		"tree_boom": tree_recovery.engage(self)
-		"tree_leave": tree_recovery.controls = false
+		"tree_leave": tree_recovery.release()
+		"roll_levers": rollover.take_controls(self)
+		"roll_leave": rollover.release()
+		"roll_hold": _note(context_text(),4.)
+		"roll_clear":
+			rollover.check_cleared = true
+			sound_event.emit("ratchet")
+			_note("Check line clear. Winch to the wheel-lift.",4.)
+		"roll_fetch":
+			rollover.fetched = true
+			sound_event.emit("ratchet")
 		"roll_hook":
 			second_line=true
 			sound_event.emit("ratchet")
@@ -1209,6 +1241,7 @@ func interact() -> void:
 			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
 			sound_event.emit("ratchet")
 		"restow","unhook":
+			if rollover: rollover.fetched = false
 			if tree_recovery:
 				tree_recovery.clear_sling()
 				tree_recovery.block_set = false
@@ -1272,7 +1305,7 @@ func _winch(operate:bool,dt:float) -> void:
 	working=phase=="rigged" and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
 	if working and ((vehicle_identity.heavy_recovery and not snatch_block) or (semi and not second_winch)):
 		working = false
-	if tree_recovery and special_work < 1.: working = false
+	if (active_levers and special_work < 1.) or (rollover and not rollover.check_cleared): working = false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
 		if tanker:
@@ -1363,14 +1396,7 @@ func _work_casualty(dt: float) -> void:
 	var duration := 9.0 if _boom_job() else 7.0
 	special_work = move_toward(special_work,1.0,dt/duration)
 	tension = move_toward(tension,.57+.15*sin(PI*special_work),dt*.32)
-	if _roll_job():
-		var angle := PI*(1.0-smoothstep(0.0,1.0,special_work))
-		if _recovery()=="roll":
-			car.rotation.z = angle
-			car.position.y = _ground(car.position) + maxf(0.0,-cos(angle))*1.71 + sin(angle)*.96
-		else:
-			car.rotation.x = -angle*.5
-			car.position.y = _ground(car.position) + sin(angle*.5)*Scene.SEDAN_SIZE.z
+	if _roll_job(): _pose_roll(special_work)
 	else:
 		var height := job_site.y if job_site.y>0 else (4.75 if _recovery()=="roof" else 5.0)
 		var start := Vector3(job_site.x,_ground(job_site)+height,job_site.z)
@@ -1382,6 +1408,15 @@ func _work_casualty(dt: float) -> void:
 		free_line = _flat_distance(_drum(),_eyelet(line_end))+.30
 		body.stow_boom()
 		_note("On its wheels. Keep winching to the underlift.",4)
+
+func _pose_roll(progress: float) -> void:
+	var angle := PI*(1.0-smoothstep(0.0,1.0,progress))
+	if _recovery()=="roll":
+		car.rotation.z = angle
+		car.position.y = _ground(car.position) + maxf(0.0,-cos(angle))*1.71 + sin(angle)*.96
+	else:
+		car.rotation.x = -angle*.5
+		car.position.y = _ground(car.position) + sin(angle*.5)*Scene.SEDAN_SIZE.z
 
 func _finish_recovery() -> void:
 	if flame:
@@ -1477,6 +1512,9 @@ func _cable_curve() -> void:
 			for side: float in [-1.0,1.0]:
 				_cable_strand(sling_top,car.to_global(Vector3(side*.81,.82,0)))
 		return
+	if rollover and phase in ["cable","rigged"] and not rollover.check_cleared:
+		rollover.draw_lines(self)
+		return
 	if _roll_job() and special_work<1.0 and (second_line or phase=="rigged"):
 		pulley.global_position=_side_eye(-1.0)
 		_cable_strand(a,pulley.global_position)
@@ -1507,6 +1545,12 @@ func _cable_strand(a: Vector3, b: Vector3) -> void:
 	cable_mesh.surface_end()
 
 func _update_highlight() -> void:
+	if rollover and (phase == "cable" or (phase == "rigged" and special_work >= 1. and not rollover.check_cleared)):
+		var side := 1. if second_line else -1.
+		var eye := _side_eye(side)
+		highlight.visible = assist and (not second_line or rollover.fetched) and foot.distance_to(eye)<9.
+		if highlight.visible: highlight.global_position = eye
+		return
 	if tree_recovery and phase == "cable":
 		highlight.visible = assist and not tree_recovery.block_set and foot.distance_to(tree_recovery.eye) < 9.
 		if highlight.visible: highlight.global_position = tree_recovery.eye
@@ -1570,6 +1614,7 @@ func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d.special_work = special_work
+	if rollover: d.rollover = {"fetched":rollover.fetched,"clear":rollover.check_cleared,"preload":rollover.preload_fraction,"controls":rollover.controls,"watch_load":rollover.watch_load}
 	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
 	if aux_tank and aux_tank.visible: d.reserve_fuel = reserve_fuel
 	if semi: d.freight = semi.snapshot()
@@ -1660,6 +1705,13 @@ func restore_state(d:Dictionary) -> void:
 				"scene": witness.position = _unpack(d.get("waiting_rider"),witness.position)
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
+		if rollover:
+			var drums: Dictionary = d.get("rollover",{})
+			rollover.fetched = drums.get("fetched",phase == "rigged")
+			rollover.check_cleared = drums.get("clear",false)
+			rollover.preload_fraction = clampf(drums.get("preload",0.),0.,1.)
+			rollover.controls = drums.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
+			rollover.watch_load = drums.get("watch_load",true)
 		if tree_recovery:
 			var boom: Dictionary = d.get("tree_boom",{})
 			tree_recovery.block_set = boom.get("block",phase == "rigged" or special_work > 0.)

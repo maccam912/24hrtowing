@@ -381,13 +381,15 @@ func _guidance_entry(at: Vector2, width: float, title: String, instruction: Stri
 	rule(at.x,at.y+bottom+8,width,Color("#b4b7a9"))
 	return bottom+34
 
-func _boom_levers() -> void:
+func _recovery_levers() -> void:
 	var width := minf(365,dim.x-32.)
 	var rect := Rect2((dim.x-width)*.5,dim.y-112,width,70)
 	draw_rect(rect,RUBBER)
 	draw_rect(rect,Color("#ad9a76"),false,1.4)
-	fitted(Rect2(rect.position+Vector2(8,3),Vector2(width-16,30)),drawn.boom_instruction,subtle,20,CREAM)
+	fitted(Rect2(rect.position+Vector2(8,3),Vector2(width-16,30)),str(drawn.get("boom_instruction",drawn.get("drum_instruction",""))),subtle,20,CREAM)
 	var keys := "↑  RAISE    →  SWING IN    ↓  LOWER" if desk.is_touch_mode() else "W  RAISE    D  SWING IN    S  LOWER"
+	if drawn.has("drum_instruction"):
+		keys = "←  CHECK    ↑  MAIN    ↓  PAY OUT" if desk.is_touch_mode() else "A  CHECK    W  MAIN    S  PAY OUT"
 	fitted(Rect2(rect.position+Vector2(8,34),Vector2(width-16,27)),keys,MONO,15,AMBER)
 	hud_panels.append(rect)
 
@@ -413,7 +415,7 @@ func _pencil_arrow(center: Vector2, maneuver: String) -> void:
 func _hud() -> void:
 	if drawn.get("tower_glasses",false):
 		_field_glasses()
-	if drawn.has("boom_instruction"): _boom_levers()
+	if drawn.has("boom_instruction") or drawn.has("drum_instruction"): _recovery_levers()
 	if not drawn.get("in_cab",true):
 		draw_circle(dim*0.5,1.7,Color(0.08,0.11,0.13,0.70))
 		draw_circle(dim*0.5,1.0,Color(0.92,0.95,0.90,0.82))
@@ -600,7 +602,7 @@ func _mobile() -> void:
 		var use_label := "WIPE" if drawn.get("can_wipe",false) else ("INSPECT" if drawn.get("can_inspect_sighting",false) else "USE")
 		if not str(drawn.get("visit_action","")).is_empty():
 			use_label = drawn.visit_action
-		if drawn.has("boom_instruction"): use_label = "LET GO"
+		if drawn.has("boom_instruction") or drawn.has("drum_instruction"): use_label = "LET GO"
 		var tower_action := str(drawn.get("tower_action",""))
 		if TOWER_LABELS.has(tower_action):
 			use_label = TOWER_LABELS[tower_action]

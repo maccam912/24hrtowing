@@ -27,6 +27,7 @@ const CATALOG := {
 	"dry_road": ["Bare stretch of pavement", "Wet pavement in the snow, copy. Take it easy where the ice starts again."],
 	"snow_roof": ["Gap in the snowfall", "Dry road under falling snow. I've marked the stretch. Watch the far end for ice."],
 
+	"level_field_car": ["Running car in the hay", "A running car in the hay west of Kolpack Road. Copy."],
 	"field_car": ["Upside-down car", "Copy, a car upside down out in the field."],
 	"nose_car": ["Car standing on its nose", "A sedan balanced on its front bumper. I've got the spot."],
 	"roof_car": ["Car on the co-op roof", "Copy, a car on the co-op roof."],
@@ -63,6 +64,7 @@ const CATALOG := {
 }
 
 const FIELD_NOTES := {
+	"level_field_car": "All four tires are on the hay. I can see exhaust. No ruts leading in.",
 	"field_car": "It's resting on the roof. I can see all four tires. No tracks in the snow leading up to it.",
 	"nose_car": "I can see the whole underside. Only the front bumper touches the ground.",
 	"roof_car": "I can see a set of headlights above the eaves. The car's sitting level on the co-op roof.",

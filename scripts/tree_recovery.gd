@@ -1,4 +1,4 @@
-extends RefCounted
+extends "res://scripts/recovery_levers.gd"
 ## A two-axis hydraulic control and a ground-reachable sling for the Swamp Road car.
 
 const Kit := preload("res://scripts/rig_mesh.gd")
@@ -8,9 +8,6 @@ const HOIST_MPS := .85
 const SWING_MPS := 1.45
 
 var block_set := false
-var controls := false
-var awaiting_neutral := false
-var watch_load := true
 var sling: Node3D
 var eye := Vector3.ZERO
 
@@ -67,26 +64,10 @@ func action(rig, at_panel: bool) -> String:
 
 func engage(rig) -> void:
 	clear_sling()
-	controls = true
+	take_controls(rig)
 	rig.phase = "rigged"
 	rig.line_end = rig._nearest_eyelet()
-	watch_load = true
-	frame_load(rig,Vector2.ZERO,1.)
-	rig.info_timer = 0
 	rig.sound_event.emit("lift")
-
-func frame_load(rig, look: Vector2, dt: float) -> void:
-	if not look.is_zero_approx(): watch_load = false
-	if not watch_load: return
-	var view: Vector3 = rig.car.global_position+Vector3.UP*.65-rig.eyes.global_position
-	var angle := atan2(-view.x,-view.z)
-	var pitch := atan2(view.y,Vector2(view.x,view.z).length())
-	rig.camera_yaw = lerp_angle(rig.camera_yaw,angle,1.-exp(-7.*dt))
-	rig.camera_pitch = lerp_angle(rig.camera_pitch,pitch,1.-exp(-7.*dt))
-
-func holds_operator(move: Vector2) -> bool:
-	if awaiting_neutral and move.length() < .15: awaiting_neutral = false
-	return controls or awaiting_neutral
 
 func instruction(rig) -> String:
 	var landing: Vector3 = rig._boom_landing()
@@ -128,15 +109,13 @@ func stroke(rig, move: Vector2, dt: float) -> void:
 	rig.tension = move_toward(rig.tension,.65 if rig.working else 0.,dt*.65)
 	if travel >= reach-.6 and height <= landing.y+.01:
 		rig.special_work = 1.
-		controls = false
-		awaiting_neutral = true
+		release()
 		rig.working = false
 		rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(rig.line_end))+.30
 		rig.body.stow_boom()
 		rig.sound_event.emit("ratchet")
 		rig._note("All four wheels on the snow. Winch to the underlift.",6)
 	elif rig.fuel <= 0:
-		controls = false
-		awaiting_neutral = true
+		release()
 		rig.working = false
 		rig._note(rig.DRY_RIG_HINT,6)
