@@ -19,4 +19,5 @@ func run() -> void:
 		return
 	game.queue_free()
 	await process_frame
+	print("CHECKS PASSED — scripted shifts keep their own ledger")
 	quit(0)
