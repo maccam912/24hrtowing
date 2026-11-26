@@ -12,7 +12,7 @@ const HIGH := ["overhead","snow_roof","storm_hole","hanging_snow","gate_car"]
 const CASUALTIES := ["field_car","nose_car","roof_car","ice_car","tree_car","gate_car","shoulder_car","walker_car"]
 const FIXED := {
 	"cow_ring":Vector3(414,0,232), "roof_car":Vector3(37,4.75,-13.6),
-	"ice_car":Vector3(-477,0,-153), "tree_car":Vector3(207,5,-409),
+	"ice_car":Vector3(-477,0,-153), "tree_car":preload("res://scripts/tree_recovery.gd").SITE,
 	"gate_car":Vector3(-8,0,-56), "yard_visit":Vector3(-44,0,-77),
 }
 var scene: Scene

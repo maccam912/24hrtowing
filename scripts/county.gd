@@ -600,8 +600,7 @@ func _build() -> void:
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
 	Dryhouse.new(self,draw).build()
-	for x: float in [205.45,208.65]:
-		draw.spruce(Vector3(x,ground_height(x,-408.75),-408.75),5.65,x)
+	preload("res://scripts/tree_recovery.gd").grow_grove(draw,self)
 	CaseSites.new(self,draw).alder_cut()
 	draw.finish()
 	tower_meshes.clear()

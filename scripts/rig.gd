@@ -4,6 +4,7 @@ signal recovered(kind:String)
 signal dropped
 signal sound_event(id:String)
 
+const TreeRecovery := preload("res://scripts/tree_recovery.gd")
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
@@ -42,6 +43,7 @@ var tanker: Tanker
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
+var tree_recovery: TreeRecovery
 var special_work := 0.0
 var second_line := false
 var sighting_calm := 0.0
@@ -410,7 +412,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
 		_update_engine(0.0,dt)
-		if not on_ladder:
+		if not on_ladder and not (tree_recovery and tree_recovery.holds_operator(move)):
 			_walk(move,dt)
 		_face_operator(dt)
 		_suspension(dt)
@@ -421,7 +423,11 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 			body.point_spot(spot_on,spot_yaw,camera_pitch if driving_view == "cab" else -.06)
 		elif body.search_on:
 			body.point_spot(false,0,0)
-	_winch(operate,dt)
+	if tree_recovery and tree_recovery.controls:
+		tree_recovery.stroke(self,move,dt)
+		tree_recovery.frame_load(self,look,dt)
+	else:
+		_winch(operate,dt)
 	_trail(dt)
 	_update_eyes()
 	_cable_curve()
@@ -734,6 +740,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 				var tail := car.to_global(Vector3.BACK*3.2)
 				car.rotation.x = clampf(atan2(_ground(nose)-_ground(tail),6.6),-.17,.17)
 				VehicleDrifts.place(car,_ground)
+	if _recovery() == "tree": tree_recovery = TreeRecovery.new()
 	_set_car_lamps("running" if _running_car() else "hazard")
 	if phase == "scene" and uses_warning_triangle(kind,vehicle_identity):
 		# Face traffic from either direction, on the road side of the car.
@@ -754,6 +761,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	_update_highlight()
 
 func end_job() -> void:
+	if tree_recovery: tree_recovery.clear_sling()
+	tree_recovery = null
 	boarding_walk = null
 	# The customer keeps the same car and driver when the radio assigns a new scene.
 	if kind=="passenger" and phase=="passenger":
@@ -955,6 +964,9 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if tree_recovery:
+		var nearby := tree_recovery.action(self,panel_range)
+		if not nearby.is_empty(): return nearby
 	if phase=="scene" and (_boom_job() or _recovery()=="ice") and panel_range:
 		return "flare"
 	if phase=="scene" and near_casualty(8.5) and (_in_range(car.position+Vector3.UP,8.5) or not _at_door()):
@@ -975,6 +987,7 @@ func action_id() -> String:
 	if phase=="cable":
 		if semi: return semi.cable_action(self,panel_range)
 		if _boom_job() and panel_range: return "sling"
+		if tree_recovery: return ""
 		if _roll_job():
 			if _in_range(_side_eye(1.0 if second_line else -1.0),2.35): return "check_line" if second_line else "roll_hook"
 			return "restow" if panel_range else ""
@@ -1014,6 +1027,11 @@ func context_text() -> String:
 			"milk_position": return "Park ahead of the milk truck with its grille facing the lift"
 			"milk_settle": return "Hold the lift steady while the milk settles"
 			"attach": return "Shackle the block to the front eye"
+	if tree_recovery:
+		match action:
+			"tree_block": return "Shackle the block to the hanging sling"
+			"tree_boom": return "Take the boom levers at the side panel" if fuel > 0 else DRY_RIG_HINT
+			"tree_leave": return "Let go of the boom controls"
 	if action in ["winch","lift","sling"] and fuel <= 0.0:
 		return DRY_RIG_HINT
 	if action == "enter" and is_chocked() and fuel > 0.0:
@@ -1056,6 +1074,10 @@ func _hint() -> String:
 	if kind=="passenger":
 		if phase == "boarding": return "Keep the wrecker stopped while the passenger walks to its right-hand door."
 		return "Take the passenger to %s." % Rides.destination(vehicle_identity) if phase == "passenger" else "Pull up beside the driver, step down and ask if they need a lift."
+	if tree_recovery and phase == "cable":
+		return "Return to the side panel and take the boom levers." if tree_recovery.block_set else "Reeve the block into the orange sling hanging beside the sedan."
+	if tree_recovery and phase == "rigged" and special_work < 1.:
+		return tree_recovery.instruction(self) + ". Use the wrecker’s side-panel levers."
 	if phase == "scene" and _boom_job():
 		return "Back toward the car. Leave 9–15 m between the rear controls and the casualty so the boom can swing clear."
 	if phase == "scene" and _recovery()=="ice":
@@ -1096,7 +1118,7 @@ func interact() -> void:
 		semi.handle_work(self,a)
 		_update_highlight()
 		return
-	if a in ["lift","sling","winch"] and fuel <= 0.0:
+	if a in ["lift","sling","winch","tree_boom"] and fuel <= 0.0:
 		_note(DRY_RIG_HINT,6.0)
 		return
 	match a:
@@ -1145,6 +1167,13 @@ func interact() -> void:
 			phase="cable"
 			_set_chocks()
 			sound_event.emit("ratchet")
+			if tree_recovery: tree_recovery.deploy(self)
+		"tree_block":
+			tree_recovery.block_set = true
+			sound_event.emit("ratchet")
+			_note("Block set. Take the boom levers at the truck.",4)
+		"tree_boom": tree_recovery.engage(self)
+		"tree_leave": tree_recovery.controls = false
 		"roll_hook":
 			second_line=true
 			sound_event.emit("ratchet")
@@ -1161,6 +1190,9 @@ func interact() -> void:
 			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
 			sound_event.emit("ratchet")
 		"restow","unhook":
+			if tree_recovery:
+				tree_recovery.clear_sling()
+				tree_recovery.block_set = false
 			if semi: semi.rigging = "tractor"
 			second_line=false
 			phase="flared"
@@ -1222,6 +1254,7 @@ func _winch(operate:bool,dt:float) -> void:
 	working=phase=="rigged" and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
 	if working and ((vehicle_identity.heavy_recovery and not snatch_block) or (semi and not second_winch)):
 		working = false
+	if tree_recovery and special_work < 1.: working = false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
 		if tanker:
@@ -1411,6 +1444,9 @@ func _cable_curve() -> void:
 	var a:=_drum()
 	if _boom_job() and special_work<1 and phase in ["cable","rigged"]:
 		body.aim_boom(car.global_position+Vector3.UP*2.15)
+		if tree_recovery and phase=="cable":
+			pulley.global_position = tree_recovery.eye if tree_recovery.block_set else eyes.global_transform*Vector3(.25,-.32,-.46)
+			_cable_strand(a,pulley.global_position)
 		if phase=="rigged":
 			var sling_top: Vector3=body.boom_tip.global_position
 			if _recovery()=="tree":
@@ -1453,6 +1489,10 @@ func _cable_strand(a: Vector3, b: Vector3) -> void:
 	cable_mesh.surface_end()
 
 func _update_highlight() -> void:
+	if tree_recovery and phase == "cable":
+		highlight.visible = assist and not tree_recovery.block_set and foot.distance_to(tree_recovery.eye) < 9.
+		if highlight.visible: highlight.global_position = tree_recovery.eye
+		return
 	if semi and phase == "cable":
 		var at := semi.marking(self)
 		highlight.visible = not in_cab and assist and at.is_finite() and foot.distance_to(at)<9.
@@ -1512,6 +1552,7 @@ func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d.special_work = special_work
+	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
 	if semi: d.freight = semi.snapshot()
 	if tanker: d.milk = tanker.snapshot()
 	d.second_line = second_line
@@ -1597,6 +1638,12 @@ func restore_state(d:Dictionary) -> void:
 				"scene": witness.position = _unpack(d.get("waiting_rider"),witness.position)
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
+		if tree_recovery:
+			var boom: Dictionary = d.get("tree_boom",{})
+			tree_recovery.block_set = boom.get("block",phase == "rigged" or special_work > 0.)
+			tree_recovery.controls = boom.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
+			tree_recovery.watch_load = boom.get("watch_load",true)
+			if phase == "cable": tree_recovery.deploy(self)
 		if semi: semi.restore(d.get("freight",{}),_ground)
 		if tanker: tanker.restore(d.get("milk",{}))
 		if kind=="hold" and phase not in ["scene","flared","cable"]:

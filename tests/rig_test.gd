@@ -271,7 +271,13 @@ func test_impossible_recoveries() -> void:
 		operate("flare",rig._panel() if ice or raised else rig.car.position)
 		stand_at(rig._panel())
 		operate("cable",rig._panel())
-		if raised:
+		if recovery == "tree":
+			var sling: Vector3 = rig.tree_recovery.eye
+			stand_at(sling)
+			operate("tree_block",sling)
+			stand_at(rig._panel())
+			operate("tree_boom",rig._panel())
+		elif raised:
 			operate("sling",rig._panel())
 		elif rolling:
 			stand_at(rig._side_eye(-1))
@@ -285,10 +291,11 @@ func test_impossible_recoveries() -> void:
 		stand_at(rig._panel())
 		aim_at(rig._panel())
 		if raised or rolling:
-			for tick in 150: rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+			var command := Vector2.UP if recovery == "tree" else Vector2.ZERO
+			for tick in (25 if recovery == "tree" else 150): rig.set_controls(command,Vector2.ZERO,true,false,STEP)
 			var reserve: float = rig.fuel
 			rig.fuel = Rig.WINCH_FUEL_PER_SECOND * STEP * .5
-			rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
+			rig.set_controls(command,Vector2.ZERO,true,false,STEP)
 			var before: float = rig.special_work
 			var pose: Transform3D = rig.car.transform
 			for tick in 90: rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
@@ -298,6 +305,15 @@ func test_impossible_recoveries() -> void:
 			rig.restore_state(rig.save_state())
 			require(before>0 and rig.special_work==before and pose.is_equal_approx(rig.car.transform),
 				recovery+" resumes partway through rigging with its pose intact")
+		if recovery == "tree":
+			stand_at(rig._panel())
+			operate("tree_boom",rig._panel())
+			for tick in 120: rig.set_controls(Vector2.UP,Vector2.ZERO,false,false,STEP)
+			for tick in 460: rig.set_controls(Vector2.RIGHT,Vector2.ZERO,false,false,STEP)
+			for tick in 650:
+				if not rig.tree_recovery.controls: break
+				rig.set_controls(Vector2.DOWN,Vector2.ZERO,false,false,STEP)
+			stand_at(rig._panel())
 		for tick in 3500:
 			if rig.phase=="at_lift": break
 			rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)

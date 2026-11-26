@@ -1650,6 +1650,8 @@ func _refresh() -> void:
 	state["readable_fire_plate"] = Addresses.number(parcel) if not parcel.is_empty() else ""
 	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
+	if rig.tree_recovery and rig.tree_recovery.controls:
+		state["boom_instruction"] = rig.tree_recovery.instruction(rig)
 	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM
 	state["tower_action"] = site if site.begins_with("tower_") else ""
 	state["tower_glasses"] = casework.glasses
