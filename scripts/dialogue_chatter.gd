@@ -5,6 +5,7 @@ const SPEAKER_HZ := {
 	"DISPATCH": 420.0, "COUNTY PLOW": 245.0, "ANGIE": 365.0,
 	"TOU": 223.0, "MAI": 395.0, "BEV": 296.0, "GARY": 195.0, "KOWALSKI": 285.0, "DRIVER": 325.0,
 	"HIGHWAY BASE": 308.0, "COUNTY GARAGE": 205.0, "CAR FOUR": 375.0,
+	"DUANE": 245.0, "DEPUTY PELZ": 263.0, "DEPUTY RUIZ": 337.0, "FREIGHT DRIVER": 214.0,
 }
 
 static func render(speaker: String, text: String) -> AudioStreamWAV:

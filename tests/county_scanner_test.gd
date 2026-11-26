@@ -87,6 +87,15 @@ func run() -> void:
 	(snapshot.account.equipment as Dictionary).erase("scanner")
 	game._restore(snapshot)
 	check(game.scanner.channel == "highway" and game.scanner.history.is_empty() and game._scanner_available(),"an older signed shift can buy the upgrade")
+	var words := "White squad on County FF by the west-side dairy barn, west shoulder. Deputy Ruiz needs a pull to get back on patrol. County adds $24 if you clear it within two minutes of your first flare. Regular rate either way."
+	game._speak("DISPATCH",words)
+	game._refresh()
+	check(game.sub_time > 12. and game.state.subtitle.ends_with("shoulder.") and words in game.calls[-1],"the first caption gives the location while the radio keeps the complete call")
+	check(" ".join(game.caption.pages) == words,"separate captions keep every word and punctuation mark in order")
+	game.sub_time = .15
+	game._refresh()
+	check("Regular rate either way." in game.state.subtitle and game.state.subtitle.length() <= game.caption.PAGE_LENGTH,"the clearance terms get a separate reading time")
+	check(game.audio.Speech.read_aloud("Hendricks Rd by St. Hedwig’s on County FF") == "Hendricks Road by Saint Hedwig’s on County F F","the spoken address expands the printed abbreviations")
 	if not failures:
 		print("CHECKS PASSED — stock scanner, county crystal bank, saved tuning, field traffic and dispatch priority")
 	quit(int(failures > 0))

@@ -1,5 +1,6 @@
 extends Node
 
+const Speech := preload("res://scripts/county_speech.gd")
 const Chatter := preload("res://scripts/dialogue_chatter.gd")
 const FOLDER := "res://assets/audio/"
 const EFFECT_LEVELS_DB := {"footstep": -24.0, "air_brake": -25.0, "reverse": -21.0}
@@ -8,6 +9,7 @@ var chatter_streams := {}
 var engines := {}
 var samples := {}
 var chatter := AudioStreamPlayer.new()
+var parked_diesel: AudioStreamPlayer3D
 var wind_filter: AudioEffectLowPassFilter
 var effects: Array[AudioStreamPlayer] = []
 var cursor := 0
@@ -68,6 +70,15 @@ func _ready() -> void:
 			loop_player.play()
 		engines[id] = loop_player
 
+func mount_diesel(truck: Node3D) -> void:
+	parked_diesel = AudioStreamPlayer3D.new()
+	parked_diesel.position = Vector3(0,1.12,-2.45)
+	parked_diesel.attenuation_model = AudioStreamPlayer3D.ATTENUATION_DISABLED
+	parked_diesel.panning_strength = .85
+	parked_diesel.volume_db = -80.
+	parked_diesel.pitch_scale = 680./740.
+	truck.add_child(parked_diesel)
+
 func set_sighting(wind_calm: float, radio_interference: float) -> void:
 	calm = clampf(wind_calm,0,1)
 	pulse = clampf(radio_interference,0,1)
@@ -102,7 +113,7 @@ func _try_spoken(who: String, words: String) -> bool:
 	utterance += 1
 	var pitch: float = clampf(float(Chatter.SPEAKER_HZ.get(who,320))/320,.78,1.16)
 	var voice := native_voices[posmod(who.hash(),native_voices.size())]
-	DisplayServer.tts_speak(words,voice,84,pitch,.95,utterance,true)
+	DisplayServer.tts_speak(Speech.read_aloud(words),voice,84,pitch,.95,utterance,true)
 	return true
 
 func _spoken_finished(id: int) -> void:
@@ -111,6 +122,9 @@ func _spoken_finished(id: int) -> void:
 
 func _exit_tree() -> void:
 	if audible and utterance > 0: DisplayServer.tts_stop()
+	if is_instance_valid(parked_diesel):
+		parked_diesel.stop()
+		parked_diesel.stream = null
 
 func _sample(id: String) -> AudioStream:
 	if not samples.has(id):
@@ -171,7 +185,7 @@ func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: f
 	wind_filter.cutoff_hz = lerpf(wind_filter.cutoff_hz,cutoff,1.0 - exp(-delta * 6.0))
 	_volume("wind", lerpf(wind_db + gust * (4.0 if cab and player_active else 6.0),-76.0,calm), delta)
 	var signal_level := pulse if cab and controls_live else 0.0
-	if chatter.playing: signal_level *= .24
+	if radio_tail and voice_busy(): signal_level = 0.0
 	_volume("pulse",linear_to_db(maxf(.0001,signal_level*.42)),delta)
 	_volume("heater", lerpf(-23.0,-29.0,float(s.get("warmth",1.0))) if cab and player_active else -65.0, delta)
 	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
@@ -183,11 +197,18 @@ func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: f
 	var road_speed := absf(s.speed_mps) if driving else 0.0
 	var blend := maxf(load_fraction, smoothstep(0.15, 3.2, road_speed))
 	var running := player_active and float(s.fuel) > 0.0
-	var idle_gain := db_to_linear(-18.0 if cab else -23.0) * (1.0 - blend)
-	if not cab:
-		# The idling wrecker stays where Brandt parked it.
-		idle_gain *= (1.0 - smoothstep(52.0,110.0,truck_distance)) / (1.0 + truck_distance / 14.0)
-		if in_store: idle_gain *= .26
+	var idle_gain := db_to_linear(-18.0) * (1.0 - blend) if cab else 0.0
+	if is_instance_valid(parked_diesel):
+		var outdoors := 0.0
+		if running and not cab:
+			outdoors = db_to_linear(-23.) * (1.0 - smoothstep(52.0,110.0,truck_distance)) / (1.0 + truck_distance / 14.0)
+			if in_store: outdoors *= .26
+		parked_diesel.volume_db = move_toward(parked_diesel.volume_db,maxf(-80.,linear_to_db(outdoors)),delta*96.)
+		if outdoors > .0005 and audible and not parked_diesel.playing:
+			if parked_diesel.stream == null: parked_diesel.stream = engines.diesel.stream
+			parked_diesel.play(engines.diesel.get_playback_position())
+		elif outdoors <= .0005 and parked_diesel.volume_db <= -65. and parked_diesel.playing:
+			parked_diesel.stop()
 	var pull_gain := db_to_linear(lerpf(-18.0, -5.0, load_fraction)) * blend
 	# Smooth linear amplitudes so the exhaust responds even on the first gas tap.
 	var response := 1.0 - exp(-8.0 * delta)

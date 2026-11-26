@@ -24,11 +24,16 @@ func run() -> void:
 	walk_listen(Vector3(92,0,421))
 	check(sources.dairy.volume_db > -11 and sources.dam.volume_db < -65, "the pump strokes carry to the Brzezinski driveway")
 	check(game.audio.engines.diesel.volume_db < -65, "walking across the county leaves the parked truck's idle behind")
+	var diesel: AudioStreamPlayer3D = game.audio.parked_diesel
+	check(diesel.get_parent() == rig.truck and diesel.volume_db < -65, "the exterior exhaust sits over the parked truck's front axle")
 	var open_cutoff: float = game.audio.wind_filter.cutoff_hz
 	var field_level: float = sources.dairy.volume_db
 	rig.set_spawn(Vector3(92,0,421),PI)
+	walk_listen(rig.truck.to_global(Vector3(2,0,-2)))
+	check(diesel.volume_db > -29 and game.audio.engines.diesel.volume_db < -65, "beside the hood the engine comes from the truck")
 	rig.in_cab = true
 	settle()
+	check(diesel.volume_db < -65 and game.audio.engines.diesel.volume_db > -22, "closing the cab returns the engine to the cabin mix")
 	check(sources.dairy.volume_db < field_level - 12 and game.audio.wind_filter.cutoff_hz < open_cutoff * .30, "closing the cab muffles both the pump and the blizzard")
 
 	walk_listen(Vector3(-452,0,-124))

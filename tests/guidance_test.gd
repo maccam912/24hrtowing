@@ -91,6 +91,11 @@ func run() -> void:
 	check_text("Report a sighting", true)
 	key(KEY_ENTER)
 	await redraw()
+	for i in ceili(game.sub_time):
+		if "red triangle" in "\n".join(surface.words): break
+		game.sub_time -= 1.
+		game._refresh()
+		await redraw()
 	check_text("red triangle", true)
 	var route := str(game._road_note().get("instruction", ""))
 	var procedure := str(game.state.progress)

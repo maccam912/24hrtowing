@@ -1,5 +1,6 @@
 extends RefCounted
 
+const Speech := preload("res://scripts/county_speech.gd")
 const Legacy := preload("res://scripts/legacy_dispatch.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
@@ -156,6 +157,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			best = score
 			route = id
 	var site: Dictionary = SITES[route]
+	var named_place := Speech.landmark(site.landmark)
 	var station: Vector2 = site.station
 	var north_south: bool = site.get("north_south", false)
 	var side := 1 if rng.randi() % 2 == 0 else -1
@@ -196,7 +198,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		job.reply = "duane_ditch" if last_plow == -1 else "duane_windrow"
 		job.vehicle = VEHICLES[Snowplow.VARIANT]
 		job.dispatch = "%s on %s by %s, %s ditch. Duane caught the windrow. Take your snatch block and pull from the rear eye. He'll finish his route." % [
-			job.vehicle,site.road,site.landmark,shoulder]
+			job.vehicle,site.road,named_place,shoulder]
 	elif squad:
 		job.merge(Squad.UNITS[posmod(dispatch_seed+squad_calls,Squad.UNITS.size())],true)
 		job.id = "squad_pull"
@@ -205,8 +207,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		job.running = true
 		job.vehicle = VEHICLES[Squad.VARIANT]
 		job.clearance_seconds = 0.0
-		job.dispatch = "%s on %s by %s, %s shoulder. %s needs a pull to get back on patrol. County adds $%d for two minutes' scene work from your first flare. Regular rate either way." % [
-			job.vehicle,site.road,site.landmark,shoulder,job.person,Squad.PREMIUM]
+		job.dispatch = "%s on %s by %s, %s shoulder. %s needs a pull to get back on patrol. County adds $%d if you clear it within two minutes of your first flare. Regular rate either way." % [
+			job.vehicle,site.road,named_place,shoulder,job.person,Squad.PREMIUM]
 	elif kind == "ditch" and passenger_due:
 		var rider: Dictionary = Rides.SUMMER if summer_due else Rides.RIDERS[posmod(ordinary_rides+dispatch_seed,Rides.RIDERS.size())]
 		Rides.assign(job,site,rider)
@@ -231,8 +233,9 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			else:
 				var replies := ["displaced_driver","gentle_driver","lost_hours"]
 				job.reply = replies[rng.randi_range(0,replies.size()-1)]
+		var caller: String = job.person if job.id in ["angie","farm"] else Speech.occupation(job.person)
 		job.dispatch = "%s on %s by %s, %s ditch. %s needs a pull. %s" % [
-			job.vehicle, site.road, site.landmark, shoulder, job.person, reason]
+			job.vehicle, site.road, named_place, shoulder, caller, reason]
 	else:
 		var reports: Array = site.hazard_reasons
 		var reason: String = reports[posmod(dispatch_seed + int(site_hazards.get(route, 0)), reports.size())]
@@ -241,7 +244,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			job.plate = "TCU %03d" % ((job.number % 800) + 100)
 			reason = "Service body’s loaded with tools. Bring the snatch block. " + reason
 		job.dispatch = "%s on %s by %s, %s shoulder. Checked and taped. Bring it to storage. %s" % [
-			job.vehicle, site.road, site.landmark, shoulder, reason]
+			job.vehicle, site.road, named_place, shoulder, reason]
 	job.directions = "%s Look on the %s side for the %s." % [site.approach, shoulder, job.vehicle.to_lower()]
 	return job
 

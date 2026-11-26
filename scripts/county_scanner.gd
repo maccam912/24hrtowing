@@ -101,7 +101,7 @@ func plow_call(game) -> bool:
 	if scripted_plow:
 		_receive(game,game.audio.lines.plow)
 	else:
-		_receive(game,["COUNTY PLOW", "Garage, save that last set of cutting edges for me. This blade's down to the bolts."])
+		_receive(game,game.audio.lines.plow_shop)
 	return true
 
 func _receive(game, line: Array) -> void:

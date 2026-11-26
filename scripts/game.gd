@@ -82,6 +82,7 @@ var nozzle_sale := 0.0
 var nozzle_cents := 0.0
 var seconds_worked := 0.0
 var fax_text := "TAMARACK COUNTY HIGHWAY DEPARTMENT\nTOW BAN IN EFFECT UNTIL FURTHER NOTICE.\nSheriff-requested removals only. Record both odometer readings."
+var caption := preload("res://scripts/county_speech.gd").new()
 var subtitle := ""
 var speaker := ""
 var sub_time := 0.0
@@ -129,6 +130,7 @@ func _ready() -> void:
 	_resize()
 	audio = Audio.new()
 	add_child(audio)
+	audio.mount_diesel(rig.truck)
 	add_child(broadcast)
 	rig.sound_event.connect(audio.effect)
 	saved_data = {} if test_session else Ledger.read()
@@ -257,7 +259,8 @@ func _physics_process(dt: float) -> void:
 	county.follow_camera(world_view.get_camera_3d().global_position,rig.in_cab and playing_shift,in_store)
 	ambience.mix(player_at,rig.in_cab,in_store,audio.calm,playing_shift,dt)
 	if active and not desk.is_title() and desk.page not in ["pause", "guidance"]:
-		sub_time = maxf(0.0,sub_time-dt)
+		if sub_time > 0.0:
+			sub_time = maxf(.05 if audio.voice_busy() else 0.0,sub_time-dt)
 	ui_timer += dt
 	# A pedal touch between HUD updates must see the latest physics step.
 	if ui_timer >= 0.10 or rig.is_stopped() != state.truck_stopped:
@@ -1305,7 +1308,7 @@ func _message(who: String, words: String) -> void:
 		scanner.rx_left = 0
 	speaker = who
 	subtitle = words
-	sub_time = clampf(2+words.length()/17.0,4,9)
+	sub_time = caption.prepare(words)
 
 func _clock() -> String:
 	var minutes := 3*60+14+floori(shift_seconds/60.0)
@@ -1564,7 +1567,7 @@ func _refresh() -> void:
 	if county.drop_guide.visible:
 		county.drop_guide.position = rig.dropoff.center
 	var site := _site_action()
-	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
+	state = {"prompt":_prompt(site),"subtitle":caption.current(sub_time),"speaker":speaker,
 		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
 		"can_inspect_sighting":site == "inspect_sighting","can_wipe":site == "wipe_mirror",
 		"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
