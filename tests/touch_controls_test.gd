@@ -210,7 +210,15 @@ func run() -> void:
 			touch(0, centers[tab], false)
 			await process_frame
 			check(desk.page == tab, "Tap did not open " + tab)
-			centers = check_layout(PAPER_TABS + ["close"])
+			var tabs := PAPER_TABS.duplicate()
+			if tab == "map":
+				# On the open plat, its tab turns the facing survey sheet.
+				tabs[tabs.find("map")] = "turn_plat"
+				await tap_key("turn_plat")
+				check(desk.east_sheet, "The east sheet can be turned by touch")
+				await tap_key("turn_plat")
+				check(not desk.east_sheet, "The operator can turn back to Esker")
+			centers = check_layout(tabs + ["close"])
 			if tab == "radio":
 				await check_sighting_pages()
 			elif tab == "parts":
