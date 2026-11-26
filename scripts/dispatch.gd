@@ -391,6 +391,8 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		"start_odo":start, "pickup_odo":pickup, "drop_odo":drop, "loaded":mile,
 		"schedule":job.get("schedule",0.0), "call_out":38, "hookup":hookup, "winch":winch,
 		"storage":storage, "heavy_fee":heavy_fee, "pay":snappedf(pay,.01), "time":clock}
+	if job.has("checked_tape"):
+		slip.checked_tape = job.checked_tape.duplicate()
 	if rate_fee > 0:
 		slip.rate_name = job.get("rate_name","Vehicle on ice")
 		slip.rate_fee = rate_fee

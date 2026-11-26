@@ -14,6 +14,8 @@ The dash compass is visible in both driving views. If you lose your way or forge
 
 The green fire plates face both ways along the road. Pull up close, or aim the fitted pillar spot at a plate farther down the shoulder. When the number comes into view, press **G** or tap **CHECK PLAT** to find its owner and road. The plat’s **Fire numbers** index is also available while stopped. On one road, 132 numbers is half a mile. Numbers rise north or west. Roman Duda is checking the pipes at his drying shed beside the ginseng frames north of Esker. Pull into the loading lane and ask him about County K.
 
+A deputy’s yellow mirror tape carries the date, badge and road where they checked the car. On foot, face the driver’s mirror and use it to unfold the strip. The mark stays with that vehicle through a tow and appears on its filed carbon.
+
 Pull over within cable reach and stop before getting out. Stand near the casualty to place a flare. The controls are on the **driver’s side toward the back of the wrecker**. Take the cable there, carry it to the bumper that faces the wrecker, and return to the panel. Hold the winch control and watch the needle. Let off when it climbs toward red. A straight pull is easier than a broadside one.
 
 Ditch customers walk back to their cars and drive away after the pull. Your slip stays on the clipboard. Get back in the cab and answer the radio to go straight to the next call. For a hazard tow, bring the axle up to the underlift and strap it. In the cab, look in a side mirror for the amber ends of the light bar on the towed car’s roof. The loaded truck needs more braking room.

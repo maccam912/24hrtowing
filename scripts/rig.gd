@@ -709,6 +709,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	for key in ["case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
+	if ticket.has("checked_tape"):
+		vehicle_identity.checked_tape = ticket.checked_tape
 	if kind == "hold":
 		vehicle_identity.open_door = true
 	car=Scene.car(self,kind,variant,vehicle_identity)
@@ -1006,7 +1008,6 @@ func action_id() -> String:
 		if tanker and at_dropoff() and not tanker.is_settled(): return "milk_settle"
 		return "drop" if at_dropoff() else "haul"
 	if _at_door(): return "enter"
-	if phase=="flared" and near_casualty(2.7) and kind!="ditch" and not semi and not tanker: return "read_tape"
 	return ""
 
 func _at_door() -> bool:
@@ -1056,7 +1057,7 @@ func context_text() -> String:
 		if action == "attach": return "Shackle snatch block to tow eye"
 	if action=="winch":
 		return "Hold WINCH · release to ease tension" if OS.has_feature("mobile") else "Hold Space to winch · release to ease tension"
-	var prompts:={"enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle","read_tape":"Read sheriff’s tape"}
+	var prompts:={"enter":"Climb into cab","flare":"Set a road flare","cable":"Chock wheels & take winch cable","too_far":"Move wrecker within cable reach","attach":"Hook cable to tow eye","restow":"Stow cable","unhook":"Remove hook","dollies":"Fit wheel dollies","lift":"Raise wheel-lift & secure straps","drop":"Lower lift & unstrap vehicle"}
 	return prompts.get(action,"")
 
 func _hint() -> String:
@@ -1228,7 +1229,6 @@ func interact() -> void:
 		"boom_space": _note("The car needs open ground under all four wheels. Move back toward the road.",4)
 		"shore": _note("Ice won't hold the wrecker. Set up on the bank.",4)
 		"too_far": _note(context_text(),3)
-		"read_tape": _note("SHERIFF  •  11/23  •  J.K. 417  •  CHECKED",4)
 	_update_eyes()
 
 func _set_chocks() -> void:

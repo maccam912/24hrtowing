@@ -41,6 +41,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"parts": _parts(c,p,s)
 		"coffee": _coffee(c,p,s)
 		"bulk_pump": _bulk_pump(c,p,s)
+		"checked_tape": _mirror_tape(c,p,s.get("checked_tape",{}))
 		"impound_register": _impound_register(c,p,s)
 		"register_card","storage_tag": _storage_tag(c,p,s.get("storage_tag",{}),page == "register_card")
 		"passenger": _passenger(c,p,s)
@@ -103,6 +104,9 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	_entry(c,Rect2(right,y+54,w*.35,49),"PLATE",str(active_job.get("plate","—")))
 	c.text(Vector2(x,y+127),"VEHICLE IDENTIFICATION",c.MONO,12,FADED)
 	c.text(Vector2(x+193,y+128),str(active_job.get("vin","—")),c.MONO,17,FORM_BLUE)
+	if (archived or awaiting) and active_job.has("checked_tape"):
+		var strip: Dictionary = active_job.checked_tape
+		c.fitted(Rect2(x+w*.66,y+108,w*.34,30),"TAPE   %s  #%s" % [strip.date,strip.badge],c.MONO,14,GREEN,HORIZONTAL_ALIGNMENT_RIGHT)
 	c.rule(x,y+140,w,LINE)
 	var col := w/3.0
 	var values := []
@@ -749,6 +753,31 @@ func _coffee(c, p: Rect2, s: Dictionary) -> void:
 	if s.get("at_counter",false):
 		c.button("talk_mai",key,"Ask about the lot lights" if s.get("mai_lot",false) else "Talk to Mai")
 
+func _mirror_tape(c, p: Rect2, mark: Dictionary) -> void:
+	var strip := Rect2(p.position+Vector2(34,103),Vector2(p.size.x-68,245))
+	# The knot holds a torn, doubled strip. Leave the actual vehicle visible behind it.
+	var fold := PackedVector2Array([strip.position+Vector2(7,41),strip.position+Vector2(-23,24),strip.position+Vector2(-21,218),strip.position+Vector2(47,191)])
+	c.draw_colored_polygon(fold,Color("#9f8c1d"))
+	var points := PackedVector2Array([strip.position,Vector2(strip.end.x,strip.position.y+9)])
+	for i in range(1,11):
+		points.append(Vector2(strip.end.x-(9 if i%2 else 1),strip.position.y+i*strip.size.y/10.))
+	points.append(Vector2(strip.position.x+4,strip.end.y-11))
+	c.draw_colored_polygon(points,Color("#eed549"))
+	var x := strip.position.x+27
+	var y := strip.position.y
+	var w := strip.size.x-60
+	var ink := Color("#343623")
+	c.fitted(Rect2(x,y+15,w,35),"TAMARACK COUNTY   /   SHERIFF",c.MONO,20,ink,HORIZONTAL_ALIGNMENT_LEFT)
+	c.rule(x,y+57,w,ink,2)
+	c.text(Vector2(x,y+84),"DATE CHECKED",c.MONO,14,ink)
+	c.text(Vector2(x+w*.33,y+84),"DEPUTY   /   BADGE",c.MONO,14,ink)
+	c.fitted(Rect2(x,y+87,w*.29,55),str(mark.get("date","")),c.HAND,40,ink,HORIZONTAL_ALIGNMENT_LEFT)
+	c.fitted(Rect2(x+w*.33,y+87,w*.67,55),"%s   #%d" % [mark.get("deputy",""),int(mark.get("badge",0))],c.HAND,40,ink,HORIZONTAL_ALIGNMENT_LEFT)
+	c.rule(x,y+151,w,ink)
+	c.text(Vector2(x,y+177),"CHECKED AT",c.MONO,14,ink)
+	var road := str(mark.get("road",""))
+	c.fitted(Rect2(x,y+178,w,54),road if not road.is_empty() else "—",c.HAND,36,ink,HORIZONTAL_ALIGNMENT_LEFT)
+
 func _impound_register(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,ORIGINAL)
 	var x := p.position.x+35
@@ -791,6 +820,10 @@ func _storage_tag(c, p: Rect2, record: Dictionary, register_copy: bool) -> void:
 		["PICKUP",record.get("location",record.get("route","—"))],["VIN",record.get("vin","—")]]
 	for i in fields.size():
 		_entry(c,Rect2(x+(i%2)*(width*.5+5),y+floori(i/2.0)*97,width*.5-10,71),fields[i][0],str(fields[i][1]))
+	var tape: Dictionary = record.get("checked_tape",{})
+	if not tape.is_empty():
+		var imprint := "Tape  %s  #%s   %s" % [tape.date,tape.badge,tape.get("road","")]
+		c.fitted(Rect2(x,p.end.y-90,width-203,52),imprint,c.HAND,22,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 	if register_copy:
 		c.button("impound_index",Rect2(p.end.x-222,p.end.y-85,190,80),"Back to register")
 		c.text(Vector2(x,p.end.y-26),"CARBON   /   YARD OFFICE",c.MONO,13,FADED)

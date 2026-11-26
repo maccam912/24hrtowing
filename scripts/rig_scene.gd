@@ -4,6 +4,7 @@ const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
 const Tanker := preload("res://scripts/milk_tanker.gd")
+const Tape := preload("res://scripts/sheriff_tape.gd")
 const BLACK=Color("#272b2c")
 const GLASS=Color("#38464b")
 const STEEL=Color("#929895")
@@ -172,7 +173,7 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 	if open_door and identity.get("untaped",false):
 		car_lamps(p,"running",-1)
 	if kind in ["hazard","hold"] and not identity.get("untaped",false):
-		sheriff_tape(p,width,base)
+		sheriff_tape(p,width,base,Tape.imprint(identity))
 	for s in [-1,1]:
 		var z:float=s*length*1.016
 		var t=K.joint(p,Vector3(0,base-.087,z))
@@ -223,15 +224,18 @@ static func close_driver_door(vehicle: Node3D) -> void:
 	if door:
 		door.rotation.y=0
 
-static func sheriff_tape(vehicle: Node3D, width: float, base: float, initials := "") -> Node3D:
-	var tape: Node3D = K.joint(vehicle,Vector3.ZERO,"SheriffTape")
+static func sheriff_tape(vehicle: Node3D, width: float, base: float, mark: Dictionary) -> Node3D:
+	var tape: Node3D = K.joint(vehicle,Vector3(-width*1.11,base+.62,-.81),"SheriffTape")
+	tape.set_meta("imprint",mark)
+	tape.set_meta("plate",vehicle.get_meta("plate",""))
+	tape.add_to_group("checked_mirrors")
 	var strip = K.new(tape)
-	strip.box(Vector3(-width*1.104,base+.625,-.81),Vector3(.036,.06,.242),TAPE)
-	strip.box(Vector3(-width*1.09,base+.485,-.71),Vector3(.025,.25,.09),TAPE,Vector3(.18,0,.08))
+	strip.box(Vector3.ZERO,Vector3(.042,.071,.255),TAPE)
+	strip.box(Vector3(-.028,-.153,.082),Vector3(.027,.31,.13),TAPE,Vector3(.18,0,.08))
+	strip.box(Vector3(.022,-.074,.155),Vector3(.025,.11,.22),TAPE,Vector3(-.26,0,-.06))
 	strip.finish()
-	K.label(tape,"SHERIFF",Vector3(-width*1.13,base+.622,-.82),.034,BLACK,Vector3(0,-PI/2,0))
-	if not initials.is_empty():
-		K.label(tape,initials,Vector3(-width*1.12,base+.487,-.713),.034,BLACK,Vector3(0,-PI/2,.12))
+	K.label(tape,"SHERIFF",Vector3(-.029,.003,-.01),.037,BLACK,Vector3(0,-PI/2,0))
+	K.label(tape,"%s\n%d" % [mark.date,int(mark.badge)],Vector3(-.053,-.14,.089),.033,BLACK,Vector3(0,-PI/2,.1),"plex_mono")
 	return tape
 
 static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:

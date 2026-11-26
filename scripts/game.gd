@@ -60,6 +60,8 @@ var stored := []
 var faxes := []
 var filed_card := ""
 var physical_cars := []
+var held_tape: Dictionary = Rig.Scene.Tape.LEGACY
+var open_tape := {}
 var yard_card := {}
 var impound_book := preload("res://scripts/impound_book.gd").new()
 var received_freight: Node3D
@@ -604,6 +606,7 @@ func _prepare_offers() -> void:
 			rotation_offer = sightings.recovery_offer(issued,county,account.owns("snatch_block"),campaign.stage == Campaign.ORDER.size())
 		if rotation_offer.is_empty():
 			rotation_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,account.owns("snatch_block"),account.owns("second_winch"))
+			_stamp_ticket(rotation_offer)
 		else:
 			# A case may have used the next blank on the clipboard.
 			rotation_offer.number = 1001 + issued
@@ -613,10 +616,17 @@ func _prepare_offers() -> void:
 					case_offer = Dispatch.hold_ticket(issued,audio.lines,true)
 					case_offer.point = county.survey_point
 					case_offer.angle = county.survey_yaw
+					_stamp_ticket(case_offer)
 				"looksee": case_offer = Dispatch.looksee(issued)
 		if not case_offer.is_empty():
 			case_offer.number = 1001 + issued
 	_sync_waiting_hazard()
+
+func _stamp_ticket(ticket: Dictionary) -> void:
+	if ticket.get("kind") not in ["hazard","hold"] or ticket.get("untaped",false) or ticket.has("checked_tape") or ticket.has("recovery"):
+		return
+	var road := str(ticket.get("road",ticket.get("location",""))).get_slice(" · ",0)
+	ticket.checked_tape = Rig.Scene.Tape.write(road,str(ticket.get("vin","")).hash(),shift_seconds,ticket.kind == "hold")
 
 func _sync_waiting_hazard() -> void:
 	var waiting: bool = rotation_offer.get("kind") == "hazard" and not rotation_offer.has("aftermath_key") and rotation_offer.get("recovery") not in ["semi","milk"]
@@ -948,6 +958,8 @@ func _site_action() -> String:
 		return "fuel"
 	if rig.action_id() in ["","enter"] and rig.wipeable_mirror() >= 0:
 		return "wipe_mirror"
+	if rig.action_id().is_empty() and is_instance_valid(Rig.Scene.Tape.readable(rig)):
+		return "checked_tape"
 	if rig.action_id().is_empty() and _storage_row_in_reach() >= 0:
 		return "storage_tag"
 	if rig.action_id().is_empty() and not sightings.observations.inspectable(self,sightings).is_empty():
@@ -1054,6 +1066,17 @@ func _interact() -> void:
 			if side >= 0:
 				rig.body.set_mirror_ice(side,0)
 				rig._note("Glass wiped clean.",3.0)
+		"checked_tape":
+			var strip := Rig.Scene.Tape.readable(rig)
+			if strip:
+				open_tape = strip.get_meta("imprint").duplicate()
+				open_tape.plate = strip.get_meta("plate","")
+				var note := sightings.observations.inspectable(self,sightings)
+				if note.get("kind") == "roadside_tape":
+					sightings.observations.remember(note)
+				_refresh()
+				desk.show_document("checked_tape",state)
+				_save()
 		"impound_register":
 			impound_book.open(stored,slips,PARKING.size(),County.Fittings.WEST_STALLS if county.west_lot_open else 0)
 			desk.show_document("impound_register",state)
@@ -1144,11 +1167,13 @@ func _dropped() -> void:
 	mode = "invoice"
 	if job.kind == "hold":
 		held = true
+		held_tape = Rig.Scene.Tape.imprint(job)
 		filed_card = _custody_record()
 		_sync_survey_scene()
 	else:
 		stored.append({"number":job.number,"route":job.route,"variant":job.get("variant",2),"plate":job.plate,"vin":job.vin,
-			"heavy_recovery":job.get("heavy_recovery",false),"vehicle":job.get("vehicle",""),"location":job.get("location",""),"time":drop_time})
+			"heavy_recovery":job.get("heavy_recovery",false),"vehicle":job.get("vehicle",""),"location":job.get("location",""),"time":drop_time,
+			"checked_tape":Rig.Scene.Tape.imprint(job),"untaped":job.get("untaped",false)})
 	rig.end_job()
 	_display_storage()
 	_save()
@@ -1167,7 +1192,7 @@ func _display_storage() -> void:
 			node.queue_free()
 	physical_cars.clear()
 	if held or (campaign.released and not campaign.evidence.has("unit_departed")):
-		var car = rig.store_vehicle("hold",BAY,-PI/2)
+		var car = rig.store_vehicle("hold",BAY,-PI/2,{"checked_tape":held_tape})
 		if car is Node3D:
 			physical_cars.append(car)
 	var capacity := PARKING.size()+(County.Fittings.WEST_STALLS if county.west_lot_open else 0)
@@ -1479,7 +1504,7 @@ func _prompt(site: String = _site_action()) -> String:
 		return "Ask Roman Duda about County K"
 	if site == "let_out":
 		return "Let the passenger out at " + Rides.destination(job)
-	var words := {"impound_register":"Open the impound register","storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"checked_tape":"Read the deputy’s mirror tape","impound_register":"Open the impound register","storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1632,7 +1657,7 @@ func _refresh() -> void:
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"plat_marks":plat_pencil.marks,"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
-		"west_lot":county.west_lot_open,"storage_tag":yard_card,
+		"west_lot":county.west_lot_open,"storage_tag":yard_card,"checked_tape":open_tape,
 		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
 		"heavy_job_filed":heavy_job_filed,"second_winch":account.owns("second_winch"),
 		"nozzle_ready":_can_pump_at_tank(),"nozzle_sale":nozzle_sale,
@@ -1703,7 +1728,7 @@ func _save() -> void:
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
 		"sightings":sightings.save_state(),"scanner":scanner.save_state(),"broadcast":broadcast.save_state(),"mai_lot_heard":mai_lot_heard,
-		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"book_read":book_read,
+		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"held_tape":held_tape,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
 		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_wait_left,
@@ -1731,6 +1756,7 @@ func _restore(s: Dictionary) -> void:
 	roads_driven = s.roads
 	stored = s.stored
 	held = s.held
+	held_tape = s.get("held_tape",Rig.Scene.Tape.LEGACY)
 	bay_locked = s.get("bay_locked",held)
 	book_read = s.book_read
 	signed_card = s.signed

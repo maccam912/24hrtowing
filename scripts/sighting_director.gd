@@ -95,7 +95,9 @@ func restore(data: Dictionary, county: Node3D) -> void:
 		# These taped cars can be passed night after night before the first lift.
 		once.ditch_landmarks = true
 		for spec: Array in [["tape_swamp",Vector3(247,0,-391),"Swamp Rd",PI*.5],["tape_dairy",Vector3(391,0,173),"Kolpack Rd",PI],["tape_church",Vector3(-8.4,0,193),"County K",0.0]]:
-			_record("roadside_tape",spec[1],spec[3],0,0,spec[2],_identity(spec[0],spec[1],true),spec[0])
+			var identity := _identity(spec[0],spec[1],true)
+			identity.checked_tape = Scene.Car.Tape.write(spec[2],str(identity.vin).hash(),-6*3600.)
+			_record("roadside_tape",spec[1],spec[3],0,0,spec[2],identity,spec[0])
 	for key: String in aftermath:
 		if not aftermath[key].has("observation_key"):
 			aftermath[key].observation_key = "trace/%s/legacy" % key
