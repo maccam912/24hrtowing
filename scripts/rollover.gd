@@ -96,4 +96,4 @@ func stroke(rig, move: Vector2, dt: float) -> void:
 	elif rig.fuel <= 0.:
 		release()
 		rig.working = false
-		rig._note(rig.DRY_RIG_HINT,6.)
+		rig._note(rig.reserve_hint(),6.)

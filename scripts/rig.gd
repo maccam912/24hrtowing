@@ -1142,7 +1142,7 @@ func context_text() -> String:
 	if rollover:
 		match action:
 			"roll_fetch": return "Take the check hook off the auxiliary drum"
-			"roll_levers": return "Take the two drum levers" if fuel > 0. else DRY_RIG_HINT
+			"roll_levers": return "Take the two drum levers" if fuel > 0. else reserve_hint()
 			"roll_leave": return "Let go of the drum levers"
 			"roll_clear": return "Unpin the check hook from the far side"
 			"roll_hold": return "Walk around the car and release the check hook"
