@@ -61,7 +61,7 @@ var filed_card := ""
 var physical_cars := []
 var yard_card := {}
 var impound_book := preload("res://scripts/impound_book.gd").new()
-var received_freight: Rig.Semi
+var received_freight: Node3D
 var held := false
 var bay_locked := false
 var book_read := false
@@ -615,7 +615,7 @@ func _prepare_offers() -> void:
 	_sync_waiting_hazard()
 
 func _sync_waiting_hazard() -> void:
-	var waiting: bool = rotation_offer.get("kind") == "hazard" and not rotation_offer.has("aftermath_key") and rotation_offer.get("recovery") != "semi"
+	var waiting: bool = rotation_offer.get("kind") == "hazard" and not rotation_offer.has("aftermath_key") and rotation_offer.get("recovery") not in ["semi","milk"]
 	var point: Vector3 = county.resolve_point(rotation_offer.point) if waiting else Vector3.ZERO
 	if is_instance_valid(waiting_hazard):
 		if waiting and waiting_hazard.get_meta("offer_pose") == [rotation_offer.vin, point, rotation_offer.angle]:
@@ -864,7 +864,7 @@ func _sync_survey_scene() -> void:
 
 func _survey() -> void:
 	var pos: Vector3 = rig.get_truck_position()
-	if received_freight and pos.distance_to(County.RiverLanes.CENTER)>190 and not _near(County.RiverLanes.CENTER,190):
+	if received_freight and pos.distance_to(received_freight.global_position)>190 and not _near(received_freight.global_position,190):
 		received_freight.queue_free()
 		received_freight = null
 	if campaign.released and not campaign.evidence.has("unit_departed") and pos.distance_to(BAY) > 140 and not _near(BAY,140):
@@ -919,7 +919,7 @@ func _site_action() -> String:
 			return "sign" if not signed_card else "deputy"
 	elif mode == "fieldwork" and job.get("kind") == "passenger" and rig.phase == "scene" and _facing(rig.get_witness_position(),3.9):
 		return "offer_ride"
-	elif mode == "fieldwork" and (job.get("kind") == "ditch" or rig.semi) and not talked and _facing(rig.get_witness_position(),3.9):
+	elif mode == "fieldwork" and (job.get("kind") == "ditch" or rig.semi or rig.tanker) and not talked and _facing(rig.get_witness_position(),3.9):
 		return "driver"
 	# The panel and doors can sit within reach of the fax, chain or field book.
 	if rig.action_id() == "drop" or (held and _near(BAY,16.0) and rig.action_id() == "enter"):
@@ -1110,20 +1110,25 @@ func _dropped() -> void:
 		return
 	drop_odo = rig.get_status().odo
 	drop_time = _clock()
-	if rig.semi:
+	if rig.semi or rig.tanker:
+		var milk: bool = rig.tanker != null
 		if received_freight:
 			received_freight.queue_free()
-		received_freight = rig.semi
+		received_freight = rig.car
 		received_freight.reparent(world,true)
 		received_freight.settle(rig._ground)
 		rig.car_lamps.hide()
 		rig.car_lamps.queue_free()
 		rig.car = null
 		rig.semi = null
+		rig.tanker = null
 		rig.end_job()
 		_clear_field_job()
 		_prepare_offers()
-		_message("RIVER LANES","We've got the tractor and the box. Keep your copy for the county.")
+		if milk:
+			_message("MILK HOUSE","Seal matches. We'll take the milk from here. You've got your transfer copy.")
+		else:
+			_message("RIVER LANES","We've got the tractor and the box. Keep your copy for the county.")
 		_refresh()
 		_save()
 		return
@@ -1283,6 +1288,8 @@ func _file_slip(slip: Dictionary) -> void:
 		fax_text += "\nHeavy recovery  $%d" % slip.heavy_fee
 	if slip.get("recovery") == "semi":
 		fax_text += "\nReceived at River Lanes truck stop"
+	elif slip.get("recovery") == "milk":
+		fax_text += "\nBrzezinski transfer   %d gal   /   Seal %s" % [int(slip.gallons),slip.seal]
 	if slip.has("clearance_bonus"):
 		fax_text += "\nSquad clearance  %s    Bonus  $%.2f" % [Dispatch.Squad.clock(slip.clearance_seconds),slip.clearance_bonus]
 	if slip.get("rate_fee",0) > 0:
@@ -1414,7 +1421,9 @@ func _contract_hint(site: String) -> Dictionary:
 			instruction = rig.dropoff.approach
 			if rig.at_dropoff():
 				title = "At %s" % rig.dropoff.sign
-				if rig.in_cab:
+				if rig.tanker and not rig.tanker.is_settled() and rig.is_stopped():
+					instruction = "Let the tank settle before lowering the lift. The load indicator returns to center."
+				elif rig.in_cab:
 					instruction = "Stop and get out. Walk to the wrecker’s left rear panel."
 				else:
 					var control := "Tap USE" if desk.is_touch_mode() else "Press E"
@@ -1518,11 +1527,14 @@ func _route_note(favor_site := "") -> Dictionary:
 	var title := "Route slip   /   Brandt yard"
 	var unmapped := false
 	var heading: float = fposmod(-rad_to_deg(rig.heading),360.0)
-	if favor_site.is_empty() and mode == "haul" and rig.semi:
-		if County.RiverLanes.LOT.grow(3).has_point(p):
+	if favor_site.is_empty() and mode == "haul" and (rig.semi or rig.tanker):
+		var apron := County.Dairy.APRON if rig.tanker else County.RiverLanes.LOT
+		if apron.grow(3).has_point(p):
 			return {"title":rig.dropoff.sign,"instruction":rig.dropoff.approach}
-		var freight: Dictionary = _current_road_map().cue(p,heading,County.RiverLanes.BAY.get_center(),"River Lanes truck stop")
-		freight.title = "Delivery   /   River Lanes receiving"
+		var receiver := "Brzezinski milk house" if rig.tanker else "River Lanes truck stop"
+		var center:Vector3 = rig.dropoff.center
+		var freight: Dictionary = _current_road_map().cue(p,heading,Vector2(center.x,center.z),receiver)
+		freight.title = "Delivery   /   "+receiver
 		return freight
 	if county.alder_open and p.y < -478 and absf(p.x-441) < 43:
 		if mode == "fieldwork" and job.get("case_id") in ["line","ride"]:
@@ -1580,7 +1592,8 @@ func _refresh() -> void:
 		rig.warning_triangle.visible = favor_site.is_empty()
 	var guide_on: bool = mode == "haul" and rig.loaded and favor_site.is_empty()
 	county.freight_guide.visible = guide_on and rig.semi != null
-	county.drop_guide.visible = guide_on and rig.semi == null
+	county.milk_guide.visible = guide_on and rig.tanker != null
+	county.drop_guide.visible = guide_on and rig.semi == null and rig.tanker == null
 	if county.drop_guide.visible:
 		county.drop_guide.position = rig.dropoff.center
 	var site := _site_action()
@@ -1636,6 +1649,8 @@ func _refresh() -> void:
 	state["case_chapter"] = campaign.chapter()
 	state["favor_point"] = favor_point
 	state["favor_available"] = state.can_track_lead and not casework.lead_site().is_empty()
+	if rig.tanker and (rig.loaded or rig.phase == "rigged"):
+		state["milk_load"] = rig.tanker.surge
 	if site == "inspect_sighting" and not desk.is_touch_mode() and state.feedback.is_empty():
 		state.feedback = "E  ·  Take a closer look"
 	state["recovery_restarts_job"] = _restart_on_recovery()
@@ -1680,7 +1695,7 @@ func _restore(s: Dictionary) -> void:
 		received_freight.queue_free()
 		received_freight = null
 	if not s.get("received_freight",{}).is_empty():
-		received_freight = Rig.Semi.new()
+		received_freight = Rig.Tanker.new() if int(s.received_freight.get("variant",-1)) == Rig.Tanker.VARIANT else Rig.Semi.new()
 		received_freight.restore_delivery(world,s.received_freight,rig._ground)
 	casework.leave_tower()
 	completed = int(s.completed)

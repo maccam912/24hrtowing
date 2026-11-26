@@ -46,7 +46,8 @@ func _initialize() -> void:
 func test_heavy_dispatch() -> void:
 	var slips := []
 	var heavy_calls := 0
-	for i in 20:
+	var milk_calls := 0
+	for i in 40:
 		var base := Dispatch.ordinary(i, 22, slips)
 		check(not base.has("heavy_recovery") and base.variant not in [Dispatch.HEAVY_VARIANT,Dispatch.Snowplow.VARIANT], "the standard line can serve every base rotation")
 		var job := Dispatch.ordinary(i, 22, slips, true)
@@ -54,6 +55,9 @@ func test_heavy_dispatch() -> void:
 		var ordinary := Dispatch.issue_slip(base, 100, 101, 102, 5, "03:35")
 		if job.id == "stuck_plow":
 			check(job.kind == "ditch" and job.variant == Dispatch.Snowplow.VARIANT and slip.heavy_fee == Dispatch.HEAVY_FEE, "county plow is a heavy ditch pull")
+		elif job.id == "milk_tanker":
+			milk_calls += 1
+			check(job.kind == "hazard" and slip.heavy_fee == Dispatch.HEAVY_FEE and slip.storage == 0 and slip.gallons == job.gallons,"milk recovery pays the heavy rate and carries its transfer in lieu of yard storage")
 		elif job.get("heavy_recovery", false):
 			heavy_calls += 1
 			check(job.kind == "hazard" and job.variant == Dispatch.HEAVY_VARIANT and "snatch block" in job.dispatch and job.vin != Dispatch.Legacy.JOBS.hold.vin, "upgraded dispatch can issue a separate heavy pickup")
@@ -62,3 +66,4 @@ func test_heavy_dispatch() -> void:
 			check(slip.heavy_fee == 0 and slip.pay == ordinary.pay, "ordinary calls keep their county rate")
 		slips.append(slip)
 	check(heavy_calls >= 3, "heavy work recurs alongside ordinary paid calls")
+	check(milk_calls >= 1, "the fitted block also opens farm transfer work")

@@ -83,6 +83,18 @@ func ring(pos: Vector3, inside: float, outside: float, col: Color, rot := Vector
 	tor.ring_segments = 6
 	mesh_at(tor,pos,Basis.from_euler(rot),col,style)
 
+func truck_wheel(side: float, z: float, radius: float, x: float, floor_y: float) -> void:
+	var rubber := Color("#292d2e")
+	var steel := Color("#989b93")
+	var at := Vector3(side*x,radius+floor_y,z)
+	tube(at-Vector3.RIGHT*.17,at+Vector3.RIGHT*.17,radius,rubber,16)
+	var face := at+Vector3.RIGHT*side*.18
+	tube(face,face+Vector3.RIGHT*side*.025,radius*.60,steel,12)
+	tube(face+Vector3.RIGHT*side*.03,face+Vector3.RIGHT*side*.073,radius*.23,rubber,10)
+	for lug in 6:
+		var p := face+Vector3(side*.029,cos(lug*TAU/6),sin(lug*TAU/6))*Vector3(1,radius*.38,radius*.38)
+		tube(p,p+Vector3.RIGHT*side*.022,.032,rubber,6)
+
 func finish() -> MeshInstance3D:
 	var baked := ArrayMesh.new()
 	for style: String in groups:

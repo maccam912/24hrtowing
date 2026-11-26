@@ -80,6 +80,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		job_kind = "Squad pull"
 	elif active_job.get("recovery") == "semi":
 		job_kind = "Freight recovery"
+	elif active_job.get("recovery") == "milk":
+		job_kind = "Milk transfer"
 	elif active_job.get("vin") == Dispatch.Snowplow.VIN:
 		job_kind = "Plow pull"
 	var detail: Dictionary = Campaign.DETAILS.get(active_job.get("case_id",""),{})
@@ -119,6 +121,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
 		if active_job.get("recovery") == "semi":
 			note += "\nReceived by River Lanes Truck Stop"
+		elif active_job.get("recovery") == "milk":
+			note += "\nBrzezinski  /  %d gal   ·   Seal %s" % [int(active_job.gallons),active_job.seal]
 		if float(active_job.get("rate_fee",0)) > 0:
 			note += "\n%s   +$%.2f" % [active_job.rate_name,active_job.rate_fee]
 	else:

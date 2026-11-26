@@ -3,6 +3,7 @@ extends Node3D
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
+const Dairy := preload("res://scripts/dairy_transfer.gd")
 const Fittings := preload("res://scripts/yard_fittings.gd")
 const Memorial = preload("res://scripts/memorial_hospital.gd")
 const FuelStore = preload("res://scripts/fuel_store.gd")
@@ -66,6 +67,7 @@ var fuel_door: Node3D
 var bay: Node3D
 var drop_guide := Node3D.new()
 var freight_guide := Node3D.new()
+var milk_guide := Node3D.new()
 var favor_guide: Node3D
 var bay_locked := false
 var survey_pickup_parked := true
@@ -96,6 +98,13 @@ func _ready() -> void:
 	receiving.build_guide()
 	receiving.draw.finish()
 	freight_guide.hide()
+	milk_guide.name = "MilkHouseLamps"
+	add_child(milk_guide)
+	milk_guide.position = Dairy.CENTER
+	var transfer := Dairy.new(self,Batch.new(milk_guide,materials))
+	transfer.build_guide()
+	transfer.draw.finish()
+	milk_guide.hide()
 
 func map_roads() -> Array:
 	var result := []
@@ -586,6 +595,7 @@ func _build() -> void:
 	places.build()
 	_build_yard_fittings()
 	RiverLanes.new(self,draw).build()
+	Dairy.new(self,draw).build()
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
 	for x: float in [205.45,208.65]:

@@ -7,6 +7,8 @@ signal sound_event(id:String)
 const Truck = preload("res://scripts/rig_truck.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
+const Tanker := preload("res://scripts/milk_tanker.gd")
+const Dairy := preload("res://scripts/dairy_transfer.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
 const DepartingDriver := preload("res://scripts/departing_driver.gd")
 const VehicleDrifts = preload("res://scripts/vehicle_drifts.gd")
@@ -36,6 +38,7 @@ var eyes:=Camera3D.new()
 var torch:=SpotLight3D.new()
 var car:Node3D
 var semi: Semi
+var tanker: Tanker
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
@@ -104,7 +107,9 @@ var boarding_walk: RiderWalk
 var exiting_riders: Array[RiderWalk] = []
 var walked:=0.0
 var dropoff: Dictionary:
-	get: return RiverLanes.DROP if semi else YardDrop.for_vehicle(kind)
+	get:
+		if tanker: return Dairy.DROP
+		return RiverLanes.DROP if semi else YardDrop.for_vehicle(kind)
 var ground_period:=0.0
 var ground_targets:=Vector3.ZERO
 var assist:=true
@@ -356,7 +361,30 @@ func _truck_obstacle(step:Vector3, turn:float) -> bool:
 		var size: Vector3 = car.get_meta("body_size")
 		if absf(at.x)<size.x+1.04 and absf(at.z)<size.z-.04 and Vector2(at.x,at.z).length_squared()<Vector2(old.x,old.z).length_squared():
 			return true
+	if loaded and tanker:
+		var pose := forecast_tow(step,turn,Tanker.FRONT_AXLE,Tanker.REAR_AXLE,Tanker.WHEEL_RADIUS)
+		return load_obstructed(tanker,pose,Tanker.SIZE.x,1.0,[-Tanker.SIZE.z,0,Tanker.SIZE.z])
 	return loaded and semi != null and semi.tow_obstructed(self,step,turn)
+
+func forecast_tow(step: Vector3, turn: float, front_axle: float, rear_axle: float, wheel_height: float) -> Transform3D:
+	var next_hitch := truck.position+step+(_hitch()-truck.position).rotated(Vector3.UP,turn)
+	var axle_offset := car.to_global(Vector3(0,wheel_height,rear_axle))-next_hitch
+	var next_heading := heading+turn
+	var yaw := next_heading+clampf(angle_difference(next_heading,atan2(axle_offset.x,axle_offset.z)),-PI/3,PI/3)
+	var pose := Basis(Vector3.UP,yaw)
+	var at := next_hitch-pose*Vector3(0,0,front_axle)
+	at.y = car.position.y
+	return Transform3D(pose,at)
+
+func load_obstructed(payload: Node3D, pose: Transform3D, half_width: float, probe_height: float, stations: Array) -> bool:
+	for side:float in [-1.,1.]:
+		for z:float in stations:
+			var local := Vector3(side*half_width,probe_height,z)
+			var from := payload.to_global(local)
+			var sweep := pose*local-from
+			sweep.y = 0
+			if _obstructed(from,sweep): return true
+	return false
 
 func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_ladder := false) -> void:
 	if not _ready_to_run: return
@@ -426,6 +454,12 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	if tire_chains:
 		snow_speed *= 1.30
 	var load_factor := 0.80 if loaded and vehicle_identity.get("heavy_recovery",false) else 1.0
+	if tanker and loaded:
+		load_factor *= .88
+		if handbrake:
+			load_factor *= 1.0-clampf(tanker.surge.y,0,1)*.36
+		if Dairy.APRON.has_point(Vector2(truck.position.x,truck.position.z)):
+			offroad = 0
 	var max_forward := lerpf(packed_speed,snow_speed,offroad) * load_factor
 	var tire_grip:float=1.29 if tire_chains else 1.0
 	var coast_decel := .56 + offroad*.78 + speed*speed*.0018
@@ -462,6 +496,8 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	if fuel<=0 and info_timer<=0: _note("Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
 	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
+	if loaded and tanker:
+		cornering_grip *= 1.0-clampf(absf(tanker.surge.x),0,1)*.32
 	var lock_angle := minf(MAX_STEER_ANGLE, atan2(Truck.WHEELBASE*cornering_grip, speed*speed))
 	var steer_rate := lock_angle * (2.0 if absf(move.x) > .04 else 2.8)
 	steering = move_toward(steering, clampf(move.x,-1,1)*lock_angle, steer_rate*dt)
@@ -476,6 +512,8 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	# Above yard speed, momentum can push the drive tires sideways on snow.
 	var slip_limit := maxf(0.0,absf(speed)-6.0) * .17
 	var lateral_speed := clampf(motion.dot(right)*exp(-3.1*tire_grip*dt),-slip_limit,slip_limit)
+	if loaded and tanker:
+		lateral_speed += tanker.surge.x*minf(absf(speed)*.25,3.0)*dt
 	motion = midway*speed + right*lateral_speed
 	var step := motion*dt + (next_forward-forward)*Truck.REAR_AXLE_Z
 	if _truck_obstacle(step,turn):
@@ -498,6 +536,8 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	odo+=driven/GAME_MILE
 	fuel=maxf(0,fuel-driven*(.000065 if loaded else .000046))
 	acceleration=clampf((speed-prev)/dt,-11,6)
+	if loaded and tanker:
+		tanker.step_liquid(dt,Vector2(-speed*speed*tan(steering)/Truck.WHEELBASE*.31,-acceleration*.23))
 	_update_engine(demand,dt)
 	reverse_timer=maxf(0.0,reverse_timer-dt)
 	if speed<-.10 and is_zero_approx(reverse_timer):
@@ -647,7 +687,7 @@ func _compass_degrees() -> float:
 	return fposmod(rad_to_deg(lerp_angle(deg_to_rad(_heading_degrees()),bearing,sighting_calm)),360.0)
 
 static func uses_warning_triangle(job_kind: String, ticket: Dictionary) -> bool:
-	return job_kind in ["ditch","hazard"] and not ticket.has("case_id") and ticket.get("recovery","") in ["","semi"]
+	return job_kind in ["ditch","hazard"] and not ticket.has("case_id") and ticket.get("recovery","") in ["","semi","milk"]
 
 func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_phase := "scene") -> void:
 	end_job()
@@ -660,16 +700,22 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["case_id", "rider", "recovery", "fold", "paint", "mail", "running", "open_door", "untaped"]:
+	for key in ["case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if kind == "hold":
 		vehicle_identity.open_door = true
 	car=Scene.car(self,kind,variant,vehicle_identity)
 	semi = car as Semi
+	tanker = car as Tanker
 	car.position=Vector3(target.x,_ground(target),target.z)
 	car.rotation.y=yaw
 	match _recovery():
+		"milk":
+			var left := car.to_global(Vector3.LEFT*Tanker.SIZE.x)
+			var right := car.to_global(Vector3.RIGHT*Tanker.SIZE.x)
+			car.rotation.z = clampf(atan2(_ground(right)-_ground(left),Tanker.SIZE.x*2),-.17,.17)
+			VehicleDrifts.place(car,_ground)
 		"semi":
 			semi.park_at(car.position,yaw,vehicle_identity.get("fold",1.12),_ground)
 		"roll":
@@ -696,11 +742,11 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		var across := Vector3.RIGHT.rotated(Vector3.UP,road_yaw)
 		if _road(target + across) > _road(target - across):
 			across = -across
-		var ahead := 6.0 if _county_plow() or semi else 3.5
+		var ahead := 6.0 if _county_plow() or semi or tanker else 3.5
 		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * ahead
 		at.y = _ground(at)
 		warning_triangle = Scene.warning_triangle(self,at,road_yaw)
-	if kind in ["ditch","hold","passenger"] or semi:
+	if kind in ["ditch","hold","passenger"] or semi or tanker:
 		witness=Scene.person(self,kind=="hold",vehicle_identity.driver_variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
 		witness.position=Vector3(point.x,_ground(point),point.z)
@@ -720,6 +766,7 @@ func end_job() -> void:
 		if is_instance_valid(n): n.queue_free()
 	car=null
 	semi=null
+	tanker=null
 	car_lamps=null
 	flash_time=0
 	witness=null
@@ -804,6 +851,7 @@ func _eyelet(end:int) -> Vector3:
 	return car.to_global(Vector3(0,size.y-.087,end*size.z*1.016))
 
 func _nearest_eyelet() -> int:
+	if tanker: return -1
 	if _county_plow(): return 1
 	return 1 if _flat_distance(foot,_eyelet(1))<_flat_distance(foot,_eyelet(-1)) else -1
 
@@ -875,6 +923,7 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 
 func at_dropoff() -> bool:
 	if semi: return loaded and semi.fits(RiverLanes.BAY)
+	if tanker: return loaded and tanker.fits(Dairy.BAY)
 	return loaded and is_instance_valid(car) and (YardDrop.contains(dropoff.center, car.position)
 		or YardDrop.contains(dropoff.center, truck.position))
 
@@ -910,12 +959,16 @@ func action_id() -> String:
 		return "flare"
 	if phase=="scene" and near_casualty(8.5) and (_in_range(car.position+Vector3.UP,8.5) or not _at_door()):
 		return "flare"
+	if phase=="flared" and tanker and not tanker.checked:
+		if _in_range(tanker.to_global(Tanker.CABINET),2.5): return "milk_manifest"
+		if panel_range: return "milk_seal"
 	if phase=="flared" and panel_range:
 		if not _reaches(): return "too_far"
 		if semi and not second_winch: return "need_second_winch"
-		if semi:
-			var set_up := semi.to_local(_drum())
-			if set_up.z > -4.1 or absf(set_up.x)>12.: return "freight_position"
+		if semi or tanker:
+			var set_up := car.to_local(_drum())
+			var nose:float = car.get_meta("body_size").z
+			if set_up.z > -nose-.6 or absf(set_up.x)>12.: return "milk_position" if tanker else "freight_position"
 		if _boom_job() and not _clear_to_lower(): return "boom_space"
 		if _recovery()=="ice" and (_flat_distance(_drum(),job_site)<22.0 or _ground(truck.position)< -1.0): return "shore"
 		return "need_block" if vehicle_identity.heavy_recovery and not snatch_block else "cable"
@@ -937,9 +990,10 @@ func action_id() -> String:
 		if kind!="hold" and panel_range: return "lift"
 	if phase=="dollies" and panel_range: return "lift"
 	if phase=="loaded" and panel_range:
+		if tanker and at_dropoff() and not tanker.is_settled(): return "milk_settle"
 		return "drop" if at_dropoff() else "haul"
 	if _at_door(): return "enter"
-	if phase=="flared" and near_casualty(2.7) and kind!="ditch" and not semi: return "read_tape"
+	if phase=="flared" and near_casualty(2.7) and kind!="ditch" and not semi and not tanker: return "read_tape"
 	return ""
 
 func _at_door() -> bool:
@@ -953,6 +1007,13 @@ func _at_door() -> bool:
 func context_text() -> String:
 	var action:=action_id()
 	if Semi.PROMPTS.has(action): return Semi.PROMPTS[action]
+	if tanker:
+		match action:
+			"milk_manifest": return "Read the milk ticket and check the pump seal"
+			"milk_seal": return "Check the seal on the tanker’s rear pump cabinet"
+			"milk_position": return "Park ahead of the milk truck with its grille facing the lift"
+			"milk_settle": return "Hold the lift steady while the milk settles"
+			"attach": return "Shackle the block to the front eye"
 	if action in ["winch","lift","sling"] and fuel <= 0.0:
 		return DRY_RIG_HINT
 	if action == "enter" and is_chocked() and fuel > 0.0:
@@ -986,6 +1047,12 @@ func _hint() -> String:
 	if semi:
 		var freight_note := semi.instructions(phase)
 		if not freight_note.is_empty(): return freight_note
+	if tanker:
+		match phase:
+			"scene": return "Park ahead of the milk truck with the wrecker’s rear toward its grille. Set a flare beside the farm lane."
+			"flared": return "Check the orange seal on the rear pump cabinet and copy the gallons." if not tanker.checked else "Take the snatch block at the wrecker’s side panel."
+			"cable": return "Take the block to the eye just below the tanker’s grille."
+			"rigged": return "Start the pull at the left rear panel. Give the tank a moment to settle if the load needle jumps."
 	if kind=="passenger":
 		if phase == "boarding": return "Keep the wrecker stopped while the passenger walks to its right-hand door."
 		return "Take the passenger to %s." % Rides.destination(vehicle_identity) if phase == "passenger" else "Pull up beside the driver, step down and ask if they need a lift."
@@ -1014,6 +1081,14 @@ func _hint() -> String:
 
 func interact() -> void:
 	var a:=action_id()
+	if a == "milk_manifest":
+		tanker.checked = true
+		_note("%d gallons   ·   Seal %s intact. Take the snatch block at the side panel." % [tanker.gallons,tanker.seal],6.)
+		sound_event.emit("ratchet")
+		return
+	if a in ["milk_position","milk_seal","milk_settle"]:
+		_note(context_text(),4.)
+		return
 	if a=="freight_position":
 		_note(context_text(),4)
 		return
@@ -1149,6 +1224,11 @@ func _winch(operate:bool,dt:float) -> void:
 		working = false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
+		if tanker:
+			if not loaded:
+				tanker.update_during_pull(dt,0,tanker.global_basis.inverse()*(_drum()-tanker.global_position).normalized())
+			elif not in_cab:
+				tanker.step_liquid(dt,Vector2.ZERO)
 		return
 	if not prev_work: sound_event.emit("winch_start")
 	# A partial last stroke uses only the diesel still in the tank.
@@ -1184,6 +1264,8 @@ func _winch(operate:bool,dt:float) -> void:
 		# that load across two strands and halves travel per turn of the drum.
 		resistance=(resistance+.68)*.5
 		shortening*=.5
+	if tanker:
+		resistance += clampf(tanker.surge.length()*.28,0,.31)
 	free_line=maxf(.30,free_line-shortening)
 	var taut:=maxf(0,gap-free_line)
 	tension=move_toward(tension,resistance*clampf(taut/.34,0,1),dt*(.23+taut*.38))
@@ -1198,6 +1280,9 @@ func _winch(operate:bool,dt:float) -> void:
 	if taut<=.014: return
 	var traction:float=clampf((tension-.16)*1.65,0,1)
 	var amount:float=minf(taut,minf(gap,shortening*(.37+traction*.72)))
+	if tanker:
+		tanker.update_during_pull(dt,amount/maxf(.001,dt),tanker.global_basis.inverse()*toward.normalized())
+		car.rotation.z = move_toward(car.rotation.z,0,amount*.028)
 	car.position+=toward.normalized()*amount
 	car.position.y=lerpf(car.position.y,_ground(car.position),1-exp(-7.0*dt))
 	if _county_plow():
@@ -1265,11 +1350,11 @@ func _track_underlift() -> void:
 	var wheel_height:=.43 if size == Scene.PICKUP_SIZE else .355
 	var lifted_axle:=Vector3(0,wheel_height,line_end*half_wheelbase)
 	var rolling_axle:=Vector3(0,wheel_height,-lifted_axle.z)
-	if semi:
-		wheel_height = Semi.WHEEL_RADIUS
-		lifted_axle = Vector3(0,wheel_height,Semi.FRONT_AXLE)
-		rolling_axle = Vector3(0,wheel_height,Semi.REAR_AXLE)
-		half_wheelbase = (Semi.REAR_AXLE-Semi.FRONT_AXLE)*.5
+	if semi or tanker:
+		wheel_height = Tanker.WHEEL_RADIUS if tanker else Semi.WHEEL_RADIUS
+		lifted_axle = Vector3(0,wheel_height,Tanker.FRONT_AXLE if tanker else Semi.FRONT_AXLE)
+		rolling_axle = Vector3(0,wheel_height,Tanker.REAR_AXLE if tanker else Semi.REAR_AXLE)
+		half_wheelbase = (rolling_axle.z-lifted_axle.z)*.5
 	var hitch:=_hitch()+Vector3.UP*.15
 	# The rolling axle keeps its last ground contact as the crossbar moves. This
 	# gives the tow its own turning arc, in both forward and reverse.
@@ -1428,6 +1513,7 @@ func save_state() -> Dictionary:
 	d["driving_view"] = driving_view
 	d.special_work = special_work
 	if semi: d.freight = semi.snapshot()
+	if tanker: d.milk = tanker.snapshot()
 	d.second_line = second_line
 	if not vehicle_identity.is_empty():
 		d["identity"] = vehicle_identity.duplicate()
@@ -1512,6 +1598,7 @@ func restore_state(d:Dictionary) -> void:
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
 		if semi: semi.restore(d.get("freight",{}),_ground)
+		if tanker: tanker.restore(d.get("milk",{}))
 		if kind=="hold" and phase not in ["scene","flared","cable"]:
 			Scene.close_driver_door(car)
 		if phase=="departing" and witness:

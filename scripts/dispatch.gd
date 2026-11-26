@@ -7,6 +7,8 @@ const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Rides := preload("res://scripts/passenger_call.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
+const Tanker := preload("res://scripts/milk_tanker.gd")
+const Dairy := preload("res://scripts/dairy_transfer.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
@@ -99,6 +101,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var squad_calls := 0
 	var last_semi := -1
 	var freight_calls := 0
+	var last_milk := -1
+	var milk_calls := 0
 	for slip: Dictionary in slips:
 		met_angie = met_angie or slip.get("vin", "") == Legacy.JOBS.angie.vin
 		if slip.has("case_id") or slip.kind not in ["ditch", "hazard","passenger"]:
@@ -107,6 +111,9 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		if slip.get("recovery") == "semi":
 			last_semi = ditches + hazards
 			freight_calls += 1
+		elif slip.get("recovery") == "milk":
+			last_milk = ditches + hazards
+			milk_calls += 1
 		if slip.get("vin") == Snowplow.VIN:
 			last_plow = ditches + hazards
 		if slip.has("clearance_seconds"):
@@ -140,6 +147,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var squad := kind == "ditch" and not passenger_due and not stuck_plow and rotation_count >= 12 and (last_squad == -1 or rotation_count-last_squad >= 17)
 	if kind == "hazard" and second_winch and snatch_block and rotation_count >= 12 and (last_semi < 0 or rotation_count-last_semi >= 18):
 		return _freight_ticket(completed,dispatch_seed,freight_calls)
+	if kind == "hazard" and snatch_block and rotation_count >= 16 and (last_milk < 0 or rotation_count-last_milk >= 20) and (last_semi < 0 or rotation_count-last_semi >= 4):
+		return _milk_ticket(completed,dispatch_seed,milk_calls)
 	var route := ""
 	var best := INF
 	for id: String in SITES:
@@ -287,6 +296,24 @@ static func _freight_ticket(completed: int, seed_value: int, previous: int) -> D
 		"directions":"Cross the river on sixty-four. Turn %s onto US 59 at River Lanes. Look for the east turnout and the white freight box." % ("right" if north else "left"),
 		"haul_line":"Copy, Brandt. River Lanes has the pull-through ready. Get both halves between the amber posts and drop at the panel."}
 
+static func _milk_ticket(completed: int, seed_value: int, previous: int) -> Dictionary:
+	var east := posmod(seed_value+previous,2) != 0
+	var site := "milk_ff" if east else "milk_lindquist"
+	var road := "County FF" if east else "Kolpack Rd"
+	var lane := "west dairy lane" if east else "Lindquist milk lane"
+	var point := Vector3(792,0,343) if east else Vector3(407.5,0,246)
+	var gallons := 1460+40*posmod(seed_value+previous*7,23)
+	var seal := "B%04d" % (1000+posmod(seed_value*13+completed*59,9000))
+	var miles := (absf(point.x-Dairy.CENTER.x)+absf(point.z-400)+13.)/METERS_PER_GAME_MILE
+	var arrival := "Take sixty-four east to County FF. Turn south. The dairy lane is on your right before Hendricks." if east else "Take sixty-four east to Kolpack. Turn south. Look for the bulk truck at the Lindquist farm lane, before Hendricks."
+	return {"number":1001+completed,"kind":"hazard","id":"milk_tanker","recovery":"milk","heavy_recovery":true,
+		"site":site,"route":site,"run":site+("/west" if east else "/east"),"road":road,"location":road+" · "+lane,"point":point,
+		"angle":PI+(.14 if east else -.16),"variant":Tanker.VARIANT,"driver_variant":2,"vehicle":"Brzezinski bulk milk truck",
+		"plate":"WI MH 024","vin":"1HTMDADR6RH571024","gallons":gallons,"seal":seal,"schedule":snappedf(miles,.1),
+		"person":"Milk hauler","reply":"milk_herd" if previous%2 == 0 else "milk_haul","destination":Dairy.DROP.sign,
+		"dispatch":"Brzezinski milk truck lost its driveline leaving the %s on %s. Driver has %s gallons sealed up. Get it to the milk house for transfer." % [lane,road,gallons],
+		"directions":arrival,"haul_line":"The relief hauler is at the Brzezinski milk house on Hendricks. Take the corners easy. He's got the transfer hose ready."}
+
 static func _scheduled_miles(station: Vector2) -> float:
 	# Original street distances down the county grid to the K gate and across the yard.
 	var yard: Vector3 = YardDrop.STORAGE.center
@@ -346,7 +373,7 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 	var hookup := 0 if look_only else 16
 	var winch := 0 if look_only else maxi(1, ceili(seconds / 60.0)) * 6
 	var storage := 12 if towed else 0
-	if job.get("recovery") == "semi":
+	if job.get("recovery") in ["semi","milk"]:
 		storage = 0
 	var heavy_fee := HEAVY_FEE if job.get("heavy_recovery", false) else 0
 	var rate_fee := float(job.get("rate_fee",0.0)) if revised_rates else 0.0
@@ -368,6 +395,10 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		slip.recovery = job.recovery
 	if job.get("recovery") == "semi":
 		slip.destination = RiverLanes.DROP.sign
+	elif job.get("recovery") == "milk":
+		slip.destination = Dairy.DROP.sign
+		slip.gallons = int(job.gallons)
+		slip.seal = job.seal
 	if job.kind == "passenger":
 		slip.rider = Rides.rider(job).id
 		slip.destination = Rides.destination(job)

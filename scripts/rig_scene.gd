@@ -3,6 +3,7 @@ const K=preload("res://scripts/rig_mesh.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
+const Tanker := preload("res://scripts/milk_tanker.gd")
 const BLACK=Color("#272b2c")
 const GLASS=Color("#38464b")
 const STEEL=Color("#929895")
@@ -30,6 +31,10 @@ static func snatch_block(parent: Node3D) -> Node3D:
 	return block
 
 static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
+	if variant == Tanker.VARIANT:
+		var tanker := Tanker.new()
+		tanker.build(parent,identity)
+		return tanker
 	if variant == Semi.VARIANT:
 		var tractor := Semi.new()
 		tractor.build(parent,identity)
@@ -240,6 +245,8 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 		# Magnetic feet hold the portable light bar on the roof. Its amber
 		# clearance markers are visible to the operator in the side mirrors.
 		var bar_y:=height+1.35
+		if car_body is Tanker:
+			lamps.position = Vector3(0,-.58,Tanker.SIZE.z-.11)
 		kit.box(Vector3(0,bar_y,0),Vector3(1.82,.17,.16),Color("#d7a44e"))
 		for side:float in [-1.0,1.0]:
 			kit.box(Vector3(side*.52,bar_y-.09,0),Vector3(.15,.09,.22),BLACK)

@@ -179,6 +179,18 @@
     "DISPATCH",
     "Stay on US 59 to River Lanes by Highway 64. Take the open apron beside the diner. Pull the tractor and trailer straight between the four amber posts."
   ],
+  "milk_herd": [
+    "MILK HAULER",
+    "Seal number’s on the pump door. I heard the shaft go as I pulled out. Lights went out at the barn before that. Whole herd stood outside in the snow."
+  ],
+  "milk_haul": [
+    "MILK HAULER",
+    "Part of a load in there. You’ll feel it come ahead when you brake. Relief truck’s meeting me at Brzezinski. Check that seal at the back before you pull."
+  ],
+  "milk_dir": [
+    "DISPATCH",
+    "Brzezinski Dairy on Hendricks, just east of K. Use the apron under the milk house light. Ease off before the turns and brake early. Put the tank inside the four posts."
+  ],
   "displaced_driver": [
     "DRIVER",
     "I was on the four-lane outside Wausau. Where am I?"

@@ -431,6 +431,8 @@ func _hud() -> void:
 		_mobile()
 		if drawn.get("work_available",false) and not drawn.get("in_cab",true):
 			_tension_dial()
+	if drawn.has("milk_load") and (drawn.get("work_available",false) or drawn.get("in_cab",false) or drawn.get("phase","") == "loaded"):
+		_milk_load_dial(drawn.milk_load)
 
 const TOWER_LABELS := {"tower_ladder":"LADDER","tower_off":"STEP OFF","tower_glass":"GLASSES","tower_lower":"LOWER","tower_note":"NOTE RING"}
 
@@ -578,6 +580,22 @@ func _arrow(center: Vector2,scale_px: float,colour: Color,right: bool) -> void:
 	var side := 1 if right else -1
 	var points := PackedVector2Array([center+Vector2(-.4*side,-.78)*scale_px, center+Vector2(.38*side,0)*scale_px, center+Vector2(-.4*side,.78)*scale_px])
 	draw_polyline(points,colour,maxf(2.5,scale_px*.24),true)
+
+func _milk_load_dial(load_shift: Vector2) -> void:
+	var face := Rect2(dim.x-110,TOP_ROW_Y+(TOP_ROW_HEIGHT if desk.is_touch_mode() else 39)+8,88,94)
+	hud_panels.append(face)
+	switch_face(face,Color("#3d4844"))
+	draw_rect(face.grow(-4),Color("#dfd8b9"))
+	var pivot := face.get_center()+Vector2(0,4)
+	draw_arc(pivot,23,0,TAU,40,INK,1.5,true)
+	draw_arc(pivot,17,0,TAU,40,Color("#c09360"),1.,true)
+	draw_line(pivot-Vector2(29,0),pivot+Vector2(29,0),LINES,1)
+	draw_line(pivot-Vector2(0,25),pivot+Vector2(0,25),LINES,1)
+	var weight := pivot+Vector2(load_shift.x,-load_shift.y).limit_length(1.35)*17.0
+	draw_circle(weight,4.8,Color("#77382e"),true,-1,true)
+	fitted(Rect2(face.position+Vector2(4,4),Vector2(80,20)),"TANK LOAD",scaled,14,DARK)
+	var cue := "EASE OFF" if load_shift.length()>.87 else "FRONT  ↑"
+	fitted(Rect2(face.position+Vector2(4,73),Vector2(80,16)),cue,MONO,12,OXBLOOD if load_shift.length()>.87 else DARK)
 
 func _tension_dial() -> void:
 	var value := clampf(float(drawn.get("tension",0.0)),0,1)

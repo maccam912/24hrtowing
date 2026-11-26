@@ -58,7 +58,7 @@ func build(parent: Node3D, ticket: Dictionary) -> void:
 		g.box(Vector3(s*1.38,2.54,-1.47),Vector3(.11,.38,.15),STEEL)
 		g.box(Vector3(x,.57,3.0),Vector3(.40,.69,.072),BLACK)
 		for z:float in [FRONT_AXLE,REAR_AXLE-.53,REAR_AXLE+.53]:
-			_wheel(g,s,z,WHEEL_RADIUS,1.07,0)
+			g.truck_wheel(s,z,WHEEL_RADIUS,1.07,0)
 	Kit.label(self,get_meta("plate"),Vector3(.05,1.01,-3.46),.082,CREAM,Vector3(0,PI,0))
 	g.finish()
 	trailer = Kit.joint(self,Vector3.ZERO,"FreightTrailer")
@@ -78,7 +78,7 @@ func build(parent: Node3D, ticket: Dictionary) -> void:
 		g.box(Vector3(s*.81,-.24,2.68),Vector3(.15,.53,.18),STEEL)
 		g.box(Vector3(s*.81,-.52,2.68),Vector3(.34,.067,.28),BLACK)
 		for z:float in [BOGIE-.58,BOGIE+.58]:
-			_wheel(g,s,z,.51,1.13,-KINGPIN.y)
+			g.truck_wheel(s,z,.51,1.13,-KINGPIN.y)
 		g.box(Vector3(s*1.12,-.56,9.68),Vector3(.39,.79,.065),BLACK)
 		g.box(Vector3(s*.64,1.43,BACK+.023),Vector3(1.23,2.68,.037),Color("#b8bcb5"))
 		g.tube(Vector3(s*.82,.22,BACK+.07),Vector3(s*.82,2.64,BACK+.07),.029,STEEL)
@@ -86,16 +86,6 @@ func build(parent: Node3D, ticket: Dictionary) -> void:
 		g.ring(Vector3(s*(WIDTH-.03),-.16,BOGIE-.8),.075,.132,Color("#bf9a62"),Vector3(0,0,PI/2))
 	g.box(Vector3(0,-.48,BACK-.09),Vector3(2.27,.17,.11),STEEL)
 	g.finish()
-
-func _wheel(g, side: float,z: float, radius: float,x: float, floor_y: float) -> void:
-	var at := Vector3(side*x,radius+floor_y,z)
-	g.tube(at-Vector3.RIGHT*.17,at+Vector3.RIGHT*.17,radius,BLACK,16)
-	var face := at+Vector3.RIGHT*side*.18
-	g.tube(face,face+Vector3.RIGHT*side*.025,radius*.60,STEEL,12)
-	g.tube(face+Vector3.RIGHT*side*.03,face+Vector3.RIGHT*side*.073,radius*.23,BLACK,10)
-	for lug in 6:
-		var p := face+Vector3(side*.029,cos(lug*TAU/6),sin(lug*TAU/6))*Vector3(1,radius*.38,radius*.38)
-		g.tube(p,p+Vector3.RIGHT*side*.022,.032,BLACK,6)
 
 func set_trailer_heading(yaw: float, ground: Callable) -> void:
 	var pin := to_global(KINGPIN)
@@ -293,31 +283,15 @@ func crosses_wrecker(truck: Node3D, step: Vector3, turn: float, speed: float) ->
 func tow_obstructed(rig, step: Vector3, turn: float) -> bool:
 	# Predict both axle arcs before committing the wrecker's movement. Check
 	# the long sides too, which swing inside the wheels on a tight turn.
-	var new_hitch:Vector3 = rig.truck.position+step+(rig._hitch()-rig.truck.position).rotated(Vector3.UP,turn)
-	var last_axle := to_global(Vector3(0,WHEEL_RADIUS,REAR_AXLE))-new_hitch
-	var heading:float = rig.heading+turn
-	var new_yaw := heading+clampf(angle_difference(heading,atan2(last_axle.x,last_axle.z)),-PI/3,PI/3)
-	var tractor_heading := Basis(Vector3.UP,new_yaw)
-	var tractor_at := new_hitch-tractor_heading*Vector3(0,0,FRONT_AXLE)
-	tractor_at.y = position.y
-	var pin := tractor_at+tractor_heading*KINGPIN
+	var tractor:Transform3D = rig.forecast_tow(step,turn,FRONT_AXLE,REAR_AXLE,WHEEL_RADIUS)
+	if rig.load_obstructed(self,tractor,SIZE.x,1.0,[-SIZE.z,0,SIZE.z]):
+		return true
+	var pin := tractor*KINGPIN
 	var tail := trailer.to_global(Vector3.BACK*BOGIE)-pin
-	var box_yaw := new_yaw+clampf(angle_difference(new_yaw,atan2(tail.x,tail.z)),-1.22,1.22)
-	var box_heading := Basis(Vector3.UP,box_yaw)
-	for s:float in [-1.,1.]:
-		for z:float in [-SIZE.z,0,SIZE.z]:
-			var local := Vector3(s*SIZE.x,1.0,z)
-			var from := to_global(local)
-			var sweep := tractor_at+tractor_heading*local-from
-			sweep.y = 0
-			if rig._obstructed(from,sweep): return true
-		for z:float in [-.98,2.0,4.9,7.8,BACK]:
-			var local := Vector3(s*WIDTH,-.07,z)
-			var from := trailer.to_global(local)
-			var sweep := pin+box_heading*local-from
-			sweep.y = 0
-			if rig._obstructed(from,sweep): return true
-	return false
+	var yaw := atan2(tractor.basis.z.x,tractor.basis.z.z)
+	var box_yaw := yaw+clampf(angle_difference(yaw,atan2(tail.x,tail.z)),-1.22,1.22)
+	var box_pose := Transform3D(Basis(Vector3.UP,box_yaw),pin)
+	return rig.load_obstructed(trailer,box_pose,WIDTH,-.07,[-.98,2.0,4.9,7.8,BACK])
 
 func settle(ground: Callable) -> void:
 	rotation.x = 0
