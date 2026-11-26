@@ -16,6 +16,7 @@ const YardDrop := preload("res://scripts/yard_drop.gd")
 const Addresses := preload("res://scripts/fire_numbers.gd")
 const RoadDirections := preload("res://scripts/road_directions.gd")
 
+const OPTIONS_FILE := "user://operator-settings.cfg"
 const WORLD_RASTER_HEIGHT := 288
 const SPAWN := Vector3(-27,0,-64)
 const TITLE_CAMERA_OFFSET := Vector3(-10.5,2.65,-7.0)
@@ -142,9 +143,13 @@ func _ready() -> void:
 	desk = Desk.new()
 	add_child(desk)
 	desk.action.connect(_action)
-	Engine.max_fps = int(saved_data.get("fps",30))
+	var preferences := ConfigFile.new()
+	if not test_session and FileAccess.file_exists(OPTIONS_FILE):
+		preferences.load(OPTIONS_FILE)
+	Engine.max_fps = int(preferences.get_value("cab","fps",saved_data.get("fps",30)))
 	desk.fps = Engine.max_fps
-	audio.set_spoken(saved_data.get("spoken",false))
+	audio.set_spoken(preferences.get_value("cab","spoken",saved_data.get("spoken",false)))
+	rig.assist = preferences.get_value("rig","suggested_anchors",true)
 	_refresh()
 	print("24 HR Towing | dispatch ready")
 
@@ -408,14 +413,16 @@ func _action(id: String) -> void:
 		"read_field":
 			if held and (book_read or _near(BAY,5.0)):
 				_read_book()
+		"settings_anchors":
+			rig.assist = not rig.assist
+			rig._update_highlight()
+			_save_options()
 		"settings_voice":
 			audio.set_spoken(not audio.spoken)
-			if not saved_data.is_empty():
-				saved_data.spoken = audio.spoken
-			_save()
+			_save_options()
 		"settings_30","settings_60":
 			Engine.max_fps = 30 if id == "settings_30" else 60
-			_save()
+			_save_options()
 		"broadcast_am","broadcast_fm","broadcast_off":
 			if rig.in_cab and desk.broadcast_open and broadcast.tune(id.trim_prefix("broadcast_")):
 				broadcast.advance(0.,self)
@@ -459,6 +466,16 @@ func _action(id: String) -> void:
 					_speak("DISPATCH",reply)
 					_save()
 	_refresh()
+
+func _save_options() -> void:
+	if not test_session:
+		var preferences := ConfigFile.new()
+		preferences.set_value("rig","suggested_anchors",rig.assist)
+		preferences.set_value("cab","spoken",audio.spoken)
+		preferences.set_value("cab","fps",Engine.max_fps)
+		if preferences.save(OPTIONS_FILE) != OK:
+			push_warning("Could not save cab settings")
+	_save()
 
 func _needs_fuel_can() -> bool:
 	return fuel_wait_left <= 0.0 and rig.in_cab and rig.is_stopped() and rig.fuel <= 0.0
@@ -1644,7 +1661,7 @@ func _refresh() -> void:
 	state = {"prompt":_prompt(site),"subtitle":caption.current(sub_time),"speaker":speaker,
 		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
 		"can_inspect_sighting":site == "inspect_sighting","can_wipe":site == "wipe_mirror",
-		"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
+		"suggested_anchors":rig.assist,"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
 		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and (not rig.is_chocked() or rig.fuel <= 0.0) and site.is_empty(),

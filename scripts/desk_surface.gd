@@ -276,8 +276,10 @@ func _menu() -> void:
 			var current: int = int(drawn.get("frame_rate",desk.fps))
 			button("settings_30",Rect2(x,y+136,166,78 if touch else 52), "30 FPS", current==30)
 			button("settings_60",Rect2(x+178,y+136,166,78 if touch else 52), "60 FPS", current==60)
-			button("settings_voice",Rect2(x,y+225,width-56,78 if touch else 52),"Dialogue   /   %s" % ("Spoken" if drawn.get("spoken",false) else "Radio chatter"))
-			button("close",Rect2(x,y+332,155,78 if touch else 45),"Back")
+			var height_key := 78 if touch else 52
+			button("settings_voice",Rect2(x,y+225,width-56,height_key),"Dialogue   /   %s" % ("Spoken" if drawn.get("spoken",false) else "Radio chatter"))
+			button("settings_anchors",Rect2(x,y+(311 if touch else 291),width-56,height_key),"Suggested tow eyes   /   %s" % ("On" if drawn.get("suggested_anchors",true) else "Off"))
+			button("close",Rect2(x,p.end.y-(91 if touch else 67),155,height_key),"Back")
 		"help":
 			var line_y := y+94
 			var entries: Array

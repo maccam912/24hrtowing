@@ -285,7 +285,7 @@ func _activate(id: String) -> void:
 		"yard_recovery":
 			if page == "pause":
 				show_document(id,state)
-		"confirm_yard_recovery":
+		"confirm_yard_recovery","settings_anchors":
 			action.emit(id)
 		"title":
 			started = false
