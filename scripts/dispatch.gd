@@ -193,7 +193,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	if kind=="hazard" and dollies_issued and rotation_count>=8 and (last_repair<0 or rotation_count-last_repair>=13) and (last_semi<0 or rotation_count-last_semi>=3) and (last_milk<0 or rotation_count-last_milk>=3):
 		return PoolRepair.ticket(completed,dispatch_seed,repair_calls)
 	if kind=="hazard" and rotation_count>=9 and (last_berm<0 or rotation_count-last_berm>=21) and (last_repair<0 or rotation_count-last_repair>=4) and (last_milk<0 or rotation_count-last_milk>=4):
-		return HighCenter.ticket(completed,dispatch_seed,berm_calls)
+		return _with_fire_number(HighCenter.ticket(completed,dispatch_seed,berm_calls))
 	if kind=="ditch" and snatch_block and not (passenger_due or stuck_plow or squad) and rotation_count>=11 and (last_gate<0 or rotation_count-last_gate>=15):
 		return Redirect.ticket(completed,dispatch_seed,gate_calls)
 	var route := ""
@@ -305,12 +305,15 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		job.dispatch = "%s on %s by %s, %s shoulder. Checked and taped. Bring it to storage. %s" % [
 			job.vehicle, site.road, named_place, shoulder, reason]
 	job.directions = "%s Look on the %s side for the %s." % [site.approach, shoulder, job.vehicle.to_lower()]
-	if Addresses.PARCELS.has(route):
-		var number := Addresses.number(route)
-		job.location = "%s · %s (%s)" % [site.road,site.landmark,number]
+	return _with_fire_number(job)
+
+static func _with_fire_number(job: Dictionary) -> Dictionary:
+	if Addresses.PARCELS.has(job.site):
+		var number := Addresses.number(job.site)
 		job.address = number
+		job.location += " (%s)" % number
 		job.directions += " The nearest fire plate reads %s." % number
-		if route == "frames":
+		if job.site == "frames":
 			job.dispatch += " Duda’s drying shed is at %s." % number
 	return job
 
