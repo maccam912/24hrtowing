@@ -6,9 +6,9 @@ const CRIB_RUN := 1.48
 const CREST := .59
 const PAN_CLEARANCE := .26
 const SITES := [
-	{"road":"Hendricks Rd","site":"milk_lane_berm","landmark":"Brzezinski milk lane","point":Vector3(94,0,405.6),"angle":0.,
+	{"road":"Hendricks Rd","site":"dairy","entrance":"milk_lane_berm","shoulder":"south","station":[94.,400.],"landmark":"Brzezinski milk lane","point":Vector3(94,0,405.6),"angle":0.,
 	 "directions":"Go south on K to Hendricks, then east to Brzezinski. Check the short milk drive just beyond the barns’ west corner."},
-	{"road":"Kolpack Rd","site":"farm_lane_berm","landmark":"Lindquist field entrance","point":Vector3(406.4,0,246.),"angle":PI/2.,
+	{"road":"Kolpack Rd","site":"farm","entrance":"farm_lane_berm","shoulder":"east","station":[400.,246.],"landmark":"Lindquist field entrance","point":Vector3(406.4,0,246.),"angle":PI/2.,
 	 "directions":"Take sixty-four east to Kolpack, then south to the Lindquist silo. The car is on the east side in the farm drive."}
 ]
 var ground: Callable
@@ -34,12 +34,12 @@ static func ticket(issued: int, seed_value: int, prior: int) -> Dictionary:
 	var site: Dictionary = SITES[index]
 	var number := 1001+issued
 	var vehicle := "Tan four-door sedan" if index==0 else "Gray station wagon"
-	return {"id":"high_center","kind":"hazard","route":site.site,"site":site.site,"number":number,"point":site.point,"angle":site.angle,
+	return {"id":"high_center","kind":"hazard","route":site.site,"site":site.site,"run":site.entrance,"road_station":site.station,"shoulder":site.shoulder,"reply":"clear","number":number,"point":site.point,"angle":site.angle,
 		"vehicle":vehicle,"variant":3 if index==0 else 2,"driver_variant":index,"road":site.road,"location":site.road+" · "+site.landmark,
 		"field_berm":-1 if index==0 else 1,"plate":"FHN %03d" % posmod(number*11,1000),"vin":"1G4HP52K4VH%06d" % posmod(number*331+seed_value,1000000),
 		"schedule":snappedf((site.point.x+absf(site.point.z))/400.,.1),
-		"dispatch":"%s across the plow ridge at the %s. Deputy checked it; the driver got a ride. Bring it to storage and leave the lane open." % [vehicle,site.landmark],
-		"directions":site.directions}
+		"dispatch":"%s across the plow ridge at the %s, %s side of %s. The deputy checked it and the driver got a ride. Bring it to storage and leave the lane open." % [vehicle,site.landmark,site.shoulder,site.road],
+		"directions":"%s Look for the %s on the %s side." % [site.directions,vehicle.to_lower(),site.shoulder]}
 
 func _init(model: Node3D, end: int, terrain: Callable) -> void:
 	car = model

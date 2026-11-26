@@ -47,6 +47,8 @@ func run() -> void:
 			check(ticket.vehicle == Dispatch.VEHICLES[ticket.variant], "Vehicle matches the scene")
 			var site: Dictionary = Dispatch.SITES[ticket.site]
 			var station: Vector2 = site.station
+			if ticket.has("road_station"):
+				station = Vector2(ticket.road_station[0],ticket.road_station[1])
 			if ticket.vin == Dispatch.Ambulance.VIN:
 				station = Vector2(Dispatch.Ambulance.SITE.x,0)
 			match ticket.shoulder:
