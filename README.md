@@ -84,9 +84,9 @@ For a local Android build, configure the Android SDK and JDK 17 in Godot, then r
 
 ## Releases
 
-GitHub Actions tests each pushed revision. By default, each passing revision gets an Android release with a signed ARM APK and its SHA-256 checksum. Android version codes increase with the workflow run and commit position. When setting up a separate release repository, configure the encrypted Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` for signing.
+GitHub Actions tests each pushed revision. By default, each passing revision gets a signed Android ARM APK, Linux and Windows x86-64 packages, a universal ad-hoc-signed macOS app, and SHA-256 checksums. The workflow checks that each desktop package launches on its own operating system. Set the GitHub Actions repository variable `ENABLE_DESKTOP_BUILDS` to `false` for Android-only releases.
 
-To include desktop downloads in future releases, set the GitHub Actions repository variable `ENABLE_DESKTOP_BUILDS` to `true` before pushing the next revision. The workflow then also exports Linux and Windows x86-64 packages and a universal, ad-hoc-signed macOS app, and checks that each launches on its own operating system. Earlier desktop packages are available in the [release history](https://github.com/maccam912/24hrtowing/releases).
+Android version codes increase with the workflow run and commit position. When setting up a separate release repository, configure the encrypted Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` for signing.
 
 ## Assets
 
