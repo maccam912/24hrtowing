@@ -10,6 +10,7 @@ const Semi := preload("res://scripts/semitrailer.gd")
 const Tanker := preload("res://scripts/milk_tanker.gd")
 const Dairy := preload("res://scripts/dairy_transfer.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
+const CountyVisits := preload("res://scripts/county_visits.gd")
 const Addresses := preload("res://scripts/fire_numbers.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
@@ -376,7 +377,7 @@ static func _site_on_slip(slip: Dictionary) -> String:
 
 static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float, seconds: float, clock: String, revised_rates:=false) -> Dictionary:
 	var towed: bool = job.kind in ["hold", "hazard"]
-	var look_only: bool = job.kind in ["looksee","passenger"]
+	var look_only: bool = job.kind in ["looksee","passenger","field_visit"]
 	var mile := snappedf(maxf(0, drop - pickup), .1) if towed else 0.0
 	var hookup := 0 if look_only else 16
 	var winch := 0 if look_only else maxi(1, ceili(seconds / 60.0)) * 6
@@ -393,6 +394,9 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		"storage":storage, "heavy_fee":heavy_fee, "pay":snappedf(pay,.01), "time":clock}
 	if job.has("checked_tape"):
 		slip.checked_tape = job.checked_tape.duplicate()
+	if job.kind == "field_visit":
+		slip.finding = CountyVisits.CHECKS[job.id].result
+		slip.visit_round = int(job.visit_round)
 	if rate_fee > 0:
 		slip.rate_name = job.get("rate_name","Vehicle on ice")
 		slip.rate_fee = rate_fee

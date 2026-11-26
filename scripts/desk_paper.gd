@@ -36,6 +36,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 	match page:
 		"map": _atlas(c,p,s)
 		"radio": _radio(c,p,s)
+		"visit_call": _visit_call(c,p,s)
 		"fax": _fax(c,p,s)
 		"custody": _custody(c,p,s)
 		"field": _field(c,p,s)
@@ -122,6 +123,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		var shoulder: String = str(active_job.get("run","")).get_slice("/",1)
 		if not shoulder.is_empty():
 			note += "    /    %s shoulder" % shoulder.capitalize()
+		if active_job.has("finding"):
+			note += "\n"+str(active_job.finding)
 		if active_job.get("kind","") == "passenger":
 			note += "\nPassenger delivered to " + str(active_job.get("destination","Esker Fuel & Food"))
 		if float(active_job.get("heavy_fee",0)) > 0:
@@ -280,6 +283,8 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		var buttons: Array[Array] = []
 		if available:
 			buttons.append(["respond","Keep me on rotation" if s.get("pending_case",false) else "Take contract"])
+		if available and not (s.get("visit_offer",{}) as Dictionary).is_empty():
+			buttons.append(["visit_call","County look-see"])
 		if not available or not str(s.get("tracked_lead","")).is_empty():
 			buttons.append(["directions","Ask for directions"])
 		var contact: Dictionary = s.get("radio_contact",{})
@@ -294,6 +299,23 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	if in_cab:
 		c.button("report_sighting",report_key,"Report a sighting",true)
 		c.button("open_scanner",scanner_key,"Receivers",s.get("scanner_rx",false))
+
+func _visit_call(c, p: Rect2, s: Dictionary) -> void:
+	var call: Dictionary = s.get("visit_offer",{})
+	c._sheet(p,ORIGINAL)
+	_header(c,p,"TAMARACK COUNTY  /  DISPATCH","Field visit","",c.print_face)
+	var x := p.position.x+32
+	var y := p.position.y+115
+	var width := p.size.x-64
+	if call.is_empty():
+		c.text(Vector2(x,y),"County has passed the check to another unit.",c.print_face,20,PAPER_INK)
+	else:
+		_entry(c,Rect2(x,y,width,49),"SERVICE LOCATION",call.location)
+		c.multiline(Vector2(x,y+87),call.dispatch,c.print_face,22,PAPER_INK,width,4)
+		c.text(Vector2(x,p.end.y-116),"County call-out  $38.00",c.MONO,17,GREEN)
+		var half := (width-12)*.5
+		c.button("take_visit",Rect2(x,p.end.y-96,half,80),"Take field visit",true)
+		c.button("radio",Rect2(x+half+12,p.end.y-96,half,80),"Back to dispatch")
 
 func _broadcast_panel(c, p: Rect2, s: Dictionary, button_height: float) -> void:
 	var x := p.position.x+34

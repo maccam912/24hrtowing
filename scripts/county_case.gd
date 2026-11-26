@@ -132,7 +132,7 @@ func on_file(kind: String, case_id: String) -> String:
 		calls_past_lead = 0
 		lead_drive_seconds = 0.0
 		last_reminder = -1
-	elif kind in ["hazard","ditch","passenger"] and case_id.is_empty() and not due() and stage < ORDER.size():
+	elif kind in ["hazard","ditch","passenger","field_visit"] and case_id.is_empty() and not due() and stage < ORDER.size():
 		ordinary_since += 1
 		if due():
 			return LEADS[chapter()]

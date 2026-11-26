@@ -82,6 +82,8 @@ func show_document(id: String, next_state: Dictionary) -> void:
 func dismiss() -> void:
 	if page in ["options", "help", "guidance", "yard_recovery"]:
 		_change_page(_return_page)
+	elif page == "visit_call":
+		_change_page("radio")
 	elif started:
 		_change_page("")
 	else:
@@ -344,6 +346,12 @@ func _activate(id: String) -> void:
 		"fire_next":
 			fire_leaf = (fire_leaf+1)%ceili(float(Addresses.PARCELS.size()) / Addresses.PER_LEAF)
 			surface.queue_redraw()
+		"visit_call":
+			if not (state.get("visit_offer",{}) as Dictionary).is_empty():
+				show_document("visit_call",state)
+		"take_visit","pass_visit","report_visit":
+			_change_page("")
+			action.emit(id)
 		"read_fire_plate":
 			action.emit(id)
 		"plat_pencil":

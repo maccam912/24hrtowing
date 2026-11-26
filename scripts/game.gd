@@ -13,6 +13,7 @@ const Campaign := preload("res://scripts/county_case.gd")
 const Casework := preload("res://scripts/casework.gd")
 const SurveyCase := preload("res://scripts/survey_case.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
+const CountyVisits := preload("res://scripts/county_visits.gd")
 const Addresses := preload("res://scripts/fire_numbers.gd")
 const RoadDirections := preload("res://scripts/road_directions.gd")
 
@@ -100,6 +101,9 @@ var direction_timer := 0.0
 var road_directions := RoadDirections.new()
 var plow_heard := false
 var grower_visits := 0
+var visits := CountyVisits.new()
+var visit_offer := {}
+var declined_visit := -1
 var broadcast := preload("res://scripts/broadcast_radio.gd").new()
 var scanner := preload("res://scripts/county_scanner.gd").new()
 var saved_data := {}
@@ -117,6 +121,8 @@ func _ready() -> void:
 	world_view.add_child(world)
 	county = County.new()
 	world.add_child(county)
+	world.add_child(visits)
+	visits.setup(county)
 	world.add_child(ambience)
 	rig = Rig.new()
 	world.add_child(rig)
@@ -226,6 +232,7 @@ func _physics_process(dt: float) -> void:
 	if playing:
 		sightings.advance(dt,self)
 		casework.advance_departure(dt)
+		visits.advance(dt,self)
 	if playing or at_heater or desk.is_title():
 		county.advance_storm(dt)
 	if desk.is_title():
@@ -409,6 +416,14 @@ func _action(id: String) -> void:
 				yard_card = rows[index]
 				_refresh()
 				desk.show_document("register_card",state)
+		"take_visit":
+			if mode == "available" and rig.in_cab:
+				_prepare_offers()
+				if not visit_offer.is_empty():
+					_accept(visit_offer.duplicate())
+		"pass_visit","report_visit":
+			if _radio_contact().get("id") == id:
+				_close_visit(id == "report_visit")
 		"read_fire_plate": _read_fire_plate()
 		"interact": _interact()
 		"spot":
@@ -676,8 +691,10 @@ func _shop_purchase(id: String) -> void:
 	_save()
 
 func _prepare_offers() -> void:
+	visit_offer = {}
 	if mode == "available":
 		var issued := completed + pending_slips.size()
+		visit_offer = CountyVisits.offer(dispatch_seed,slips+pending_slips,issued,declined_visit)
 		if rotation_offer.is_empty() and campaign.stage >= 2:
 			rotation_offer = sightings.recovery_offer(issued,county,account.owns("snatch_block"),campaign.stage == Campaign.ORDER.size())
 		if rotation_offer.is_empty():
@@ -786,6 +803,10 @@ func _finish_favor(chapter: String) -> void:
 func _radio_contact() -> Dictionary:
 	if not rig.in_cab:
 		return {}
+	if mode == "fieldwork" and job.get("kind") == "field_visit":
+		if int(job.visit_step) >= 2:
+			return {"id":"report_visit","label":CountyVisits.CHECKS[job.id].report}
+		return {"id":"pass_visit","label":"Return visit to county"}
 	if campaign.chapter() == "unit" and _case_due() and survey.can_report_unit():
 		return {"id":"report_unit","label":"Report Unit 38 and rod case"}
 	if not _case_lock().is_empty():
@@ -877,6 +898,22 @@ func _accept(ticket: Dictionary) -> void:
 	speaker = "DISPATCH  ·  CONTRACT %d ACCEPTED" % job.number
 	_save()
 
+func _close_visit(reported: bool) -> void:
+	var row: Dictionary = CountyVisits.CHECKS[job.id]
+	if reported:
+		_record_visit()
+		_clear_field_job()
+		_speak("DISPATCH",row.ack)
+	else:
+		declined_visit = int(job.visit_round)
+		job = {}
+		mode = "available"
+		_speak("DISPATCH","Copy, I'll pass that check along. Your regular tow is still on the board.")
+	visits.sync(job)
+	_prepare_offers()
+	_refresh()
+	_save()
+
 func _start_fieldwork() -> void:
 	mode = "fieldwork"
 	if not _can_track_lead():
@@ -892,11 +929,12 @@ func _start_fieldwork() -> void:
 	if job.kind == "hold":
 		signed_card = false
 		packed_tripod = false
-	if job.kind != "looksee":
+	if job.kind not in ["looksee","field_visit"]:
 		rig.start_job(job.kind,county.resolve_point(job.point),job.angle,job)
 	else:
 		rig.end_job()
 	_sync_survey_scene()
+	visits.sync(job)
 
 func _restart_on_recovery() -> bool:
 	return mode in ["fieldwork","haul"] or (job.get("case_id") == "ride" and not campaign.released)
@@ -993,6 +1031,8 @@ func _site_action() -> String:
 	if rig.reserve_valve_in_reach(): return "reserve_valve"
 	if rig.in_cab or rig.at_dry_rig_door():
 		return ""
+	if CountyVisits.step_in_reach(self):
+		return "visit_stop"
 	var detail_site := casework.site()
 	if not detail_site.is_empty():
 		return detail_site
@@ -1064,6 +1104,16 @@ func _interact() -> void:
 		_save()
 		return
 	match site:
+		"visit_stop":
+			var step := int(job.visit_step)
+			if job.id == "dryhouse" and step == 0 and visits.flashes_seen < 2:
+				_message("BRANDT","Something on that wall is blinking. I'll watch for a second flash.")
+				return
+			var row: Dictionary = CountyVisits.CHECKS[job.id]
+			_speak(row.speaker if step == 1 else "BRANDT",row.observations[step])
+			job.visit_step = step+1
+			visits.sync(job)
+			_save()
 		"grower":
 			_speak("ROMAN DUDA",County.Dryhouse.say(job,grower_visits))
 			grower_visits += 1
@@ -1403,6 +1453,8 @@ func _file_slip(slip: Dictionary) -> void:
 	elif case_id == "farm":
 		survey.farm_order = "filed"
 	fax_text = "TO  BRANDT TOWING & RECOVERY\nRE  SERVICE SLIP %04d\n\nReceived for county review.\nCall-out  $%d    Hookup  $%d\nWinch  $%d    Storage  $%d\nLoaded  %.1f mi @ $3.25" % [slip.number,slip.call_out,slip.hookup,slip.winch,slip.storage,slip.loaded]
+	if slip.kind == "field_visit":
+		fax_text += "\nFinding   "+str(slip.finding)
 	if slip.heavy_fee > 0:
 		fax_text += "\nHeavy recovery  $%d" % slip.heavy_fee
 	if slip.get("recovery") == "semi":
@@ -1458,6 +1510,8 @@ func _clock() -> String:
 	return "%02d:%02d" % [floori(minutes/60.0)%24,minutes%60]
 
 func _procedure() -> String:
+	if job.get("kind") == "field_visit":
+		return CountyVisits.instruction(job)
 	if job.has("case_id") and (mode == "fieldwork" or job.case_id == "ride"):
 		var instruction := casework.procedure()
 		if not instruction.is_empty():
@@ -1534,6 +1588,9 @@ func _contract_hint(site: String) -> Dictionary:
 			elif job.kind == "passenger":
 				title = "Passenger · " + Rides.destination(job)
 				instruction = _procedure()
+			elif job.kind == "field_visit":
+				title = job.title
+				instruction = CountyVisits.instruction(job)
 			elif job.kind == "looksee":
 				title = "Look-see · N5104 Kolpack"
 				instruction = _procedure()
@@ -1579,6 +1636,8 @@ func _prompt(site: String = _site_action()) -> String:
 			return obstruction
 	if site == "offer_ride":
 		return "Offer a ride to " + Rides.destination(job)
+	if site == "visit_stop":
+		return CountyVisits.CHECKS[job.id].actions[int(job.visit_step)]
 	if site == "reserve_valve": return "Open the reserve transfer pump"
 	if site == "grower":
 		return "Ask Roman Duda about County K"
@@ -1626,6 +1685,8 @@ func _road_note() -> Dictionary:
 					lead_note.instruction += " " + str(yard_route.instruction)
 			return lead_note
 	var note := _route_note()
+	if job.get("kind") == "field_visit" and rig.in_cab and (int(job.visit_step) >= 2 or note.is_empty()):
+		return {"title":job.title,"instruction":CountyVisits.instruction(job)}
 	if not active or mode != "fieldwork" or rig.phase != "scene" or _needs_fuel_can():
 		return note
 	if job.get("kind") not in ["ditch","hazard","hold","passenger"]:
@@ -1670,7 +1731,7 @@ func _route_note(favor_site := "") -> Dictionary:
 		landmark = casework.lead_label()
 		title = "Unpaid stop   /   " + landmark
 	elif mode == "fieldwork" and not job.is_empty():
-		var location: Vector3 = county.resolve_point(job.point) if job.kind == "looksee" else rig.job_site
+		var location: Vector3 = county.resolve_point(job.point) if job.kind in ["looksee","field_visit"] else rig.job_site
 		target = Vector2(location.x, location.z)
 		unmapped = job.get("unmapped", false)
 		landmark = str(job.location).get_slice(" · ", 1)
@@ -1755,6 +1816,10 @@ func _refresh() -> void:
 	state.merge(_contract_hint(site))
 	var parcel := Addresses.readable(rig,county) if active and not desk.is_blocking() and casework.tower_height < 0.0 else ""
 	state["readable_fire_plate"] = Addresses.number(parcel) if not parcel.is_empty() else ""
+	state["visit_offer"] = visit_offer if mode == "available" else {}
+	state["visit_action"] = CountyVisits.CHECKS[job.id].buttons[int(job.visit_step)] if site == "visit_stop" else ""
+	if site == "visit_stop" and not desk.is_touch_mode():
+		state.feedback = "E   "+_prompt(site)
 	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
 	if rig.tree_recovery and rig.tree_recovery.controls:
@@ -1807,7 +1872,7 @@ func _save() -> void:
 	if not active or not rig:
 		return
 	save_timer = 0
-	saved_data = {"completed":completed,"mode":mode,"rig":rig.save_state(),"slips":slips,"pending_slips":pending_slips,
+	saved_data = {"completed":completed,"declined_visit":declined_visit,"mode":mode,"rig":rig.save_state(),"slips":slips,"pending_slips":pending_slips,
 		"received_freight":received_freight.delivery_record() if received_freight else {},
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
@@ -1832,6 +1897,7 @@ func _restore(s: Dictionary) -> void:
 		received_freight.restore_delivery(world,s.received_freight,rig._ground)
 	casework.leave_tower()
 	completed = int(s.completed)
+	declined_visit = int(s.get("declined_visit",-1))
 	mode = s.mode
 	slips = s.slips
 	heavy_job_filed = slips.any(func(slip: Dictionary) -> bool: return float(slip.get("heavy_fee",0.0)) > 0.0)
@@ -1905,6 +1971,7 @@ func _restore(s: Dictionary) -> void:
 		_clear_field_job()
 	_sync_survey_scene()
 	_prepare_offers()
+	visits.sync(job,true)
 	rig.restore_state(rig_state)
 	if s.get("tower") is Dictionary and not rig.in_cab and county.case_landmarks.has("car_ring"):
 		casework.mount_tower(s.tower.get("height",0.0),s.tower.get("glasses",false))

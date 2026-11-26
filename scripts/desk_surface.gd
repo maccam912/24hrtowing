@@ -598,6 +598,8 @@ func _mobile() -> void:
 			rule(thumb.x-11,thumb.y+i*5,22,Color("#47453a"),1.6)
 		hit("stick",Rect2(stick_center-Vector2.ONE*STICK_RADIUS,2*Vector2.ONE*STICK_RADIUS).grow(8))
 		var use_label := "WIPE" if drawn.get("can_wipe",false) else ("INSPECT" if drawn.get("can_inspect_sighting",false) else "USE")
+		if not str(drawn.get("visit_action","")).is_empty():
+			use_label = drawn.visit_action
 		if drawn.has("boom_instruction"): use_label = "LET GO"
 		var tower_action := str(drawn.get("tower_action",""))
 		if TOWER_LABELS.has(tower_action):
