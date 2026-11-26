@@ -8,6 +8,7 @@ const EVENT := {
 }
 const LEVEL := {
 	"flare_strike":-7.,"rope_slip":-6.,"strap_ratchet":-13.,"shackle_pin":-12.,"drum_clutch":-14.,
+	"chain_link":-12.,"chains_pavement":-17.,"wiper_sweep":-19.,"exhaust_brake":-11.,
 	"hydraulic_valve":-12.,"drum_under_load":-13.,"hydraulic_pump":-15.,"rope_payout":-13.,"flare_burn":-20.,
 }
 var audible := DisplayServer.get_name() != "headless"
@@ -21,6 +22,7 @@ var payout_hold := 0.
 var previous_job := 0
 var mode := ""
 var storm_hush := 0.
+var driving := preload("res://scripts/driving_foley.gd").new()
 var streams := {}
 var rig
 
@@ -40,6 +42,7 @@ func mount(operator) -> void:
 	burning = voice()
 	burning.stream = sample("flare_burn")
 	for i in 4: impacts.append(voice())
+	driving.mount(self)
 
 func voice() -> AudioStreamPlayer3D:
 	var source := AudioStreamPlayer3D.new()
@@ -62,7 +65,10 @@ func operator_position() -> Vector3:
 func gain(id: String, source: Vector3, inside_store: bool) -> float:
 	var distance := source.distance_to(operator_position())
 	var enclosure := 0.
-	if rig.in_cab: enclosure = -8. if rig.climate.cracked else -20.
+	if rig.in_cab:
+		enclosure = -8. if rig.climate.cracked else -20.
+		if id=="wiper_sweep": enclosure = -1. if rig.climate.cracked else -2.
+		if id in ["chain_link","chains_pavement","exhaust_brake"]: enclosure = -3. if rig.climate.cracked else -10.
 	elif inside_store: enclosure = -23.
 	# The physical driver's seat remains the listening point in chase view.
 	var strength := (1.-smoothstep(48.,94.,distance))/(1.+distance/7.5)
@@ -113,11 +119,11 @@ func motion(dt: float) -> String:
 		return "drum_under_load"
 	return "rope_payout" if payout_hold>0. else ""
 
-func loop_at(player: AudioStreamPlayer3D, id: String, point: Vector3, requested: bool, dt: float, inside_store: bool) -> void:
+func loop_at(player: AudioStreamPlayer3D, id: String, point: Vector3, requested: bool, dt: float, inside_store: bool, level_change := 0.) -> void:
 	var db := -80.
 	if requested:
 		player.global_position = point
-		db = gain(id,point,inside_store)
+		db = maxf(-80.,gain(id,point,inside_store)+level_change)
 		if player.stream != sample(id):
 			player.stop()
 			player.stream = sample(id)
@@ -146,9 +152,10 @@ func mix(active: bool, inside_store: bool, dt: float, calm := 0.) -> void:
 	var lit: bool = active and is_instance_valid(rig.flame)
 	var at: Vector3 = rig.flame.global_position+Vector3.UP*.16 if lit else Vector3.ZERO
 	loop_at(burning,"flare_burn",at,lit,dt,inside_store)
+	driving.mix(self,rig,active,inside_store,dt)
 
 func _exit_tree() -> void:
-	for source: AudioStreamPlayer3D in impacts + [motor,burning]:
+	for source: AudioStreamPlayer3D in impacts + [motor,burning,driving.blade,driving.chains,driving.exhaust]:
 		if is_instance_valid(source):
 			source.stop()
 			source.stream = null

@@ -102,6 +102,7 @@ var motion:=Vector3.ZERO # Velocity at the rear tandem, in world space.
 var steering:=0.0 # Equivalent front road-wheel angle in radians, positive right.
 var heading:=0.0
 var acceleration:=0.0
+var compression_brake := 0.0
 var drive_gear := 0
 var engine_rpm := IDLE_RPM
 var engine_load := 0.0
@@ -357,6 +358,7 @@ func reserve_hint() -> String:
 	return DRY_RIG_HINT
 
 func _stop_motion() -> void:
+	compression_brake = 0.0
 	speed = 0.0
 	motion = Vector3.ZERO
 	acceleration = 0.0
@@ -541,6 +543,12 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 	var forward:Vector3=-truck.global_basis.z
 	var throttle:float=-move.y
+	compression_brake = 0.
+	if absf(throttle)<.04 and not handbrake and speed>2.6 and fuel>0.:
+		var front := (tire_contacts[0]+tire_contacts[3])*.5
+		var rear := (tire_contacts[1]+tire_contacts[2]+tire_contacts[4]+tire_contacts[5])*.25
+		var descent := (rear-front)/Truck.WHEELBASE
+		compression_brake = smoothstep(.011,.083,descent)*smoothstep(2.6,5.1,speed)
 	var road_dist:=_road(truck.position)
 	var offroad:=smoothstep(5.1,11.0,road_dist)
 	# A packed yard and parking lots provide the same support as a road.
