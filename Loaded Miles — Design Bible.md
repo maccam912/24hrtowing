@@ -82,20 +82,21 @@ If the operator or wrecker is stuck, the truck log can call the county garage fo
 
 ### What grows
 
-The yard currently fits tire chains and a snatch block. The catalog also lays out equipment for later development.
+Brandt orders equipment at the yard office and fits it with the wrecker parked on the lot. The catalog has separate leaves for recovery gear, cab equipment and yard fittings.
 
 | Upgrade | What it changes | Opens with |
 | --- | --- | --- |
 | Tire chains | Better grip, braking and deep-snow travel. Required for the run up Alder Cut | $95 at the yard office |
-| LED light bar and spot | Wider and longer beam; the spot reads fire numbers from the road | Early |
-| Heated mirrors | Clear mirrors on long hauls | Early |
+| Driving light bar and pillar spot | Wider beams. Aim the spot to read a fire plate from the road and look up the parcel on the plat | $115 at the yard office |
+| Heated mirrors | Elements clear both mirrors on long hauls. Stock mirrors can be wiped by hand | $55 at the yard office |
 | Snatch block set | A double line for Unit 38 and recurring loaded utility pickups | $175 at the yard office |
 | Go-Jacks (wheel dollies) | Move cars with locked or broken wheels | First evidence hold |
-| Scanner upgrade | Hear deputy and plow traffic on more channels, including sighting calls | Talking to Deputy Kowalski |
-| Second winch | Two-line pulls for uprighting a semi, a plow or a car set down on its roof | Heavy jobs |
+| Scanner crystals | Tune the sheriff and county garage channels. The highway channel comes with the truck | $65 after meeting Deputy Kowalski |
+| Second winch | Steady a jackknifed trailer on one drum while the other pulls the tractor. Deliver the whole combination to River Lanes | $340 after filing a heavy recovery and fitting the snatch block |
 | Boom controls | Lift a car down off a roof or out of the trees | First impossible recovery (Act 2) |
-| Auxiliary fuel tank | Long retrievals out to the flowage and the swamp | Act 2 |
-| Yard additions such as a fence extension, second hold bay, dedicated pump and coffee maker | More storage, more holds, pumpside service and warmth at home | Steady through the game |
+| Auxiliary fuel tank | A reserve holds half a main tank. Buy the fuel at the yard or Esker and use the wrecker’s transfer hose in the field | $155 after filing the Unit 38 hold |
+| Yard fittings | Meter fuel at the bulk tank, get coffee at the office bench, or open twelve more stalls west of the original five. The register keeps the overflow carbons | Pump $145, coffeemaker $39, west fence $245 |
+| Second hold bay | Receive another vehicle under a separate custody order | Planned |
 | Rollback (second truck) | Car jobs are faster and cleaner; it can't do heavy work | Mid-game |
 
 The plat book grows too. Roads you've driven get inked in, roads that aren't printed get your pencil, and you can pencil a mark wherever you saw something. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and so do the lights.
@@ -528,19 +529,27 @@ All of these are under the SIL Open Font License, so they're free to ship in a c
 
 ## Scope and build plan
 
-Build the smallest piece that proves the feeling first: a corner of the dairy grid, the yard, two job types and one sighting. If the third run there feels better than the first, the rest is content. What the current build already has, and what has to change for this story, is in the addendum at the end.
+Build the smallest piece that proves the feeling first: a corner of the dairy grid, the yard, two job types and one sighting. If the third run there feels better than the first, the rest is content. The current fieldwork checkpoint follows the slice checklist. The November 24 addendum records the earlier story conversion.
 
 ### Vertical slice
 
-- [ ] The yard, four sections of the dairy grid, and Highway 64 to the bridge
-- [ ] The wrecker driving empty and loaded, with weight shifting under the wheel-lift
-- [ ] Ditch pull and hazard tow, with rigging on foot
-- [ ] Plat book (glance and study) and fire-number signs
-- [ ] Tow slip with odometer readings, faxed from the yard
-- [ ] Arlene: calls, and talk-in directions on request
-- [ ] Pacing lights with the calm, and one upside-down car in a field along the Kolpack run
+- [x] The yard, four sections of the dairy grid, and Highway 64 to the bridge
+- [x] The wrecker driving empty and loaded, with weight shifting under the wheel-lift
+- [x] Ditch pull and hazard tow, with rigging on foot
+- [x] Plat book (glance and study) and fire-number signs
+- [x] Tow slip with odometer readings, faxed from the yard
+- [x] Arlene: calls, and talk-in directions on request
+- [x] Pacing lights with the calm, and one upside-down car in a field along the Kolpack run
 
 The slice passes two tests. Does the third run feel better than the first? Does a playtester bring up the lights without being asked, and still finish the job?
+
+### Fieldwork checkpoint · November 25
+
+At `c937f01` all ten job families have a playable call. The Hoffmann look-see and Unit 38 each have a named case. Arlene can also offer a paid check at the parish, the dam landing or the ginseng dryhouse. The operator can pass on the visit and take the waiting tow. The same county pays routine ditch pulls, checked-car hauls and passenger transfers between cases. A plow driver takes the wheel after a recovery. A milk hauler waits for the sealed truck at the dairy transfer pad. The trailer receiver looks for the last axle inside the posts at River Lanes.
+
+Brandt can read a checked car’s original date, badge and road at the driver’s mirror. Those details stay with the car if it moves and reach the impound copy. Fire numbers lead from an actual roadside plate to the owner’s parcel on the plat. The wrecker has working mirror heaters, a pillar spot, a blower and a crank window. Coffee and shelter matter on long jobs outside.
+
+The eight case intervals, the post-story rotation, and the receipts are covered by the local shift tests. The two playtest questions above still need a human driver.
 
 ### Milestones
 
@@ -562,9 +571,9 @@ These hold in any engine: a raycast-suspension vehicle whose weight shifts with 
 
 Cut first, in this order: the rollback, milk tankers, boom recoveries (roofs and trees), all but one AM station, and the Lindquists' running gag. Never add combat, a chase, a fail state, a dawn or a visible creature.
 
-## Addendum: the playable build vs. this story
+## November 24 addendum · the build before the story conversion
 
-Checked against the code on November 24, 2026, at commit `4308f24`. The playable build tells the old story, in which the county grows longer between fixed survey corners and the evidence lives on paper. This section lists everything in the build that touches the story: what to keep, what to retire, what to change and what to build. It names files and functions rather than line numbers, because `scripts/game.gd` is changing quickly.
+Checked against the code on November 24, 2026, at commit `4308f24`. That build told the old story, in which the county grows longer between fixed survey corners and the evidence lives on paper. This section lists everything in the build that touches the story: what to keep, what to retire, what to change and what to build. It names files and functions rather than line numbers, because `scripts/game.gd` is changing quickly.
 
 ### Keep as built
 
