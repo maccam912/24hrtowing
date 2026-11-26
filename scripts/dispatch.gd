@@ -10,6 +10,7 @@ const Semi := preload("res://scripts/semitrailer.gd")
 const Tanker := preload("res://scripts/milk_tanker.gd")
 const Dairy := preload("res://scripts/dairy_transfer.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
+const Addresses := preload("res://scripts/fire_numbers.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
 # Points are centerline stations on the county plat.
@@ -255,6 +256,13 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		job.dispatch = "%s on %s by %s, %s shoulder. Checked and taped. Bring it to storage. %s" % [
 			job.vehicle, site.road, named_place, shoulder, reason]
 	job.directions = "%s Look on the %s side for the %s." % [site.approach, shoulder, job.vehicle.to_lower()]
+	if Addresses.PARCELS.has(route):
+		var number := Addresses.number(route)
+		job.location = "%s · %s (%s)" % [site.road,site.landmark,number]
+		job.address = number
+		job.directions += " The nearest fire plate reads %s." % number
+		if route == "frames":
+			job.dispatch += " Duda’s drying shed is at %s." % number
 	return job
 
 static func _next_driver(calls: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
@@ -342,7 +350,7 @@ static func looksee(completed: int) -> Dictionary:
 		"road":"Kolpack Rd", "location":"Kolpack Rd · N5104", "point":Vector3(445,0,326), "angle":0.0,
 		"vehicle":"Hoffmann welfare check", "plate":"—", "vin":"—",
 		"dispatch":"Milk hauler says every light is on at N5104 Kolpack and nobody answers. Look in on the Hoffmanns and check the drive.",
-		"directions":"Take Kolpack south past the Lindquist silo. Turn into the Hoffmann drive at the blue N5104 sign."}
+		"directions":"Take Kolpack south past the Lindquist silo. Turn into the Hoffmann drive at the green N5104 sign."}
 
 static func pack(job: Dictionary) -> Dictionary:
 	var data := job.duplicate()

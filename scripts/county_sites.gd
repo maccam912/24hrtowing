@@ -539,13 +539,13 @@ func rural_grid() -> void:
 		else:
 			fence(Vector3.ZERO,Vector3(0,0,row[2]),1.17,false)
 	for index in 6:
-		var xx := 18+index*6
+		var xx := 36+index*6
 		site(xx,-251)
 		for i in 15:
 			b(0,1.55,i*5,.13,3.1,.13,"wood")
 		beam(Vector3(0,2.91,0),Vector3(0,2.91,70),.045,.045,"post")
 	for index in 8:
-		site(25,-248+index*9)
+		site(43,-248+index*9)
 		beam(Vector3(-7,2.97,0),Vector3(24,2.97,0),.052,.052,"post")
 	for spec:Array in [[-62,152,21,33],[82,180,27,44],[-100,334,55,70],[270,122,42,56],[243,360,24,31],[473,85,27,43],[452,345,31,39],[865,450,32,71],[241,480,55,53],[310,720,34,62],[-54,-268,34,44],[63,-337,44,37],[45,-456,95,55],[225,-454,84,48],[408,-475,65,50],[-210,-416,36,44],[-350,42,40,34],[-215,-71,49,41],[180,57,34,29],[610,-42,38,41],[676,751,43,53]]:
 		grove_at(spec[0],spec[1],spec[2],spec[3])
@@ -615,8 +615,7 @@ func road_furniture() -> void:
 			draw.box(pt+Vector3.UP*.022,stripe_size,"stripe")
 	for sign:Array in [[-6.7,-7.3,"HWY 64","COUNTY K"],[6.8,-393.2,"SWAMP RD","COUNTY K"],[393.,7.2,"HWY 64","KOLPACK RD"],[7.2,393.,"HENDRICKS RD","COUNTY K"],[393.,393.,"HENDRICKS RD","KOLPACK RD"],[793.,7.3,"HWY 64","COUNTY FF"],[7.,793.,"ZIELINSKI RD","COUNTY K"],[393.,793.,"ZIELINSKI RD","KOLPACK RD"],[793.,393.,"HENDRICKS RD","COUNTY FF"]]:
 		street_sign(sign[0],sign[1],sign[2],sign[3])
-	for entry:Array in [[-7.2,131,"N 4928",PI],[407.,234,"N 5016",PI],[105.,407.,"W 1124",PI*.5],[-423.,7.3,"W 0784",PI*.5],[304.,-406.8,"SEC. 3",PI*.5],[7.,65,"N 4886",0.]]:
-		address(entry[0],entry[1],entry[2],entry[3])
+	address(304,-406.8,"SEC. 3",PI*.5)
 	site(11,-49)
 	placard(Vector3(0,1.8,0),"ESKER  •  POP 402",4.6,.76,0.0,"green",true)
 	for x:float in [-1.68,1.68]:
@@ -737,7 +736,6 @@ func kolpack_farm() -> void:
 	draw.parent.add_child(inside)
 	var ring: Vector3 = world.story_point("farm_ring")
 	bare_ring(ring,3.18)
-	address(407,330,"N 5104",PI*.5)
 
 func survey_tripod() -> void:
 	origin = world.hold_tripod_point()

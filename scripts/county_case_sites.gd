@@ -162,7 +162,6 @@ func _alder_house() -> void:
 		b(x,1.52,6.58,.14,2.72,.15,"wood",true)
 	placard(Vector3(1.39,1.76,4.91),"N 5420",.91,.31,0,"green")
 	placard(Vector3(0,2.56,4.91),"1936",.50,.19,0,"dark")
-	address(448,-469,"N 5420",-PI*.5)
 
 func _resident(id: String) -> void:
 	var surveyor := id == "tou"

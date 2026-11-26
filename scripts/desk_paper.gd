@@ -1,5 +1,6 @@
 extends RefCounted
 
+const Addresses := preload("res://scripts/fire_numbers.gd")
 const Campaign := preload("res://scripts/county_case.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
@@ -503,12 +504,16 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 		c.draw_circle(hole,3.2,Color("#64716b"))
 		c.draw_line(hole-Vector2(13,2),hole,Color("#9a9c89"),1.7,true)
 	_header(c,p,"OFFICE OF THE COUNTY SURVEYOR","Tamarack County","",c.print_face)
+	c.button("fire_index",Rect2(p.end.x-373,p.position.y+6,155,80),"Map key" if c.desk.fire_leaf >= 0 else "Fire numbers")
 	c.button("plat_pencil",Rect2(p.end.x-210,p.position.y+6,182,80),"Put pencil away" if c.desk.pencil_open else "Use pencil")
 	var map_box := Rect2(p.position+Vector2(30,105), Vector2(p.size.x*.64-35,p.size.y-147))
 	_map(c,map_box,s,true)
 	var cx := map_box.end.x+19
 	var cy := map_box.position.y+19
 	var column_w := p.end.x-cx-25
+	if c.desk.fire_leaf >= 0:
+		_fire_index(c,Rect2(cx,cy-17,column_w,p.end.y-cy-5))
+		return
 	if c.desk.pencil_open:
 		var heading := "Tap the sheet to mark it." if c.desk.is_touch_mode() else "Click to mark · or arrows + Enter"
 		c.fitted(Rect2(cx,cy-17,column_w,26),heading,c.subtle,16,GREEN,HORIZONTAL_ALIGNMENT_LEFT)
@@ -535,7 +540,12 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 			for i in range(start,end):
 				c.fitted(Rect2(cx,cy+14+(i-start)*37,column_w,35),entries[i],c.HAND,20,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 			return
-	var notes := ["County K, north of 64","W0784 · Highway 64","N5016 · Kolpack Rd","W1124 · Hendricks Rd","Swamp Rd · state land","Esker, south of Main","N4886 · County K"]
+	var addresses := ["brandt","bridge","farm","dairy","","","church"]
+	var notes := ["","","","","Swamp Rd · state land","Esker, south of Main",""]
+	for i in addresses.size():
+		if not addresses[i].is_empty():
+			var id: String = addresses[i]
+			notes[i] = Addresses.number(id)+" · "+str(Addresses.PARCELS[id].road)
 	for i in KEY_PLACES.size():
 		var row_y := cy+29+i*(35 if not entries.is_empty() else 39)
 		c.draw_circle(Vector2(cx+8,row_y-5),8,GREEN)
@@ -543,6 +553,37 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 		c.text(Vector2(cx+24,row_y),KEY_PLACES[i][1],c.print_face,16,PAPER_INK)
 		c.text(Vector2(cx+24,row_y+18),notes[i],c.print_face,13,FADED)
 	c.text(Vector2(p.position.x+33,p.end.y-15),"SECTION LINES    /    ONE MILE PER SECTION",c.MONO,11,FADED)
+
+func _fire_index(c, column: Rect2) -> void:
+	var ids: Array = Addresses.PARCELS.keys()
+	var first := int(c.desk.fire_leaf)*Addresses.PER_LEAF
+	var left := column.position.x
+	var top := column.position.y
+	c.text(Vector2(left,top+15),"RURAL FIRE NUMBERS",c.scaled,16,GREEN)
+	c.rule(left,top+22,column.size.x,LINE)
+	c.text(Vector2(left,top+41),"Numbers rise north or west.",c.print_face,15,PAPER_INK)
+	c.text(Vector2(left,top+59),"264 numbers to a mile on one road.",c.print_face,14,FADED)
+	var last := mini(first+Addresses.PER_LEAF,ids.size())
+	var roads := {}
+	for i in range(first,last):
+		roads[Addresses.PARCELS[ids[i]].road] = true
+	var step := minf(23.0,(column.size.y-150.0)/maxi(1,last-first+roads.size()))
+	var current_road := ""
+	var y := top+63
+	for i in range(first,last):
+		var id: String = ids[i]
+		var entry: Dictionary = Addresses.PARCELS[id]
+		if current_road != entry.road:
+			current_road = entry.road
+			y += step
+			c.text(Vector2(left,y),current_road.to_upper(),c.MONO,13,FADED)
+		y += step
+		c.text(Vector2(left+3,y),Addresses.number(id),c.scaled,17,GREEN)
+		c.fitted(Rect2(left+72,y-17,column.size.x-72,22),entry.owner,c.print_face,16,PAPER_INK,HORIZONTAL_ALIGNMENT_LEFT)
+		if c.desk.fire_parcel == id:
+			c.draw_line(Vector2(left,y+4),Vector2(left+62,y+3),FORM_BLUE,1.8,true)
+	var pages := ceili(float(ids.size())/Addresses.PER_LEAF)
+	c.button("fire_next",Rect2(left,column.end.y-80,column.size.x,80),"Next leaf    %d / %d" % [c.desk.fire_leaf+1,pages])
 
 func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	c.draw_rect(box,Color("#d5d7bc"))
@@ -587,7 +628,7 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 			[Vector2(441,391),"HENDRICKS"],[Vector2(159,791),"ZIELINSKI"],[Vector2(-102,-411),"SWAMP RD"],[Vector2(770,614),"FF"]]
 		for entry in road_labels:
 			c.text(project.call(entry[0]),entry[1],c.MONO,9,PAPER_INK)
-		for property in [[Vector2(27,-326),"STATE LAND"],[Vector2(465,240),"Lindquist"],[Vector2(104,545),"Brzezinski"]]:
+		for property in [[Vector2(27,-326),"STATE LAND"],[Vector2(36,-208),"Duda"],[Vector2(465,240),"Lindquist"],[Vector2(104,545),"Brzezinski"]]:
 			c.text(project.call(property[0]),property[1],c.print_face,10,Color("#6c785f"))
 	var offsets := [Vector2(-6,-7), Vector2.ZERO,Vector2(5,0),Vector2(2,8),Vector2(5,3),Vector2(-10,5),Vector2(9,2)]
 	var locations := {}
@@ -602,6 +643,18 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 			c.fitted(Rect2(v-Vector2(7,8),Vector2(14,16)),KEY_PLACES[i][0],c.scaled,11,c.WHITE)
 		else:
 			c.draw_circle(v,2.2,GREEN)
+	if detailed and c.desk.fire_leaf >= 0:
+		var entries: Array = Addresses.PARCELS.keys()
+		var first := int(c.desk.fire_leaf)*Addresses.PER_LEAF
+		for i in range(first,mini(first+Addresses.PER_LEAF,entries.size())):
+			var id: String = entries[i]
+			var panel: Vector2 = project.call(Addresses.PARCELS[id].at)
+			var selected: bool = c.desk.fire_parcel == id
+			c.draw_rect(Rect2(panel-Vector2(2,2),Vector2(4,4)),GREEN)
+			if selected:
+				c.draw_arc(panel,10,0,TAU,22,FORM_BLUE,1.7,true)
+				var offset := Vector2(-48,-10) if panel.x > box.get_center().x else Vector2(9,-5)
+				c.text(panel+offset,Addresses.number(id),c.HAND,18,FORM_BLUE)
 	var stop: Vector3 = s.get("favor_point",Vector3.INF)
 	if stop.is_finite():
 		var marked: Vector2 = project.call(Vector2(stop.x,stop.z))

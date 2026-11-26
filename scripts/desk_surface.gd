@@ -419,6 +419,15 @@ func _hud() -> void:
 		var who := str(drawn.get("speaker","DISPATCH")).to_upper()
 		text(box.position+Vector2(15,17),who,MONO,13,AMBER)
 		multiline(box.position+Vector2(15,39),words,subtle,18,WHITE,box.size.x-30)
+	if not str(drawn.get("readable_fire_plate","")).is_empty() and not desk.is_touch_mode():
+		var read_key := Rect2(16,60,197,36)
+		hud_panels.append(read_key)
+		draw_rect(read_key,RUBBER)
+		var plate := Rect2(read_key.position+Vector2(3,3),Vector2(77,30))
+		draw_rect(plate,Color("#254e40"))
+		draw_rect(plate.grow(-1),CREAM,false,1.0)
+		fitted(plate,drawn.readable_fire_plate,scaled,21,WHITE)
+		fitted(Rect2(plate.end.x+3,read_key.position.y,111,36),"G   Check plat",subtle,16,WHITE)
 	if drawn.get("in_cab",true):
 		_driving_view()
 		if drawn.get("passenger_drop",false) and not desk.is_touch_mode():
@@ -526,6 +535,14 @@ func _mobile() -> void:
 		left+=118+THUMB_GAP
 	var right := dim.x-HUD_MARGIN
 	var bottom := dim.y-HUD_MARGIN
+	if not str(drawn.get("readable_fire_plate","")).is_empty():
+		var read := Rect2(right-THUMB_WIDTH*2-THUMB_GAP,bottom-164-THUMB_GAP-96,THUMB_WIDTH,96)
+		_control("read_fire_plate",read,"")
+		var plate := Rect2(read.position+Vector2(13,15),Vector2(read.size.x-26,36))
+		draw_rect(plate,Color("#254e40"))
+		draw_rect(plate.grow(-1),CREAM,false,1.2)
+		fitted(plate,drawn.readable_fire_plate,scaled,23,WHITE)
+		fitted(Rect2(read.position+Vector2(3,54),Vector2(read.size.x-6,28)),"CHECK PLAT",scaled,16,CREAM)
 	_control("pause",Rect2(right-TOP_ROW_HEIGHT,TOP_ROW_Y,TOP_ROW_HEIGHT,TOP_ROW_HEIGHT),"")
 	if drawn.get("in_cab",true):
 		# The wheel is one piece of hardware with independent left/right touch zones.

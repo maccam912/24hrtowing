@@ -13,6 +13,7 @@ const Campaign := preload("res://scripts/county_case.gd")
 const Casework := preload("res://scripts/casework.gd")
 const SurveyCase := preload("res://scripts/survey_case.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
+const Addresses := preload("res://scripts/fire_numbers.gd")
 const RoadDirections := preload("res://scripts/road_directions.gd")
 
 const WORLD_RASTER_HEIGHT := 288
@@ -93,6 +94,7 @@ var ui_timer := 0.0
 var direction_timer := 0.0
 var road_directions := RoadDirections.new()
 var plow_heard := false
+var grower_visits := 0
 var broadcast := preload("res://scripts/broadcast_radio.gd").new()
 var scanner := preload("res://scripts/county_scanner.gd").new()
 var saved_data := {}
@@ -297,6 +299,7 @@ func _input(event: InputEvent) -> void:
 			KEY_E: _action("interact")
 			KEY_C: _action("camera")
 			KEY_L: _action("spot")
+			KEY_G: _action("read_fire_plate")
 			KEY_R: _action("radio")
 			KEY_T: _action("talk_in")
 			KEY_H: desk.show_document("help",state)
@@ -388,6 +391,7 @@ func _action(id: String) -> void:
 				yard_card = rows[index]
 				_refresh()
 				desk.show_document("register_card",state)
+		"read_fire_plate": _read_fire_plate()
 		"interact": _interact()
 		"spot":
 			if active and rig.in_cab and account.owns("lamps") and not desk.is_blocking():
@@ -936,6 +940,8 @@ func _site_action() -> String:
 		return "unlock" if bay_locked else "lock"
 	if held and not bay_locked and _facing(BAY,4.8):
 		return "field"
+	if _facing(County.Dryhouse.grower_position(county),3.1):
+		return "grower"
 	if _at_counter():
 		return "coffee"
 	if _facing(PUMP_ISLANDS[0],4.5) or _facing(PUMP_ISLANDS[1],4.5):
@@ -969,6 +975,9 @@ func _interact() -> void:
 		_save()
 		return
 	match site:
+		"grower":
+			_speak("ROMAN DUDA",County.Dryhouse.say(job,grower_visits))
+			grower_visits += 1
 		"inspect_sighting":
 			var note := sightings.observations.inspectable(self,sightings)
 			if not note.is_empty():
@@ -1193,6 +1202,14 @@ func _storage_tag(index: int) -> Dictionary:
 				paper.merge(slip)
 				break
 	return paper
+
+func _read_fire_plate() -> void:
+	if not active or desk.is_blocking() or casework.tower_height >= 0:
+		return
+	var id := Addresses.readable(rig,county)
+	if not id.is_empty():
+		desk.show_document("map",state)
+		desk.open_fire_index(id)
 
 func _read_book() -> void:
 	book_read = true
@@ -1458,6 +1475,8 @@ func _prompt(site: String = _site_action()) -> String:
 			return obstruction
 	if site == "offer_ride":
 		return "Offer a ride to " + Rides.destination(job)
+	if site == "grower":
+		return "Ask Roman Duda about County K"
 	if site == "let_out":
 		return "Let the passenger out at " + Rides.destination(job)
 	var words := {"impound_register":"Open the impound register","storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
@@ -1627,6 +1646,8 @@ func _refresh() -> void:
 		"progress":_procedure(),"phase":s.phase,"work_available":s.fuel > 0.0 and rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
+	var parcel := Addresses.readable(rig,county) if active and not desk.is_blocking() and casework.tower_height < 0.0 else ""
+	state["readable_fire_plate"] = Addresses.number(parcel) if not parcel.is_empty() else ""
 	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
 	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM

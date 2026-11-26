@@ -1,5 +1,7 @@
 extends CanvasLayer
 
+const Addresses := preload("res://scripts/fire_numbers.gd")
+
 signal action(id: String)
 
 const Surface = preload("res://scripts/desk_surface.gd")
@@ -13,6 +15,8 @@ var glance := false
 var slip_index := -1
 var fax_index := -1
 var fax_sheet := -1
+var fire_leaf := -1
+var fire_parcel := ""
 var atlas_notes := false
 var pencil_open := false
 var pencil_tool := "return"
@@ -94,6 +98,8 @@ func toggle_pause() -> void:
 func _change_page(id: String) -> void:
 	page = id
 	pencil_open = false
+	fire_leaf = -1
+	fire_parcel = ""
 	parts_page = 0
 	glance = false
 	slip_index = -1
@@ -107,6 +113,14 @@ func _change_page(id: String) -> void:
 		surface.hit_boxes.clear()
 		surface.hover = ""
 		surface.queue_redraw()
+
+func open_fire_index(id: String) -> void:
+	pencil_open = false
+	fire_parcel = id
+	fire_leaf = floori(float(maxi(Addresses.PARCELS.keys().find(id),0))/Addresses.PER_LEAF)
+	surface.hover = ""
+	surface.hit_boxes.clear()
+	surface.queue_redraw()
 
 func _clear_controls() -> void:
 	_touches.clear()
@@ -316,7 +330,19 @@ func _activate(id: String) -> void:
 			surface.queue_redraw()
 		"impound_prev", "impound_next", "impound_index", "impound_0", "impound_1", "impound_2", "buy_coffee", "talk_mai":
 			action.emit(id)
+		"fire_index":
+			if fire_leaf < 0:
+				open_fire_index("")
+			else:
+				fire_leaf = -1
+				surface.queue_redraw()
+		"fire_next":
+			fire_leaf = (fire_leaf+1)%ceili(float(Addresses.PARCELS.size()) / Addresses.PER_LEAF)
+			surface.queue_redraw()
+		"read_fire_plate":
+			action.emit(id)
 		"plat_pencil":
+			fire_leaf = -1
 			pencil_open = not pencil_open
 			surface.hover = "pencil_sheet" if pencil_open else ""
 			surface.hit_boxes.clear()

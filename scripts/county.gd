@@ -2,6 +2,7 @@ extends Node3D
 ## A compressed Wisconsin township. All published locations are printed plat coordinates.
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
+const Dryhouse := preload("res://scripts/ginseng_dryhouse.gd")
 const RiverLanes := preload("res://scripts/river_lanes.gd")
 const Dairy := preload("res://scripts/dairy_transfer.gd")
 const Fittings := preload("res://scripts/yard_fittings.gd")
@@ -598,6 +599,7 @@ func _build() -> void:
 	Dairy.new(self,draw).build()
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
+	Dryhouse.new(self,draw).build()
 	for x: float in [205.45,208.65]:
 		draw.spruce(Vector3(x,ground_height(x,-408.75),-408.75),5.65,x)
 	CaseSites.new(self,draw).alder_cut()
