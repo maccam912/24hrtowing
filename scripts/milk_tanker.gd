@@ -5,6 +5,7 @@ const VARIANT := 8
 const SIZE := Vector3(1.22,.89,4.64)
 const FRONT_AXLE := -3.28
 const REAR_AXLE := 2.58
+const HALF_TRACK := 1.04
 const WHEEL_RADIUS := .52
 const BLACK := Color("#292f2c")
 const CREAM := Color("#e3e4ce")
@@ -32,7 +33,7 @@ func build(parent: Node3D, ticket: Dictionary) -> void:
 	var wheels := Kit.new(self)
 	for side:float in [-1,1]:
 		for z:float in [FRONT_AXLE,REAR_AXLE-.53,REAR_AXLE+.53]:
-			wheels.truck_wheel(side,z,WHEEL_RADIUS,1.04,0)
+			wheels.truck_wheel(side,z,WHEEL_RADIUS,HALF_TRACK,0)
 	wheels.finish()
 	shell = Kit.joint(self,Vector3.UP*.74,"TankSuspension")
 	var g := Kit.new(shell)

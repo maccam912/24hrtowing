@@ -43,6 +43,7 @@ var torch:=SpotLight3D.new()
 var car:Node3D
 var semi: Semi
 var tanker: Tanker
+var road_wheels: Scene.RoadWheels
 var aux_tank: Reserve
 var reserve_fuel := 0.0
 var car_lamps:Node3D
@@ -123,6 +124,7 @@ var dropoff: Dictionary:
 		return RiverLanes.DROP if semi else YardDrop.for_vehicle(kind)
 var ground_period:=0.0
 var ground_targets:=Vector3.ZERO
+var tire_contacts := PackedFloat32Array([0.,0.,0.,0.,0.,0.])
 var assist:=true
 var tire_chains:=false:
 	set(value):
@@ -356,11 +358,18 @@ func _suspension(dt:float) -> void:
 	ground_period-=dt
 	if ground_period<=0:
 		ground_period=.065
-		var fl:=_wheel_ground(-Truck.HALF_TRACK,Truck.FRONT_AXLE_Z)
-		var fr:=_wheel_ground(Truck.HALF_TRACK,Truck.FRONT_AXLE_Z)
-		var bl:=_wheel_ground(-Truck.HALF_TRACK,Truck.REAR_AXLE_Z)
-		var br:=_wheel_ground(Truck.HALF_TRACK,Truck.REAR_AXLE_Z)
-		var loaded_sag:=.058 if loaded else 0.0
+		for i in body.wheels.size():
+			var hub:Node3D = body.wheels[i].get_parent_node_3d()
+			tire_contacts[i] = _wheel_ground(hub.position.x,hub.position.z)
+		var fl := tire_contacts[0]
+		var fr := tire_contacts[3]
+		var bl := (tire_contacts[1]+tire_contacts[2])*.5
+		var br := (tire_contacts[4]+tire_contacts[5])*.5
+		var loaded_sag := .058 if loaded else 0.0
+		if loaded and road_wheels:
+			# Lifting the engine end puts more weight on the tandem.
+			loaded_sag *= 1.07 if line_end < 0 else .82
+			if car.get_meta("body_size") == Scene.PICKUP_SIZE: loaded_sag *= 1.25
 		ground_targets=Vector3((fl+fr+bl+br)*.25-loaded_sag,atan2((fl+fr-bl-br)*.5,Truck.WHEELBASE)+loaded_sag*.50,atan2((fr+br-fl-bl)*.5,2.0*Truck.HALF_TRACK))
 	ground_spring+=((ground_targets.x-truck.position.y)*60.0-ground_spring*13.0)*dt
 	truck.position.y+=ground_spring*dt
@@ -369,6 +378,7 @@ func _suspension(dt:float) -> void:
 	var lateral_accel := speed * speed * tan(steering) / Truck.WHEELBASE
 	roll=lerpf(roll,ground_targets.z+clampf(lateral_accel*.008,-.06,.06),1-exp(-6*dt))
 	body.rotation=Vector3(pitch,0,roll)
+	body.place_tires(tire_contacts)
 
 func _obstructed(a:Vector3,displacement:Vector3) -> bool:
 	if displacement.length_squared()<.000001:
@@ -393,6 +403,11 @@ func _truck_obstacle(step:Vector3, turn:float) -> bool:
 		var size: Vector3 = car.get_meta("body_size")
 		if absf(at.x)<size.x+1.04 and absf(at.z)<size.z-.04 and Vector2(at.x,at.z).length_squared()<Vector2(old.x,old.z).length_squared():
 			return true
+	if loaded and road_wheels:
+		var z := line_end*road_wheels.axle_z
+		var size: Vector3 = car.get_meta("body_size")
+		var pose := forecast_tow(step,turn,z,-z,road_wheels.radius)
+		return load_obstructed(car,pose,size.x,.72,[-size.z,-size.z*.5,0.,size.z*.5,size.z])
 	if loaded and tanker:
 		var pose := forecast_tow(step,turn,Tanker.FRONT_AXLE,Tanker.REAR_AXLE,Tanker.WHEEL_RADIUS)
 		return load_obstructed(tanker,pose,Tanker.SIZE.x,1.0,[-Tanker.SIZE.z,0,Tanker.SIZE.z])
@@ -403,7 +418,7 @@ func forecast_tow(step: Vector3, turn: float, front_axle: float, rear_axle: floa
 	var axle_offset := car.to_global(Vector3(0,wheel_height,rear_axle))-next_hitch
 	var next_heading := heading+turn
 	var yaw := next_heading+clampf(angle_difference(next_heading,atan2(axle_offset.x,axle_offset.z)),-PI/3,PI/3)
-	var pose := Basis(Vector3.UP,yaw)
+	var pose := Basis(Vector3.UP,yaw+(PI if front_axle>rear_axle else 0.0))
 	var at := next_hitch-pose*Vector3(0,0,front_axle)
 	at.y = car.position.y
 	return Transform3D(pose,at)
@@ -467,7 +482,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 		fuel=maxf(fuel-dt*.000017,0)
 	body.glass_material.set_shader_parameter("cold",1.0-climate.air)
 	body.move_driver_window(climate.cracked,dt)
-	body.animate(dt,speed,steering,engine_rpm,loaded,tension,fuel,odo,_compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
+	body.animate(dt,speed,steering,engine_rpm,tension,fuel,odo,_compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
 
 func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	var forward:Vector3=-truck.global_basis.z
@@ -736,7 +751,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		vehicle_identity.checked_tape = ticket.checked_tape
 	if kind == "hold":
 		vehicle_identity.open_door = true
-	car=Scene.car(self,kind,variant,vehicle_identity)
+	car=Scene.car(self,kind,variant,vehicle_identity,kind in ["hazard","hold"])
+	road_wheels = car.get_node_or_null("RoadWheels") as Scene.RoadWheels
 	semi = car as Semi
 	tanker = car as Tanker
 	car.position=Vector3(target.x,_ground(target),target.z)
@@ -803,6 +819,7 @@ func end_job() -> void:
 	car=null
 	semi=null
 	tanker=null
+	road_wheels=null
 	car_lamps=null
 	flash_time=0
 	witness=null
@@ -821,6 +838,7 @@ func end_job() -> void:
 	second_line=false
 	if body:
 		body.stow_boom()
+		body.crossbar.release()
 		body.stinger.position.z=-1.31
 		body.work_light.hide()
 	if cable_mesh: cable_mesh.clear_surfaces()
@@ -1270,8 +1288,11 @@ func interact() -> void:
 		"drop":
 			phase="done"
 			loaded=false
+			body.crossbar.release()
 			car.rotation.x=0
+			car.rotation.z=0
 			car.position.y=_ground(car.position)
+			if road_wheels: road_wheels.release(dollies)
 			sound_event.emit("lift")
 			dropped.emit()
 		"need_block": _note("This recovery needs a double line. Order the snatch block at the yard.",4)
@@ -1290,14 +1311,8 @@ func _set_chocks() -> void:
 	k.finish()
 
 func _fit_dollies() -> void:
-	dollies=Kit.joint(car,Vector3.ZERO,"WheelDollies")
-	var k=Kit.new(dollies)
-	var z:float=-line_end*1.54
-	for s in [-1.0,1.0]:
-		k.box(Vector3(s*.99,.18,z),Vector3(.54,.12,.83),Color("#825242"))
-		for dz in [-.31,.31]:
-			k.tube(Vector3(s*.80,.12,z+dz),Vector3(s*1.27,.12,z+dz),.108,Color("#303236"),8)
-	k.finish()
+	dollies = road_wheels.fit_dollies(line_end)
+	road_wheels.ground_axle(line_end,_ground,dollies)
 
 func _winch(operate:bool,dt:float) -> void:
 	var prev_work:=working
@@ -1441,16 +1456,32 @@ func _track_underlift() -> void:
 		lifted_axle = Vector3(0,wheel_height,Tanker.FRONT_AXLE if tanker else Semi.FRONT_AXLE)
 		rolling_axle = Vector3(0,wheel_height,Tanker.REAR_AXLE if tanker else Semi.REAR_AXLE)
 		half_wheelbase = (rolling_axle.z-lifted_axle.z)*.5
-	var hitch:=_hitch()+Vector3.UP*.15
+	var hitch:=_hitch()+Vector3.UP*Truck.WheelLift.AXLE_HEIGHT
 	# The rolling axle keeps its last ground contact as the crossbar moves. This
 	# gives the tow its own turning arc, in both forward and reverse.
 	var tail:=car.to_global(rolling_axle)-hitch
 	var bend:=wrapf(atan2(tail.x,tail.z)-heading,-PI,PI)
 	var trailing_yaw:=heading+clampf(bend,-PI/3,PI/3)
 	var rear_contact:=hitch+Vector3.BACK.rotated(Vector3.UP,trailing_yaw)*2.0*half_wheelbase
-	var rise:=hitch.y-_ground(rear_contact)-wheel_height
-	car.rotation=Vector3(-line_end*asin(clampf(rise/(2.0*half_wheelbase),-.60,.60)),trailing_yaw+(PI if line_end>0 else 0.0),0)
-	car.global_position=hitch-car.global_basis*lifted_axle
+	var contact_height := _ground(rear_contact)
+	var tow_roll := 0.0
+	var vehicle_yaw := trailing_yaw+(PI if line_end>0 else 0.0)
+	if road_wheels:
+		var side := Vector3.RIGHT.rotated(Vector3.UP,vehicle_yaw)*size.x
+		var left := _ground(rear_contact-side)
+		var right := _ground(rear_contact+side)
+		contact_height = (right+left)*.5
+		if dollies: contact_height += Scene.RoadWheels.DOLLY_RISE
+		var lateral := speed*speed*tan(steering)/Truck.WHEELBASE
+		tow_roll = atan2(right-left,2*size.x)+clampf(lateral*.007,-.04,.04)*(-line_end)
+	var rise:=hitch.y-contact_height-wheel_height
+	car.rotation=Vector3(-line_end*asin(clampf(rise/(2.0*half_wheelbase),-.60,.60)),vehicle_yaw,tow_roll)
+	var half_track := size.x
+	if tanker: half_track = Tanker.HALF_TRACK
+	if semi: half_track = Semi.HALF_TRACK
+	body.crossbar.follow_axle(car,line_end,half_track,wheel_height)
+	car.global_position=body.crossbar.to_global(Vector3.UP*Truck.WheelLift.AXLE_HEIGHT)-car.global_basis*lifted_axle
+	if road_wheels: road_wheels.ground_axle(line_end,_ground,dollies)
 	if semi: semi.follow(_ground)
 
 func _begin_departure() -> DepartingDriver:
@@ -1464,6 +1495,7 @@ func _in_wrecker(point:Vector3) -> bool:
 	return absf(local.x)<1.75 and local.z> -4.5 and local.z<5.1
 
 func _trail(dt:float) -> void:
+	body.lift.position.y=move_toward(body.lift.position.y,.39 if loaded else .03,dt*.65)
 	_advance_riders(dt)
 	for i in range(departures.size()-1,-1,-1):
 		var driver := departures[i]
@@ -1624,6 +1656,7 @@ func save_state() -> Dictionary:
 		d["identity"] = vehicle_identity.duplicate()
 	if loaded:
 		d["lift_height"]=body.lift.position.y
+		d["ride"] = [truck.position.y,pitch,roll]
 	if boarding_walk:
 		d.boarding = boarding_walk.save_state(self)
 	if kind == "passenger" and phase == "scene" and witness:
@@ -1695,6 +1728,7 @@ func restore_state(d:Dictionary) -> void:
 	free_line=d.get("free_line",0)
 	second_line=d.get("second_line",false)
 	special_work=d.get("special_work",0.0)
+	_stop_motion()
 	if car:
 		if kind == "passenger":
 			match phase:
@@ -1734,9 +1768,19 @@ func restore_state(d:Dictionary) -> void:
 		if loaded:
 			body.stinger.position.z=0.0
 			body.lift.position.y=d.get("lift_height",.39)
+			# Load the springs before seating the axle on the lift. Older saves
+			# have the supported vehicle but no stored suspension attitude.
+			_suspension(0)
+			var ride := _unpack(d.get("ride"),ground_targets)
+			truck.position.y = ride.x
+			pitch = ride.y
+			roll = ride.z
+			body.rotation = Vector3(pitch,0,roll)
+			body.place_tires(tire_contacts)
 			_set_car_lamps("tow")
 			_track_underlift()
-	_stop_motion()
+		elif phase=="done" and road_wheels:
+			road_wheels.release(dollies)
 	if in_cab:
 		_frame_nearby_car()
 	_update_eyes()

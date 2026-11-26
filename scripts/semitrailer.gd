@@ -3,6 +3,7 @@ extends Node3D
 const Kit := preload("res://scripts/rig_mesh.gd")
 const VARIANT := 7
 const SIZE := Vector3(1.18,.90,3.38)
+const HALF_TRACK := 1.07
 const WHEEL_RADIUS := .54
 const FRONT_AXLE := -2.48
 const REAR_AXLE := 1.86
@@ -58,7 +59,7 @@ func build(parent: Node3D, ticket: Dictionary) -> void:
 		g.box(Vector3(s*1.38,2.54,-1.47),Vector3(.11,.38,.15),STEEL)
 		g.box(Vector3(x,.57,3.0),Vector3(.40,.69,.072),BLACK)
 		for z:float in [FRONT_AXLE,REAR_AXLE-.53,REAR_AXLE+.53]:
-			g.truck_wheel(s,z,WHEEL_RADIUS,1.07,0)
+			g.truck_wheel(s,z,WHEEL_RADIUS,HALF_TRACK,0)
 	Kit.label(self,get_meta("plate"),Vector3(.05,1.01,-3.46),.082,CREAM,Vector3(0,PI,0))
 	g.finish()
 	trailer = Kit.joint(self,Vector3.ZERO,"FreightTrailer")

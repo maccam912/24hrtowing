@@ -3,6 +3,7 @@ const K=preload("res://scripts/rig_mesh.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const Semi := preload("res://scripts/semitrailer.gd")
+const RoadWheels := preload("res://scripts/road_wheels.gd")
 const Tanker := preload("res://scripts/milk_tanker.gd")
 const Tape := preload("res://scripts/sheriff_tape.gd")
 const BLACK=Color("#272b2c")
@@ -31,7 +32,7 @@ static func snatch_block(parent: Node3D) -> Node3D:
 	block.hide()
 	return block
 
-static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
+static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wheels := false) -> Node3D:
 	if variant == Tanker.VARIANT:
 		var tanker := Tanker.new()
 		tanker.build(parent,identity)
@@ -93,13 +94,14 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 	var rear_tilt:=-atan2(cab_end-top_end,.60)
 	g.box(Vector3(0,base+.81,(cab_end+top_end)*.5),Vector3(width*1.72,.72,.036),GLASS,Vector3(rear_tilt,0,0))
 	g.box(Vector3(0,base+.47,-.98),Vector3(width*1.87,.08,.06),BLACK)
+	var tire_radius := .43 if pickup else .355
+	if live_wheels:
+		RoadWheels.new().assemble(p,size,tire_radius)
 	for s in [-1.0,1.0]:
 		var x:float=s*width
-		for z in [-length*.61,length*.61]:
-			var radius:=.43 if pickup else .355
-			g.tube(Vector3(x-s*.135,radius,z),Vector3(x+s*.095,radius,z),radius,BLACK,16)
-			g.tube(Vector3(x+s*.099,radius,z),Vector3(x+s*.108,radius,z),radius*.61,STEEL,12)
-			g.tube(Vector3(x+s*.111,radius,z),Vector3(x+s*.12,radius,z),radius*.25,Color("#535955"),8)
+		if not live_wheels:
+			for z in [-length*.61,length*.61]:
+				RoadWheels.wheel(g,Vector3(x,tire_radius,z),s,tire_radius)
 		g.beam(Vector3(x*.956,base+.48,-.98),Vector3(x*.81,head_y,-.56),.064,.076,body)
 		g.beam(Vector3(x*.95,base+.48,cab_end),Vector3(x*.81,head_y,top_end),.078,.087,body)
 		if s>0 or not (open_door or mail):

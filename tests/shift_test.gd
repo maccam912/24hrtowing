@@ -496,7 +496,7 @@ func verify_tow() -> void:
 	var radius:=.43 if rig.kind=="hold" else .355
 	var supported:Vector3=rig.car.to_global(Vector3(0,radius,rig.line_end*wheelbase))
 	var rolling:Vector3=rig.car.to_global(Vector3(0,radius,-rig.line_end*wheelbase))
-	check(supported.distance_to(rig._hitch()+Vector3.UP*.15)<.035,"strapped axle stays in the underlift")
+	check(supported.distance_to(rig.body.crossbar.to_global(Vector3.UP*rig.Truck.WheelLift.AXLE_HEIGHT))<.005,"strapped axle stays in the underlift")
 	check(absf(rolling.y-rig._ground(rolling)-radius)<.20,"the free tires stay on the ground")
 	check(rig.truck.to_local(rolling).z>5.5 and rig.car.is_visible_in_tree(),"the free axle trails behind the wrecker")
 	check(rig.eyes.is_position_in_frustum(rig.car.position+Vector3.UP),"the chase camera includes the attached vehicle")

@@ -1,4 +1,5 @@
 extends Node3D
+const WheelLift := preload("res://scripts/wheel_lift.gd")
 const Kit = preload("res://scripts/rig_mesh.gd")
 const MAROON := Color("#6b1f24")
 const DEEP := Color("#491a20")
@@ -35,6 +36,7 @@ var steer_wheel: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
 var stinger: Node3D
+var crossbar := WheelLift.new()
 var boom: Node3D
 var boom_extension: Node3D
 var boom_tip: Node3D
@@ -325,10 +327,8 @@ func _bed(k) -> void:
 	stinger=Kit.joint(lift,Vector3(0,0,-1.31),"TelescopingCrossbar")
 	var forks=Kit.new(stinger)
 	forks.box(Vector3(0,.47,5.14),Vector3(.27,.16,1.47),STEEL)
-	forks.box(HITCH,Vector3(1.96,.18,.21),IRON)
-	for s in [-1.0,1.0]:
-		forks.box(HITCH+Vector3(s*.79,.02,0),Vector3(.12,.145,.64),IRON)
 	forks.finish()
+	crossbar.assemble(stinger,HITCH)
 
 func aim_boom(at: Vector3) -> void:
 	var toward := to_local(at)-boom.position
@@ -492,7 +492,16 @@ func _mirror(s:float) -> void:
 	screen.position.z=.038
 	mirrors.append(viewport)
 
-func animate(dt:float, speed:float, steering:float, engine_rpm:float, load_on:bool, tension:float, fuel:float, odo:float, heading:float, cab:bool, has_job:bool) -> void:
+func place_tires(contacts: PackedFloat32Array) -> void:
+	# Springs carry the body above the axles. The tire centers follow the road
+	# as the body pitches or rolls, up to the available suspension travel.
+	for i in wheels.size():
+		var hub := wheels[i].get_parent_node_3d()
+		var base := to_global(Vector3(hub.position.x,0,hub.position.z)).y
+		var ride := (contacts[i]+TIRE_RADIUS-base)/maxf(global_basis.y.y,.65)
+		hub.position.y = clampf(ride,TIRE_RADIUS-.25,TIRE_RADIUS+.27)
+
+func animate(dt:float, speed:float, steering:float, engine_rpm:float, tension:float, fuel:float, odo:float, heading:float, cab:bool, has_job:bool) -> void:
 	animate_weather(dt,has_job)
 	var steer_tangent := tan(steering)
 	var curvature := steer_tangent / WHEELBASE
@@ -510,7 +519,6 @@ func animate(dt:float, speed:float, steering:float, engine_rpm:float, load_on:bo
 	for i in needles.size():
 		needles[i].rotation.z=deg_to_rad(132-264*clampf(readings[i],0,1))
 	pressure_needle.rotation.z=deg_to_rad(132-264*tension)
-	lift.position.y=move_toward(lift.position.y,.39 if load_on else .03,dt*.65)
 	digital_timer-=dt
 	if digital_timer<=0:
 		digital_timer=.19
