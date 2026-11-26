@@ -156,8 +156,9 @@ func _ready() -> void:
 	audio = Audio.new()
 	add_child(audio)
 	audio.mount_diesel(rig.truck)
+	audio.mount_recovery(rig)
 	add_child(broadcast)
-	rig.sound_event.connect(audio.effect)
+	rig.sound_event.connect(audio.rig_effect)
 	saved_data = {} if test_session else Ledger.read()
 	desk = Desk.new()
 	add_child(desk)
@@ -1286,13 +1287,13 @@ func _interact() -> void:
 				return
 			west_orders.locked = not west_orders.locked
 			if west_orders.locked: west_orders.current.secured = _clock()
-			audio.effect("ratchet")
+			audio.rig_effect("ratchet")
 			_sync_west_bay()
 			_message("BRANDT","West hold secured. I'll mark the copy." if west_orders.locked else "Chain open. The deputy can sign for the car.")
 		"tripod":
 			packed_tripod = true
 			county.set_tripod_collected(true)
-			audio.effect("ratchet")
+			audio.rig_effect("ratchet")
 			_message("BRANDT","Tripod stowed. The instrument was still mounted.")
 		"sign":
 			signed_card = true
@@ -1340,7 +1341,7 @@ func _interact() -> void:
 					return
 			bay_locked = not bay_locked
 			county.set_bay_locked(bay_locked)
-			audio.effect("ratchet")
+			audio.rig_effect("ratchet")
 			_message("BRANDT","Bay secured. Key back on the ring." if bay_locked else "Hold bay open.")
 		"close_unit_door":
 			hold_door_open = false

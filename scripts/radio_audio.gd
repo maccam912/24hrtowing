@@ -9,6 +9,8 @@ var chatter_streams := {}
 var engines := {}
 var samples := {}
 var chatter := AudioStreamPlayer.new()
+const Recovery := preload("res://scripts/recovery_audio.gd")
+var recovery: Recovery
 var parked_diesel: AudioStreamPlayer3D
 var wind_filter: AudioEffectLowPassFilter
 var effects: Array[AudioStreamPlayer] = []
@@ -58,7 +60,7 @@ func _ready() -> void:
 	add_child(receiver)
 	engines.pulse = receiver
 	if audible: receiver.play()
-	for id: String in ["wind","diesel","diesel_pull","heater","winch"]:
+	for id: String in ["wind","diesel","diesel_pull","heater"]:
 		var loop_player := AudioStreamPlayer.new()
 		var stream = _sample(id).duplicate()
 		stream.loop = true
@@ -69,6 +71,10 @@ func _ready() -> void:
 		if audible:
 			loop_player.play()
 		engines[id] = loop_player
+
+func mount_recovery(rig) -> void:
+	recovery = Recovery.new()
+	recovery.mount(rig)
 
 func mount_diesel(truck: Node3D) -> void:
 	parked_diesel = AudioStreamPlayer3D.new()
@@ -159,9 +165,11 @@ func _chatter_finished() -> void:
 		radio_tail = false
 		effect("radio")
 
+func rig_effect(id: String) -> void:
+	if not recovery or not recovery.effect(id): effect(id)
+
 func effect(id: String) -> void:
-	var aliases := {"flare":"footstep","cable_slip":"ratchet","hook":"ratchet","chock":"ratchet","winch_start":"lift"}
-	var sample_id: String = aliases.get(id, id)
+	var sample_id := id
 	if not ResourceLoader.exists(FOLDER + sample_id + ".mp3"):
 		return
 	var p := effects[cursor]
@@ -196,8 +204,7 @@ func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: f
 		heater_db = lerpf(-23.0,-29.0,float(s.get("warmth",1.0))) + (5.0 if blower == 2 else 0.0)
 	engines.heater.pitch_scale = 1.16 if blower == 2 else .95
 	_volume("heater",heater_db,delta)
-	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
-	engines.winch.pitch_scale = 0.80 + 0.56 * float(s.get("tension",0.0))
+	if is_instance_valid(recovery): recovery.mix(player_active and controls_live,in_store,delta,calm)
 
 	var driving := controls_live and cab
 	var rpm: float = s.engine_rpm if driving else 680.0

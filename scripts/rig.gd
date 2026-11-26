@@ -1363,7 +1363,7 @@ func interact() -> void:
 		"cable":
 			phase="cable"
 			_set_chocks()
-			sound_event.emit("ratchet")
+			sound_event.emit("chock")
 			if tree_recovery: tree_recovery.deploy(self)
 		"tree_block":
 			tree_recovery.block_set = true
@@ -1400,7 +1400,7 @@ func interact() -> void:
 			line_end=_nearest_eyelet()
 			phase="rigged"
 			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
-			sound_event.emit("ratchet")
+			sound_event.emit("hook")
 		"restow","unhook","ice_repack":
 			if flowage:
 				flowage.creep = false
