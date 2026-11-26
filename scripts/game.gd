@@ -59,7 +59,8 @@ var stored := []
 var faxes := []
 var filed_card := ""
 var physical_cars := []
-var open_storage_tag := -1
+var yard_card := {}
+var impound_book := preload("res://scripts/impound_book.gd").new()
 var received_freight: Rig.Semi
 var held := false
 var bay_locked := false
@@ -374,6 +375,19 @@ func _action(id: String) -> void:
 				_directions()
 			else:
 				_message("BRANDT","Use the radio in the cab.")
+		"impound_prev","impound_next":
+			if desk.page == "impound_register":
+				impound_book.turn(1 if id == "impound_next" else -1)
+		"impound_index":
+			if desk.page == "register_card":
+				desk.show_document("impound_register",state)
+		"impound_0","impound_1","impound_2":
+			var rows: Array = impound_book.visible_cards()
+			var index := int(id.right(1))
+			if desk.page == "impound_register" and index < rows.size():
+				yard_card = rows[index]
+				_refresh()
+				desk.show_document("register_card",state)
 		"interact": _interact()
 		"spot":
 			if active and rig.in_cab and account.owns("lamps") and not desk.is_blocking():
@@ -912,6 +926,8 @@ func _site_action() -> String:
 		return ""
 	if _facing(FAX,4.4):
 		return "fax"
+	if _facing(County.Fittings.REGISTER,2.6):
+		return "impound_register"
 	if _at_yard_nozzle():
 		return "bulk_pump"
 	if county.yard_brewer and _facing(County.Fittings.COFFEE,2.7):
@@ -1029,8 +1045,11 @@ func _interact() -> void:
 			if side >= 0:
 				rig.body.set_mirror_ice(side,0)
 				rig._note("Glass wiped clean.",3.0)
+		"impound_register":
+			impound_book.open(stored,slips,PARKING.size(),County.Fittings.WEST_STALLS if county.west_lot_open else 0)
+			desk.show_document("impound_register",state)
 		"storage_tag":
-			open_storage_tag = _storage_row_in_reach()
+			yard_card = _storage_tag(_storage_row_in_reach())
 			_refresh()
 			desk.show_document("storage_tag",state)
 		"bulk_pump":
@@ -1160,16 +1179,14 @@ func _storage_row_in_reach() -> int:
 func _storage_tag(index: int) -> Dictionary:
 	if index < 0 or index >= stored.size():
 		return {}
-	var record: Dictionary = stored[index] if stored[index] is Dictionary else {"route":stored[index]}
-	var paper := record.duplicate()
-	# Old impounds contain fewer fields. Their filed carbons have the original details.
+	var paper: Dictionary = impound_book.record(stored[index],index,PARKING.size(),County.Fittings.WEST_STALLS if county.west_lot_open else 0)
+	# Early impounds stored the vehicle details on their carbon copy.
 	if not paper.has("vehicle") or not paper.has("time"):
-		var number := int(record.get("number",-1))
+		var number := int(paper.get("number",-1))
 		for slip in slips:
 			if int(slip.get("number",0)) == number:
 				paper.merge(slip)
 				break
-	paper["stall"] = "WEST  W-%02d" % (index-PARKING.size()+1) if index >= PARKING.size() else "FRONT  %02d" % (index+1)
 	return paper
 
 func _read_book() -> void:
@@ -1434,7 +1451,7 @@ func _prompt(site: String = _site_action()) -> String:
 		return "Offer a ride to " + Rides.destination(job)
 	if site == "let_out":
 		return "Let the passenger out at " + Rides.destination(job)
-	var words := {"storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"impound_register":"Open the impound register","storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1583,7 +1600,7 @@ func _refresh() -> void:
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"plat_marks":plat_pencil.marks,"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
-		"west_lot":county.west_lot_open,"storage_tag":_storage_tag(open_storage_tag) if desk.page == "storage_tag" or site == "storage_tag" else {},
+		"west_lot":county.west_lot_open,"storage_tag":yard_card,
 		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
 		"heavy_job_filed":heavy_job_filed,"second_winch":account.owns("second_winch"),
 		"nozzle_ready":_can_pump_at_tank(),"nozzle_sale":nozzle_sale,
@@ -1609,6 +1626,10 @@ func _refresh() -> void:
 		state.hint_action = casework.tower_instruction()
 		state.work_available = false
 		state.can_enter_cab = false
+	if desk.page == "impound_register" or site == "impound_register":
+		state["impound_rows"] = impound_book.visible_cards()
+		state["impound_leaf"] = impound_book.leaf
+		state["impound_pages"] = impound_book.page_count()
 	state["can_track_lead"] = _can_track_lead()
 	state["tracked_lead"] = survey.tracked_lead
 	state["lead_label"] = casework.lead_label()

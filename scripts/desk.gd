@@ -314,7 +314,7 @@ func _activate(id: String) -> void:
 			surface.hover = ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()
-		"buy_coffee", "talk_mai":
+		"impound_prev", "impound_next", "impound_index", "impound_0", "impound_1", "impound_2", "buy_coffee", "talk_mai":
 			action.emit(id)
 		"plat_pencil":
 			pencil_open = not pencil_open

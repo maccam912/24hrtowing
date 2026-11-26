@@ -40,7 +40,8 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"parts": _parts(c,p,s)
 		"coffee": _coffee(c,p,s)
 		"bulk_pump": _bulk_pump(c,p,s)
-		"storage_tag": _storage_tag(c,p,s.get("storage_tag",{}))
+		"impound_register": _impound_register(c,p,s)
+		"register_card","storage_tag": _storage_tag(c,p,s.get("storage_tag",{}),page == "register_card")
 		"passenger": _passenger(c,p,s)
 		_: _slip(c,p,s)
 
@@ -691,7 +692,37 @@ func _coffee(c, p: Rect2, s: Dictionary) -> void:
 	if s.get("at_counter",false):
 		c.button("talk_mai",key,"Ask about the lot lights" if s.get("mai_lot",false) else "Talk to Mai")
 
-func _storage_tag(c, p: Rect2, record: Dictionary) -> void:
+func _impound_register(c, p: Rect2, s: Dictionary) -> void:
+	c._sheet(p,ORIGINAL)
+	var x := p.position.x+35
+	var width := p.size.x-70
+	_header(c,p,"BRANDT TOWING & RECOVERY","Impound register","YARD COPY",c.MONO)
+	var rows: Array = s.get("impound_rows",[])
+	if rows.is_empty():
+		c.text(Vector2(x,p.position.y+182),"No vehicles received.",c.HAND,28,FORM_BLUE)
+	for i in rows.size():
+		var row: Dictionary = rows[i]
+		var r := Rect2(x,p.position.y+108+i*85,width,80)
+		var id := "impound_%d" % i
+		c.draw_rect(r,Color("#d5d3bd") if c.hover != id else Color("#ead3a3"))
+		c.rule(x,r.end.y-1,width,LINE)
+		c.fitted(Rect2(x+16,r.position.y+5,width*.51-16,36),str(row.get("vehicle","Prior impound")),c.HAND,26,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+		c.fitted(Rect2(x+16,r.position.y+41,width*.51-16,30),str(row.get("location",row.get("route",""))),c.print_face,20,PAPER_INK,HORIZONTAL_ALIGNMENT_LEFT)
+		c.fitted(Rect2(x+width*.52,r.position.y+7,width*.47-10,31),str(row.get("stall","")),c.MONO,18,GREEN,HORIZONTAL_ALIGNMENT_RIGHT)
+		var ticket := "#"+str(row.number) if row.has("number") else "Prior ledger"
+		c.fitted(Rect2(x+width*.52,r.position.y+43,width*.47-10,28),ticket+"   "+str(row.get("plate","")),c.MONO,16,FADED,HORIZONTAL_ALIGNMENT_RIGHT)
+		c.hit(id,r)
+	var pages := int(s.get("impound_pages",1))
+	var leaf := int(s.get("impound_leaf",0))
+	var foot := Rect2(x,p.end.y-87,width*.28,80)
+	if leaf > 0:
+		c.button("impound_prev",foot,"Newer entries")
+	if leaf < pages-1:
+		foot.position.x = p.end.x-35-foot.size.x
+		c.button("impound_next",foot,"Older entries")
+	c.fitted(Rect2(x+width*.3,foot.position.y,width*.4,80),"SHEET  %d / %d" % [leaf+1,pages],c.MONO,17,FADED)
+
+func _storage_tag(c, p: Rect2, record: Dictionary, register_copy: bool) -> void:
 	c._sheet(p,TISSUE)
 	_header(c,p,"BRANDT TOWING & RECOVERY","Impound tag",str(record.get("stall","STORAGE")),c.MONO)
 	var x := p.position.x+35
@@ -703,7 +734,11 @@ func _storage_tag(c, p: Rect2, record: Dictionary) -> void:
 		["PICKUP",record.get("location",record.get("route","—"))],["VIN",record.get("vin","—")]]
 	for i in fields.size():
 		_entry(c,Rect2(x+(i%2)*(width*.5+5),y+floori(i/2.0)*97,width*.5-10,71),fields[i][0],str(fields[i][1]))
-	c.text(Vector2(x,p.end.y-20),"YARD COPY   /   RETAIN WITH VEHICLE",c.MONO,13,FADED)
+	if register_copy:
+		c.button("impound_index",Rect2(p.end.x-222,p.end.y-85,190,80),"Back to register")
+		c.text(Vector2(x,p.end.y-26),"CARBON   /   YARD OFFICE",c.MONO,13,FADED)
+	else:
+		c.text(Vector2(x,p.end.y-20),"YARD COPY   /   RETAIN WITH VEHICLE",c.MONO,13,FADED)
 
 func _bulk_pump(c, p: Rect2, s: Dictionary) -> void:
 	c.switch_face(p,Color("#823e36"))

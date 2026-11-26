@@ -2,9 +2,11 @@ extends "res://scripts/county_sites.gd"
 ## The office hose still serves walk-in orders. The bulk-tank nozzle lets
 ## Brandt meter a partial fill on the storage side of the yard.
 const NOZZLE := Vector3(-10.6,1.23,-79.6)
+const REGISTER := Vector3(-56.8,1.10,-73.6)
 const COFFEE := Vector3(-29.6,1.16,-41.2)
 
 func assemble(dispenser: bool, brewer: bool) -> void:
+	_register_desk()
 	if dispenser:
 		_metered_hose()
 	if brewer:
@@ -76,3 +78,18 @@ func west_fence(expanded: bool) -> void:
 		cyl(-61,1.18,post_z,.25,2.36,"oxide",true)
 		cyl(-61,1.79,post_z,.26,.26,"white")
 	placard(Vector3(-61,2.5,-55),"WEST STORAGE",3.7,.65,PI*.5,"black",true)
+
+func _register_desk() -> void:
+	origin = Vector3(REGISTER.x,0,REGISTER.z)
+	b(0,.49,0,.84,.98,.53,"green",true)
+	b(0,1.03,0,1.18,.12,.74,"wood")
+	b(0,1.74,-.32,1.26,.13,.89,"silver")
+	b(0,1.82,-.32,1.30,.07,.92,"snow")
+	for side: float in [-.48,.48]:
+		b(side,1.37,-.28,.055,.7,.055,"post")
+	placard(Vector3(0,1.56,-.27),"IMPOUND REGISTER",1.19,.25,0,"green")
+	b(0,1.105,.04,.62,.047,.38,"oxide")
+	b(-.15,1.138,.04,.277,.035,.34,"cream")
+	b(.15,1.138,.04,.277,.035,.34,"cream")
+	for row in 4:
+		b(.15,1.158,-.08+row*.063,.20,.006,.008,"black")
