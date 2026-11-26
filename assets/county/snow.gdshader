@@ -13,16 +13,16 @@ varying float opacity;
 varying vec3 snow_color;
 
 void vertex() {
-	float grain = INSTANCE_CUSTOM.a;
+	float grain = CUSTOM0.a;
 	float strength = mix(.55, 1., storm_gust);
 	// Small nearby grains and a deeper field of powder share one draw call.
 	float outer = step(.54, grain);
 	vec3 volume = mix(vec3(24., 10., 24.), vec3(60., 21., 60.), outer);
-	float speed = .82 + .38 * INSTANCE_CUSTOM.b;
+	float speed = .82 + .38 * CUSTOM0.b;
 	float swirl = storm_time * 1.7 + grain * 47.;
 	vec3 drift = vec3(storm_travel, -storm_time * (1.25 + grain), .26 * storm_travel) * speed;
 	drift.yz += vec2(.15 * sin(swirl), .29 * cos(swirl * .72)) * (1. - calm);
-	vec3 local = mod((INSTANCE_CUSTOM.rgb - .5) * volume + drift - eye + volume * .5, volume) - volume * .5;
+	vec3 local = mod((CUSTOM0.rgb - .5) * volume + drift - eye + volume * .5, volume) - volume * .5;
 	vec3 center = eye + local;
 	float dist = length(local);
 	float falloff = smoothstep(1.7, 3.5, dist) * (1.0 - smoothstep(.35, .49, dist / volume.x));
@@ -39,8 +39,8 @@ void vertex() {
 	vec3 sight = normalize(CAMERA_POSITION_WORLD - center + vec3(.0001));
 	vec3 side = cross(wind, sight);
 	side /= max(.025, length(side));
-	float width = (.023 + .028 * INSTANCE_CUSTOM.g) * (1.0 + .65 * outer);
-	float streak = (.14 + .27 * INSTANCE_CUSTOM.r) * (.6 + .65 * strength + .3 * light);
+	float width = (.023 + .028 * CUSTOM0.g) * (1.0 + .65 * outer);
+	float streak = (.14 + .27 * CUSTOM0.r) * (.6 + .65 * strength + .3 * light);
 	streak = mix(streak, width * 1.3, hanging);
 	vec3 point = center + side * VERTEX.x * width + wind * VERTEX.y * streak;
 	VERTEX = (VIEW_MATRIX * vec4(point, 1.)).xyz;

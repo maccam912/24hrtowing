@@ -54,7 +54,7 @@ var wind_time := 0.0
 var storm_time := 0.0
 var storm_gust := 0.0
 var storm_travel := 0.0
-var storm: MultiMeshInstance3D
+var storm: MeshInstance3D
 var snow_shader: ShaderMaterial
 var powder_clouds: MultiMeshInstance3D
 var powder_shader: ShaderMaterial
@@ -505,7 +505,8 @@ func _weather() -> void:
 	powder_shader = ShaderMaterial.new()
 	powder_shader.shader = preload("res://assets/county/blowing_powder.gdshader")
 	rng.seed = 32006
-	storm = _airborne_snow(snow_shader, 4100)
+	storm = preload("res://scripts/storm_grains.gd").build(snow_shader, rng, 4100)
+	add_child(storm)
 	powder_clouds = _airborne_snow(powder_shader, 280)
 	_build_spindrift()
 	var store_floor := Rect2(FuelStore.ROOM.position + Vector2(FuelStore.FORECOURT.x,FuelStore.FORECOURT.z), FuelStore.ROOM.size)
