@@ -96,7 +96,7 @@ Brandt orders equipment at the yard office and fits it with the wrecker parked o
 | Boom controls | Lift a car down off a roof or out of the trees | First impossible recovery (Act 2) |
 | Auxiliary fuel tank | A reserve holds half a main tank. Buy the fuel at the yard or Esker and use the wrecker’s transfer hose in the field | $155 after filing the Unit 38 hold |
 | Yard fittings | Meter fuel at the bulk tank, get coffee at the office bench, or open twelve more stalls west of the original five. The register keeps the overflow carbons | Pump $145, coffeemaker $39, west fence $245 |
-| Second hold bay | Receive another vehicle under a separate custody order | Planned |
+| Second hold bay | Book a separate sheriff’s order in West Hold 2, lock the entrance chain and meet the deputy there to countersign the release | $185 after extending the west lot |
 | Rollback (second truck) | Slide the bed to the snow, draw a light car up its runners and strap both sides. A heavy order waits for the wrecker while Arlene finds work for the carrier | $640 after twelve filed slips. Exchange keys at the parked truck’s driver door |
 
 The plat book grows too. Roads you've driven get inked in, roads that aren't printed get your pencil, and you can pencil a mark wherever you saw something. Good work for the sheriff opens heavier ordinary calls as the equipment becomes available. A particular evidence hold needs a deputy's order, and a retrieval needs a road you can reach. A driver who stays on the printed roads can make a living there indefinitely. After the story's last beat, the calls keep coming and so do the lights.
@@ -545,11 +545,15 @@ The slice passes two tests. Does the third run feel better than the first? Does 
 
 ### Fieldwork checkpoint · November 25
 
-At `c937f01` all ten job families have a playable call. The Hoffmann look-see and Unit 38 each have a named case. Arlene can also offer a paid check at the parish, the dam landing or the ginseng dryhouse. The operator can pass on the visit and take the waiting tow. The same county pays routine ditch pulls, checked-car hauls and passenger transfers between cases. A plow driver takes the wheel after a recovery. A milk hauler waits for the sealed truck at the dairy transfer pad. The trailer receiver looks for the last axle inside the posts at River Lanes.
+All ten job families have a playable call. The Hoffmann look-see and Unit 38 each have a named case. Arlene can also offer a paid check at the parish, the dam landing or the ginseng dryhouse. The operator can pass on the visit and take the waiting tow. The same county pays routine ditch pulls, checked-car hauls and passenger transfers between cases. A plow driver takes the wheel after a recovery. A milk hauler waits for the sealed truck at the dairy transfer pad. The trailer receiver looks for the last axle inside the posts at River Lanes.
 
 Brandt can read a checked car’s original date, badge and road at the driver’s mirror. Those details stay with the car if it moves and reach the impound copy. Fire numbers lead from an actual roadside plate to the owner’s parcel on the plat. The wrecker has working mirror heaters, a pillar spot, a blower and a crank window. Coffee and shelter matter on long jobs outside.
 
-The eight case intervals, the post-story rotation, and the receipts are covered by the local shift tests. The two playtest questions above still need a human driver.
+By `52ddfb2`, Highway 64 reaches the county garage three miles east of County FF. Bay 03 receives disabled county cars after Brandt checks which axle can roll. At Memorial an EMT wheels the cot through the night doors while her partner stays with the ambulance. In Esker, clearing a taped car off the fire apron gives the volunteers room to bring Tanker 2 outside.
+
+The yard can keep two trucks on separate keys. The rollback has its own tank, odometer and deck controls. At the wheel-lift, the free axle tracks the corner as the wrecker rolls and holds its angle when the driver stops. On the river job the drum stays ashore while Brandt walks the hook out to the sedan. At the co-op a ladder reaches the car on the canopy. Both ends of its sling must be in place before the boom can lift it clear of the roof.
+
+The eight case intervals, the post-story rotation and the receipts are covered by the local shift tests. The two playtest questions above still need a human driver.
 
 ### Milestones
 
