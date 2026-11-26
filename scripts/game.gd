@@ -219,11 +219,12 @@ func _physics_process(dt: float) -> void:
 	if not rig or not desk or shutting_down:
 		return
 	var playing: bool = active and not desk.is_blocking()
-	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or desk.is_title() else SubViewport.UPDATE_DISABLED
+	var at_heater: bool = active and desk.page == "cab_heat"
+	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or at_heater or desk.is_title() else SubViewport.UPDATE_DISABLED
 	if playing:
 		sightings.advance(dt,self)
 		casework.advance_departure(dt)
-	if playing or desk.is_title():
+	if playing or at_heater or desk.is_title():
 		county.advance_storm(dt)
 	if desk.is_title():
 		_animate_title(dt)
@@ -244,21 +245,25 @@ func _physics_process(dt: float) -> void:
 		if job.has("clearance_seconds") and not rig.in_cab and rig.fuel > 0.0 and rig.phase in ["flared","cable","rigged"] and rig.near_casualty(42.0):
 			job.clearance_seconds += dt
 		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working and not on_ladder,brake,dt,on_ladder)
+		picture.material.set_shader_parameter("operator_frost",0.0 if rig.in_cab else smoothstep(.08,.72,1.0-rig.warmth))
 		casework.apply_glasses()
 		sightings.observations.sample(dt,self,sightings)
 		if rig.get_status().get("working",false):
 			seconds_worked += dt
-		save_timer += dt
-		if save_timer > 7:
-			_save()
 		direction_timer += dt
 		if direction_timer > 0.9:
 			_survey()
 			_check_lead_reminder(direction_timer)
 			direction_timer = 0.0
+	if at_heater:
+		rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,dt)
+	if playing or at_heater:
+		save_timer += dt
+		if save_timer > 7:
+			_save()
 	if active and desk.page == "bulk_pump":
 		_run_nozzle(dt)
-	if playing or (active and desk.page == "radio" and fuel_wait_left > 0.0):
+	if playing or at_heater or (active and desk.page == "radio" and fuel_wait_left > 0.0):
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
 	scanner.advance(dt,self)
@@ -307,6 +312,7 @@ func _input(event: InputEvent) -> void:
 			KEY_C: _action("camera")
 			KEY_L: _action("spot")
 			KEY_G: _action("read_fire_plate")
+			KEY_V: _action("cab_heat")
 			KEY_R: _action("radio")
 			KEY_T: _action("talk_in")
 			KEY_H: desk.show_document("help",state)
@@ -333,6 +339,7 @@ func _action(id: String) -> void:
 					_save()
 			desk.start_play()
 		"title":
+			picture.material.set_shader_parameter("operator_frost",0.0)
 			_save()
 			title_camera.make_current()
 			title_light.visible = true
@@ -413,6 +420,16 @@ func _action(id: String) -> void:
 		"read_field":
 			if held and (book_read or _near(BAY,5.0)):
 				_read_book()
+		"cab_heat":
+			if active and rig.in_cab and rig.is_stopped():
+				desk.show_document("cab_heat",state)
+		"blower_off","blower_low","blower_high","window_latch":
+			if desk.page == "cab_heat" and rig.in_cab and rig.is_stopped():
+				if id == "window_latch":
+					rig.climate.cracked = not rig.climate.cracked
+				else:
+					rig.climate.blower = ["blower_off","blower_low","blower_high"].find(id)
+				_save()
 		"settings_anchors":
 			rig.assist = not rig.assist
 			rig._update_highlight()
@@ -1708,6 +1725,9 @@ func _refresh() -> void:
 		state["impound_rows"] = impound_book.visible_cards()
 		state["impound_leaf"] = impound_book.leaf
 		state["impound_pages"] = impound_book.page_count()
+	state["blower"] = rig.climate.blower
+	state["window_open"] = rig.climate.cracked
+	state["cab_air"] = rig.climate.air
 	state["can_track_lead"] = _can_track_lead()
 	state["tracked_lead"] = survey.tracked_lead
 	state["lead_label"] = casework.lead_label()

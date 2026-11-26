@@ -52,7 +52,7 @@ Park in the yard and walk to the office fax to buy diesel or fit equipment. You 
 
 A **$175 snatch block** lets you rig a double line for loaded pickups. Once it’s fitted, Arlene can offer county utility trucks on rotation. Heavy recoveries pay an extra $36. **$95 tire chains** improve grip and braking and help the wrecker through deep snow. The office also services a worn winch for $24.
 
-At Esker Fuel & Food, walk through the glass doors to Mai’s counter. A 75¢ coffee warms your hands for two minutes of outdoor work. The shop and Brandt’s heated bay also warm you up. From the full-size plat, choose **Use pencil** to mark a vehicle, lights, or a place to revisit. Choose **Eraser** to remove a mark.
+At Esker Fuel & Food, walk through the glass doors to Mai’s counter. A 75¢ coffee warms your hands for two minutes of outdoor work. The shop and Brandt’s heated bay also warm you up. From the stopped cab, open **Pause → Heater & window** or press **V** to change the blower or crack the driver’s window. High clears cold glass faster. Opening the window lets the wind in. From the full-size plat, choose **Use pencil** to mark a vehicle, lights, or a place to revisit. Choose **Eraser** to remove a mark.
 
 The **Yard fittings** page sells a $145 metered pump for the bulk tank by storage. Park beside it, walk over, and hold the nozzle (or Space) to buy as much diesel as you want. A $39 coffeemaker puts a fresh pot on the bench beside the office. The $245 west fence extension adds twelve numbered spaces behind the five front stalls. Walk up to a stored vehicle to read its windshield tag and original pickup details. The green register beside the front row keeps cards for every impound, including vehicles at county overflow.
 

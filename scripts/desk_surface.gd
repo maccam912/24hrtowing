@@ -246,7 +246,12 @@ func _menu() -> void:
 		"pause":
 			var row := 88 if touch else 68
 			var button_height := 78 if touch else 52
-			button("close", Rect2(x,y+91,width-56,button_height),"Return to work",true)
+			if drawn.get("in_cab",false) and drawn.get("truck_stopped",false):
+				var resume_width := (width-68)*.58
+				button("close",Rect2(x,y+91,resume_width,button_height),"Return to work",true)
+				button("cab_heat",Rect2(x+resume_width+12,y+91,width-68-resume_width,button_height),"Heater & window")
+			else:
+				button("close",Rect2(x,y+91,width-56,button_height),"Return to work",true)
 			button("guidance", Rect2(x,y+91+row,width-56,button_height),"Directions & next action")
 			var half := (width-56-12)*0.5
 			button("help", Rect2(x,y+91+row*2,half,button_height),"Operator guide")
@@ -309,6 +314,9 @@ func _documents() -> void:
 	var top := (dim.y-486)*0.5-(tab_height*0.5 if touch else 9.0)
 	var p := Rect2((dim.x-width)*0.5,top,width,486)
 	docs.paint(self,p,desk.page,drawn)
+	if desk.page == "cab_heat":
+		button("close",Rect2(p.end.x-180,p.end.y,180,tab_height),"Back to cab",true)
+		return
 	if desk.page in ["coffee","bulk_pump","checked_tape","storage_tag","register_card","impound_register"]:
 		button("close",Rect2(p.end.x-148,p.end.y,148,tab_height),"Hang up" if desk.page == "bulk_pump" else "Step away",true)
 		return

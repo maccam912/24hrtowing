@@ -58,6 +58,8 @@ var digital_timer := 0.0
 var mirror_timer := 0.0
 var mirror_step := 0
 var elapsed := 0.0
+var side_glass: Node3D
+var window_crank: Node3D
 var glass_material := ShaderMaterial.new()
 var beacons: Array[MeshInstance3D]=[]
 var seat_gear: Node3D
@@ -151,6 +153,7 @@ func build() -> void:
 	add_child(pane)
 	pane.position = Vector3(0,2.693,-1.645)
 	pane.rotation.x = .233
+	_driver_window()
 	_bed(k)
 	_cabin(k)
 	k.finish()
@@ -162,6 +165,41 @@ func build() -> void:
 		Kit.label(self,"ESKER, WIS.  ·  24 HR",Vector3(s*1.071,1.455,-.87),.041,DEEP,rot)
 	_mirror(-1.0)
 	_mirror(1.0)
+
+func _driver_window() -> void:
+	side_glass = Kit.joint(self,Vector3.ZERO,"DriverWindow")
+	var shape := SurfaceTool.new()
+	shape.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var a := Vector3(-1.009,2.05,-1.72)
+	var b := Vector3(-1.009,2.05,-.35)
+	var c := Vector3(-.958,3.16,-.35)
+	var d := Vector3(-.958,3.16,-1.455)
+	for corner: Vector3 in [a,b,c,a,c,d]:
+		shape.add_vertex(corner)
+	var tint := StandardMaterial3D.new()
+	tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	tint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	tint.cull_mode = BaseMaterial3D.CULL_DISABLED
+	tint.albedo_color = Color(.46,.58,.64,.065)
+	shape.set_material(tint)
+	var pane := MeshInstance3D.new()
+	pane.mesh = shape.commit()
+	pane.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	side_glass.add_child(pane)
+	var glass_edge = Kit.new(side_glass)
+	glass_edge.beam(c,d,.009,.015,Color("#8e9d9e"))
+	glass_edge.finish()
+	window_crank = Kit.joint(self,Vector3(-.923,1.94,-.89),"WindowCrank")
+	var crank = Kit.new(window_crank)
+	crank.beam(Vector3.ZERO,Vector3(.027,-.086,.013),.028,.034,STEEL)
+	crank.tube(Vector3(.027,-.086,.013),Vector3(.07,-.086,.013),.026,RUBBER)
+	crank.finish()
+
+func move_driver_window(open: bool, dt: float) -> void:
+	var target := -.20 if open else 0.0
+	if not is_equal_approx(side_glass.position.y,target):
+		side_glass.position.y = move_toward(side_glass.position.y,target,dt*.29)
+		window_crank.rotation.x = side_glass.position.y*TAU*7.5
 
 func fit_lamps(fitted: bool) -> void:
 	if fitted and not lamp_kit:

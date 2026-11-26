@@ -84,6 +84,7 @@ var odo:=START_ODO
 var fuel:=.84
 const HOT_COFFEE_SECONDS := 120.0
 var warmth:=1.0
+var climate := preload("res://scripts/cab_heater.gd").new()
 var coffee_left := 0.0
 var spot_on := false
 var wear:=0.0
@@ -432,19 +433,12 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 	_update_eyes()
 	_cable_curve()
 	_update_highlight()
-	var warmth_rate := lerpf(-.0017,.017,sighting_calm)
-	if in_cab or (world and world.has_method("is_heated_shelter") and world.is_heated_shelter(foot)):
-		warmth_rate = .014
-	elif coffee_left > 0:
-		coffee_left = maxf(0,coffee_left-dt)
-		warmth_rate = maxf(0,warmth_rate)
-	warmth = clampf(warmth + dt*warmth_rate,0,1)
-	if in_cab and fuel>0:
+	climate.advance(self,dt)
+	if fuel>0:
 		fuel=maxf(fuel-dt*.000017,0)
-	body.glass_material.set_shader_parameter("cold",1.0-warmth)
+	body.glass_material.set_shader_parameter("cold",1.0-climate.air)
+	body.move_driver_window(climate.cracked,dt)
 	body.animate(dt,speed,steering,engine_rpm,loaded,tension,fuel,odo,_compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
-	if not in_cab and warmth<=0.0 and info_timer<=0:
-		_note("Hands numb. The cab heater is running.",7.0)
 
 func _drive(move:Vector2, handbrake:bool, dt:float) -> void:
 	var forward:Vector3=-truck.global_basis.z
@@ -1539,7 +1533,7 @@ func _note(message:String,seconds:float) -> void:
 	info_timer=seconds
 
 func get_status() -> Dictionary:
-	return {"in_cab":in_cab,"speed_mph":absf(speed)*MPH_PER_MPS,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_compass_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
+	return {"in_cab":in_cab,"speed_mph":absf(speed)*MPH_PER_MPS,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_compass_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"blower":climate.blower,"window_open":climate.cracked,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
 
 func _v(p:Vector3)->Array:
 	return [p.x,p.y,p.z]
@@ -1549,7 +1543,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 	return fallback
 
 func save_state() -> Dictionary:
-	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
+	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d.special_work = special_work
 	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
@@ -1615,6 +1609,8 @@ func restore_state(d:Dictionary) -> void:
 	odo=d.get("odo",START_ODO)
 	fuel=d.get("fuel",.84)
 	warmth=d.get("warmth",1.0)
+	climate.restore(d.get("cab_heat",{}))
+	body.move_driver_window(climate.cracked,3.)
 	coffee_left = clampf(d.get("coffee_left",0.0),0,HOT_COFFEE_SECONDS)
 	spot_on = d.get("spot_on",false)
 	var ice: Array = d.get("mirror_ice",[])

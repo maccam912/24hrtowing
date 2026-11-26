@@ -182,12 +182,20 @@ func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: f
 		if cab or in_store:
 			wind_db = -37.0 if in_store else -28.0
 			cutoff = 610.0 if in_store else 1150.0
+	if cab and player_active and s.get("window_open",false):
+		wind_db = -22.0
+		cutoff = 4200.0
 	wind_filter.cutoff_hz = lerpf(wind_filter.cutoff_hz,cutoff,1.0 - exp(-delta * 6.0))
 	_volume("wind", lerpf(wind_db + gust * (4.0 if cab and player_active else 6.0),-76.0,calm), delta)
 	var signal_level := pulse if cab and controls_live else 0.0
 	if radio_tail and voice_busy(): signal_level = 0.0
 	_volume("pulse",linear_to_db(maxf(.0001,signal_level*.42)),delta)
-	_volume("heater", lerpf(-23.0,-29.0,float(s.get("warmth",1.0))) if cab and player_active else -65.0, delta)
+	var blower := int(s.get("blower",1))
+	var heater_db := -65.0
+	if cab and player_active and blower > 0 and float(s.fuel) > 0:
+		heater_db = lerpf(-23.0,-29.0,float(s.get("warmth",1.0))) + (5.0 if blower == 2 else 0.0)
+	engines.heater.pitch_scale = 1.16 if blower == 2 else .95
+	_volume("heater",heater_db,delta)
 	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
 	engines.winch.pitch_scale = 0.80 + 0.56 * float(s.get("tension",0.0))
 

@@ -1,6 +1,7 @@
 extends RefCounted
 
 const Addresses := preload("res://scripts/fire_numbers.gd")
+const CabHeater := preload("res://scripts/cab_heater.gd")
 const Campaign := preload("res://scripts/county_case.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
@@ -41,6 +42,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"parts": _parts(c,p,s)
 		"coffee": _coffee(c,p,s)
 		"bulk_pump": _bulk_pump(c,p,s)
+		"cab_heat": CabHeater.draw_panel(c,p,s)
 		"checked_tape": _mirror_tape(c,p,s.get("checked_tape",{}))
 		"impound_register": _impound_register(c,p,s)
 		"register_card","storage_tag": _storage_tag(c,p,s.get("storage_tag",{}),page == "register_card")
