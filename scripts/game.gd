@@ -1853,6 +1853,8 @@ func _refresh() -> void:
 		state.feedback = "E   "+_prompt(site)
 	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
+	if rig.flowage and not rig.in_cab and (s.phase=="cable" or (s.phase=="rigged" and rig._in_range(rig._panel(),2.8,false))):
+		state["ice_line"] = rig.flowage.meter(rig)
 	if rig.rollover and rig.rollover.controls:
 		state["drum_instruction"] = rig.rollover.instruction(rig)
 	if rig.tree_recovery and rig.tree_recovery.controls:

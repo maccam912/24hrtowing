@@ -17,7 +17,9 @@ const HOFFMANN_LANE_END := Vector2(457,336)
 const TERRAIN_X := Vector2i(-795, 1100)
 const TERRAIN_Z := Vector2i(-610, 1000)
 const YARD := Rect2(-65,-90,68,61)
+const Flowage := preload("res://scripts/flowage_pull.gd")
 const ROADS := [
+	["River Rd",Flowage.ROAD_X,-158,Flowage.ROAD_X,0],
 	["Highway 64", -635, 0, 930, 0], ["County K", 0, -420, 0, 800],
 	["Kolpack Rd", 400, 0, 400, 800], ["County FF", 800, 0, 800, 800],
 	["Hendricks Rd", 0, 400, 800, 400], ["Zielinski Rd", 0, 800, 800, 800],
@@ -26,7 +28,7 @@ const ROADS := [
 const PLACES := [
 	["Brandt Towing", -32,-64], ["Fuel & Food",-71,18], ["St. Hedwig’s",22,80],
 	["Brzezinski Dairy",90,425], ["Lindquist",431,246], ["Section 3",314,-400],
-	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Esker Co-op",40,-22], ["Tamarack",895,0],
+	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Flowage landing",-434,-141], ["Esker Co-op",40,-22], ["Tamarack",895,0],
 ]
 var alder_open := false
 var case_landmarks := {"angie_house":true,"mailboxes":true}
@@ -381,7 +383,7 @@ func _distance_from_lot(x: float, z: float) -> float:
 	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
 	if Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
-	for lot: Rect2 in [YARD,Fittings.WEST_LOT,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
+	for lot: Rect2 in [YARD,Fittings.WEST_LOT,Flowage.LANDING,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
 		var dz := maxf(0,maxf(lot.position.y-z, z-lot.end.y))
 		nearest = minf(nearest, maxf(dx,dz))
@@ -420,7 +422,7 @@ func _paint(tint: String, texture_path := "", emission := 0.0) -> StandardMateri
 
 func _make_materials() -> void:
 	for item: Array in [
-		["snow","d7dfe6","windpack"],["pavement","b2bcc5","salt_asphalt"],
+		["flowage_ice","97acb8","windpack"],["snow","d7dfe6","windpack"],["pavement","b2bcc5","salt_asphalt"],
 		["siding","d0b9b3","barn_siding"],["silver","abb7c0","galvanized"],
 		["cream","c2bfab"],["dark","34383a"],["wood","665449"],["brick","794a40"],
 		["oxide","773e35"],["green","245d4c"],["post","87999c"],["black","1e262b"],
@@ -600,6 +602,7 @@ func _build() -> void:
 	FuelStore.new(self,draw).build()
 	Memorial.new(self,draw).build()
 	Dryhouse.new(self,draw).build()
+	Flowage.mark_ice(draw,self)
 	preload("res://scripts/tree_recovery.gd").grow_grove(draw,self)
 	preload("res://scripts/rollover.gd").hayfield(draw,self)
 	CaseSites.new(self,draw).alder_cut()
@@ -665,7 +668,7 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884])
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,Flowage.ROAD_X,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884])
 	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,4,14,18,24,31,47,146,164,236,246,331,336,341,425,448])
 	var ground := {}
 	var h_rows := []
@@ -687,7 +690,7 @@ func _build_ground(draw) -> void:
 			var d := Vector3(x0,h_rows[row+1][col],z1)
 			var center := (a+c)*.5
 			var road := road_distance(center.x,center.z) <= 5.0
-			var yard_floor := YARD.has_point(Vector2(center.x,center.z)) or RiverLanes.LOT.has_point(Vector2(center.x,center.z))
+			var yard_floor := Flowage.LANDING.has_point(Vector2(center.x,center.z)) or YARD.has_point(Vector2(center.x,center.z)) or RiverLanes.LOT.has_point(Vector2(center.x,center.z))
 			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z))
 			var material := "road" if road else ("pavement" if yard_floor or forecourt else "snow")
 			var uv := PackedVector2Array()

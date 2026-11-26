@@ -436,6 +436,7 @@ func river_and_seat() -> void:
 		b(-1.1,.70,zz,.13,1.40,.13,"oxide")
 		b(-1.1,1.25,zz,.145,.21,.145,"white")
 	site(-443,-6)
+	placard(Vector3(0,2.18,0),"RIVER RD",2.85,.43,0,"green",true)
 	placard(Vector3(0,1.6,0),"DAM LANDING ↑",3.1,.53,0,"green",true)
 	b(0,.70,0,.15,1.4,.15,"wood")
 	site(889,-25)

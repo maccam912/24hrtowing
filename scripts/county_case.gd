@@ -46,7 +46,7 @@ const DETAILS := {
 		"point":Vector3(-477,0,-135), "angle":PI, "kind":"hazard", "recovery":"ice", "running":true,
 		"vehicle":"Gray sedan", "plate":"GWK 741", "vin":"2G1WL52M2T9171043", "variant":2,
 		"dispatch":"Headlights shining at the dam. Car’s level on the ice. Set the truck on the east bank and take every foot of line.",
-		"directions":"West on 64 to the river. Before the bridge, follow the east bank north past the dam. Back down the marked landing to pay out the cable.",
+		"directions":"West on 64 to the river. Turn north on River Rd before the bridge. At the red-and-white stakes, back toward the ice to pay out the long line.",
 		"receipt":"KOWALSKI / The driver came to two counties over, three hours gone. The ones we can reach come home warm. A few are still out. The less traffic there is at night, the fewer it moves. That’s the tow ban."},
 	"mail":{
 		"title":"The carrier’s last stop", "label":"Tow the Route 2 car", "road":"Kolpack Rd", "landmark":"N5104 mailboxes",

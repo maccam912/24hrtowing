@@ -69,7 +69,7 @@ const RECOVERIES := {
 	"nose_car": ["nose", "standing on its front bumper", "Check it with a second line before lowering it.", "Vehicle inverted, no approach", 85.0],
 	"roof_car": ["roof", "on the co-op roof", "Set up on the street side and lower it with the boom.", "Vehicle on structure", 95.0],
 	"tree_car": ["tree", "up in the tamaracks", "Set the boom and reeve the snatch block.", "Vehicle on structure", 95.0],
-	"ice_car": ["ice", "on the flowage ice", "Park on the bank. Pay out the whole drum for a slow pull.", "Vehicle on ice", 70.0],
+	"ice_car": ["ice", "on the flowage ice", "Take River Rd north from the east end of the Highway 64 bridge. Back toward the ice at the landing and run out the long cable.", "Vehicle on ice", 70.0],
 	"shoulder_car": ["gate", "on the shoulder with the headlights on", "The sheriff authorizes recovery where found.", "", 0.0],
 	"walker_car": ["gate", "running beside the road", "The driver went into the field. Bring the car in.", "", 0.0],
 	"gate_car": ["gate", "running outside your gate", "Nobody's in it. Bring it into storage.", "", 0.0],

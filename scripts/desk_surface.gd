@@ -416,6 +416,12 @@ func _hud() -> void:
 	if drawn.get("tower_glasses",false):
 		_field_glasses()
 	if drawn.has("boom_instruction") or drawn.has("drum_instruction"): _recovery_levers()
+	if drawn.has("ice_line"):
+		var meter := Rect2(dim.x*.5-87.,dim.y*.64-39.,174,34)
+		draw_rect(meter,RUBBER)
+		draw_rect(meter,Color("#ac9c7e"),false,1.)
+		fitted(meter.grow(-3),drawn.ice_line,MONO,16,AMBER)
+		hud_panels.append(meter)
 	if not drawn.get("in_cab",true):
 		draw_circle(dim*0.5,1.7,Color(0.08,0.11,0.13,0.70))
 		draw_circle(dim*0.5,1.0,Color(0.92,0.95,0.90,0.82))

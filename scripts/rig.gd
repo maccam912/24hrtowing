@@ -4,6 +4,7 @@ signal recovered(kind:String)
 signal dropped
 signal sound_event(id:String)
 
+const Flowage := preload("res://scripts/flowage_pull.gd")
 const Rollover := preload("res://scripts/rollover.gd")
 const Levers := preload("res://scripts/recovery_levers.gd")
 const TreeRecovery := preload("res://scripts/tree_recovery.gd")
@@ -49,6 +50,7 @@ var reserve_fuel := 0.0
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
+var flowage: Flowage
 var rollover: Rollover
 var active_levers: Levers:
 	get: return tree_recovery if tree_recovery else rollover
@@ -623,6 +625,7 @@ func _walk(move:Vector2, dt:float) -> void:
 			else: c.z=(size.z+.19) * (1.0 if old.z>0 else -1.0)
 			dest=car.to_global(c)
 		if semi: dest = semi.outside_trailer(dest,foot)
+	if flowage and phase=="cable": dest = flowage.limit_hook_walk(self,foot,dest)
 	var eye:=foot+Vector3.UP*.80
 	if _obstructed(eye,dest-foot+dir*.17):
 		var x_move:=Vector3(dest.x-foot.x,0,0)
@@ -781,6 +784,9 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 				var tail := car.to_global(Vector3.BACK*3.2)
 				car.rotation.x = clampf(atan2(_ground(nose)-_ground(tail),6.6),-.17,.17)
 				VehicleDrifts.place(car,_ground)
+	if _recovery() == "ice" and Flowage.on_flowage(job_site):
+		flowage = Flowage.new()
+		flowage.fit_marks(self)
 	if _recovery() == "tree": tree_recovery = TreeRecovery.new()
 	if _roll_job() and vehicle_identity.get("two_drum_roll",false): rollover = Rollover.new()
 	_set_car_lamps("running" if _running_car() else "hazard")
@@ -805,6 +811,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 func end_job() -> void:
 	if tree_recovery: tree_recovery.clear_sling()
 	tree_recovery = null
+	if flowage and is_instance_valid(flowage.markers): flowage.markers.queue_free()
+	flowage = null
 	rollover = null
 	boarding_walk = null
 	# The customer keeps the same car and driver when the radio assigns a new scene.
@@ -1009,6 +1017,9 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if flowage:
+		var bank_action := flowage.action(self,panel_range)
+		if not bank_action.is_empty(): return bank_action
 	if rollover:
 		var nearby := rollover.action(self,panel_range)
 		if not nearby.is_empty(): return nearby
@@ -1031,7 +1042,7 @@ func action_id() -> String:
 			var nose:float = car.get_meta("body_size").z
 			if set_up.z > -nose-.6 or absf(set_up.x)>12.: return "milk_position" if tanker else "freight_position"
 		if _boom_job() and not _clear_to_lower(): return "boom_space"
-		if _recovery()=="ice" and (_flat_distance(_drum(),job_site)<22.0 or _ground(truck.position)< -1.0): return "shore"
+		if not flowage and _recovery()=="ice" and (_flat_distance(_drum(),job_site)<22.0 or _ground(truck.position)< -1.0): return "shore"
 		return "need_block" if vehicle_identity.heavy_recovery and not snatch_block else "cable"
 	if phase=="cable":
 		if semi: return semi.cable_action(self,panel_range)
@@ -1040,7 +1051,9 @@ func action_id() -> String:
 		if _roll_job():
 			if _in_range(_side_eye(1.0 if second_line else -1.0),2.35): return "check_line" if second_line else "roll_hook"
 			return "restow" if panel_range else ""
-		if _in_range(_eyelet(_nearest_eyelet()),2.45): return "attach"
+		if _in_range(_eyelet(_nearest_eyelet()),2.45):
+			if flowage and _drum().distance_to(_eyelet(_nearest_eyelet())) > Flowage.MAX_LINE: return "ice_short"
+			return "attach"
 		if _county_plow() and _in_range(_eyelet(-1),2.6): return "plow_blade"
 		if panel_range: return "restow"
 	if phase=="rigged":
@@ -1075,6 +1088,14 @@ func context_text() -> String:
 			"milk_position": return "Park ahead of the milk truck with its grille facing the lift"
 			"milk_settle": return "Hold the lift steady while the milk settles"
 			"attach": return "Shackle the block to the front eye"
+	if flowage:
+		match action:
+			"ice_bank": return flowage.setup_note()
+			"ice_repack": return "Rewind and lift the chocks to reposition on solid ground"
+			"ice_short": return "End of the drum. Bring the truck closer on the landing."
+			"ice_creep": return "Shift the drum to creep for the ice pull"
+			"winch":
+				if flowage.lip and not flowage.seated: return "Release WINCH while the tires settle on the bank"
 	if rollover:
 		match action:
 			"roll_fetch": return "Take the check hook off the auxiliary drum"
@@ -1139,6 +1160,10 @@ func _hint() -> String:
 		return tree_recovery.instruction(self) + ". Use the wrecker’s side-panel levers."
 	if phase == "scene" and _boom_job():
 		return "Back toward the car. Leave 9–15 m between the rear controls and the casualty so the boom can swing clear."
+	if flowage:
+		if phase in ["scene","flared"]: return flowage.setup_note()
+		if phase == "cable": return "Walk the hook to the sedan. The orange wraps mark every ten feet on the long cable."
+		if phase == "rigged" and not flowage.creep: return "Go back to the truck and shift the drum to creep."
 	if phase == "scene" and _recovery()=="ice":
 		return "Stay on the bank, 22–52 m from the car. Set a flare at the rear controls and run the cable onto the ice."
 	if _county_plow():
@@ -1177,7 +1202,7 @@ func interact() -> void:
 		semi.handle_work(self,a)
 		_update_highlight()
 		return
-	if a in ["lift","sling","winch","tree_boom","roll_levers"] and fuel <= 0.0:
+	if a in ["lift","sling","winch","tree_boom","roll_levers","ice_creep"] and fuel <= 0.0:
 		_note(reserve_hint(),6.0)
 		return
 	match a:
@@ -1233,6 +1258,11 @@ func interact() -> void:
 			_note("Block set. Take the boom levers at the truck.",4)
 		"tree_boom": tree_recovery.engage(self)
 		"tree_leave": tree_recovery.release()
+		"ice_creep":
+			flowage.creep = true
+			sound_event.emit("ratchet")
+			_note("Drum in creep. Pull slowly until the first tires reach the bank.",5.)
+		"ice_short","ice_bank": _note(context_text(),5.)
 		"roll_levers": rollover.take_controls(self)
 		"roll_leave": rollover.release()
 		"roll_hold": _note(context_text(),4.)
@@ -1258,7 +1288,11 @@ func interact() -> void:
 			phase="rigged"
 			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
 			sound_event.emit("ratchet")
-		"restow","unhook":
+		"restow","unhook","ice_repack":
+			if flowage:
+				flowage.creep = false
+				flowage.cable_out = 0.
+				if a=="ice_repack": _note(flowage.setup_note(),7.)
 			if rollover: rollover.fetched = false
 			if tree_recovery:
 				tree_recovery.clear_sling()
@@ -1320,6 +1354,7 @@ func _winch(operate:bool,dt:float) -> void:
 	working=phase=="rigged" and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
 	if working and ((vehicle_identity.heavy_recovery and not snatch_block) or (semi and not second_winch)):
 		working = false
+	if flowage and not flowage.prepare(self,operate,dt): working = false
 	if (active_levers and special_work < 1.) or (rollover and not rollover.check_cleared): working = false
 	if not working:
 		tension=move_toward(tension,0.0,dt*.72)
@@ -1519,6 +1554,7 @@ func _trail(dt:float) -> void:
 
 func _cable_curve() -> void:
 	cable_mesh.clear_surfaces()
+	if flowage: flowage.markers.visible = phase in ["cable","rigged"]
 	pulley.visible=snatch_block
 	if snatch_block:
 		pulley.global_transform=body.global_transform*Transform3D(Basis.IDENTITY,Vector3(-.89,1.85,3.40))
@@ -1555,6 +1591,7 @@ func _cable_curve() -> void:
 	var b:=_eyelet(line_end)
 	if phase=="cable":
 		b = foot + Vector3.UP*.15 if in_cab else eyes.global_transform*Vector3(.25,-.32,-.46)
+	if flowage and phase in ["cable","rigged"]: flowage.mark_line(self,a,b)
 	if snatch_block and vehicle_identity.heavy_recovery:
 		pulley.global_position=b+Vector3.UP*.12
 		pulley.rotation.y=atan2(b.x-a.x,b.z-a.z)
@@ -1646,6 +1683,7 @@ func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d.special_work = special_work
+	if flowage: d.flowage = flowage.save_state()
 	if rollover: d.rollover = {"fetched":rollover.fetched,"clear":rollover.check_cleared,"preload":rollover.preload_fraction,"controls":rollover.controls,"watch_load":rollover.watch_load}
 	if tree_recovery: d.tree_boom = {"block":tree_recovery.block_set,"controls":tree_recovery.controls,"watch_load":tree_recovery.watch_load}
 	if aux_tank and aux_tank.visible: d.reserve_fuel = reserve_fuel
@@ -1739,6 +1777,7 @@ func restore_state(d:Dictionary) -> void:
 				"scene": witness.position = _unpack(d.get("waiting_rider"),witness.position)
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
+		if flowage: flowage.restore(self,d.get("flowage",{}))
 		if rollover:
 			var drums: Dictionary = d.get("rollover",{})
 			rollover.fetched = drums.get("fetched",phase == "rigged")
