@@ -48,7 +48,18 @@ func run() -> void:
 			director.advance(88.,game)
 			director.advance(17.,game)
 			check(director.active.is_empty(),"no second major event on the outbound")
-		game._recovered(job.kind)
+		if job.kind == "passenger":
+			rig.speed = 0
+			rig.set_spawn(rig.get_witness_position()+Vector3(3,0,4))
+			rig.offer_front_seat()
+			for frame in 1000:
+				if rig.phase == "passenger":
+					break
+				rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,1./60.)
+			rig.set_spawn(game.Rides.target(job))
+			game._action("interact")
+		else:
+			game._recovered(job.kind)
 		if job.kind=="hazard":
 			game.mode="haul"
 			rig.loaded=true
