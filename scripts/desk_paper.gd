@@ -40,6 +40,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"parts": _parts(c,p,s)
 		"coffee": _coffee(c,p,s)
 		"bulk_pump": _bulk_pump(c,p,s)
+		"storage_tag": _storage_tag(c,p,s.get("storage_tag",{}))
 		"passenger": _passenger(c,p,s)
 		_: _slip(c,p,s)
 
@@ -690,6 +691,20 @@ func _coffee(c, p: Rect2, s: Dictionary) -> void:
 	if s.get("at_counter",false):
 		c.button("talk_mai",key,"Ask about the lot lights" if s.get("mai_lot",false) else "Talk to Mai")
 
+func _storage_tag(c, p: Rect2, record: Dictionary) -> void:
+	c._sheet(p,TISSUE)
+	_header(c,p,"BRANDT TOWING & RECOVERY","Impound tag",str(record.get("stall","STORAGE")),c.MONO)
+	var x := p.position.x+35
+	var width := p.size.x-70
+	var y := p.position.y+125
+	var number := int(record.get("number",0))
+	var fields := [["TOW SLIP",str(number) if number else "Prior ledger"],["TIME IN",record.get("time","—")],
+		["VEHICLE",record.get("vehicle","Prior impound")],["REGISTRATION",record.get("plate","—")],
+		["PICKUP",record.get("location",record.get("route","—"))],["VIN",record.get("vin","—")]]
+	for i in fields.size():
+		_entry(c,Rect2(x+(i%2)*(width*.5+5),y+floori(i/2.0)*97,width*.5-10,71),fields[i][0],str(fields[i][1]))
+	c.text(Vector2(x,p.end.y-20),"YARD COPY   /   RETAIN WITH VEHICLE",c.MONO,13,FADED)
+
 func _bulk_pump(c, p: Rect2, s: Dictionary) -> void:
 	c.switch_face(p,Color("#823e36"))
 	var face := p.grow(-18)
@@ -777,6 +792,9 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 			"Install pump","Installed" if s.get("yard_pump",false) else "",money,can_fit,location)
 		_equipment_card(c,right,"buy_coffee_maker","Shop coffeemaker","Brew a cup at the office bench before heading out.",ShopAccount.PRICES.coffee_maker,
 			"Install brewer","Installed" if s.get("coffee_maker",false) else "",money,can_fit,location)
+		left.position.y += size.y+8
+		_equipment_card(c,left,"buy_west_lot","West storage lot","Open the gate to twelve more impound spaces.",ShopAccount.PRICES.west_lot,
+			"Extend fence","Installed" if s.get("west_lot",false) else "",money,can_fit,location)
 		_parts_nav(c,p,leaf)
 		c.fitted(Rect2(x,p.end.y-38,width,32),s.get("shop_receipt",""),c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 		return
@@ -864,6 +882,12 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 			c.draw_rect(sketch.grow_individual(-3,-16,-3,-16),PAPER_INK,false,2)
 			for i in 6:
 				c.draw_circle(sketch.position+Vector2(11+i*10,sketch.size.y*.5),3.3,FORM_BLUE)
+		"buy_west_lot":
+			for i in 6:
+				var at := sketch.position+Vector2(6+i*8,8)
+				c.draw_line(at,at+Vector2(15,29),FORM_BLUE,1,true)
+				c.draw_line(at+Vector2(15,0),at+Vector2(0,29),FORM_BLUE,1,true)
+			c.draw_rect(sketch.grow(-6),PAPER_INK,false,2)
 		"buy_coffee_maker":
 			var m := sketch.get_center()
 			c.draw_rect(Rect2(m-Vector2(16,19),Vector2(32,8)),PAPER_INK,false,2)

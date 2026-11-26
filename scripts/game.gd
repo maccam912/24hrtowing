@@ -59,6 +59,7 @@ var stored := []
 var faxes := []
 var filed_card := ""
 var physical_cars := []
+var open_storage_tag := -1
 var received_freight: Rig.Semi
 var held := false
 var bay_locked := false
@@ -401,7 +402,7 @@ func _action(id: String) -> void:
 				audio.stop_scanner()
 				if speaker.begins_with("SCANNER  /  "): sub_time = 0
 				_save()
-		"buy_second_winch","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
+		"buy_second_winch","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
 		"buy_coffee":
 			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
 				rig.warmth = 1.0
@@ -512,7 +513,7 @@ func _at_counter() -> bool:
 
 func _truck_in_yard() -> bool:
 	var at: Vector3 = rig.get_truck_position()
-	return rig.is_stopped() and County.YARD.has_point(Vector2(at.x,at.z))
+	return rig.is_stopped() and county.yard_contains(Vector2(at.x,at.z))
 
 func _can_refuel() -> bool:
 	if _at_office():
@@ -525,7 +526,11 @@ func _fit_equipment() -> void:
 	rig.second_winch = account.owns("second_winch")
 	rig.body.heated_mirrors = account.owns("mirrors")
 	rig.body.fit_lamps(account.owns("lamps"))
-	county.fit_yard(account.owns("yard_pump"),account.owns("coffee_maker"))
+	var extend_lot: bool = account.owns("west_lot")
+	var moved_fence: bool = county.west_lot_open != extend_lot
+	county.fit_yard(account.owns("yard_pump"),account.owns("coffee_maker"),extend_lot)
+	if moved_fence:
+		_display_storage()
 	if not account.owns("lamps"):
 		rig.spot_on = false
 
@@ -560,6 +565,7 @@ func _shop_purchase(id: String) -> void:
 		_fit_equipment()
 		match part:
 			"second_winch": shop_receipt = "Auxiliary winch fitted. Arlene can dispatch freight calls on US 59."
+			"west_lot": shop_receipt = "West gate open. Twelve numbered storage spaces on the back lot."
 			"yard_pump": shop_receipt = "Meter and hose fitted to the bulk tank by storage."
 			"coffee_maker": shop_receipt = "Coffee’s on at the bench beside the office."
 			"mirrors": shop_receipt = "Heater elements fitted to both mirrors."
@@ -917,6 +923,8 @@ func _site_action() -> String:
 		return "fuel"
 	if rig.action_id() in ["","enter"] and rig.wipeable_mirror() >= 0:
 		return "wipe_mirror"
+	if rig.action_id().is_empty() and _storage_row_in_reach() >= 0:
+		return "storage_tag"
 	if rig.action_id().is_empty() and not sightings.observations.inspectable(self,sightings).is_empty():
 		return "inspect_sighting"
 	return ""
@@ -1018,6 +1026,10 @@ func _interact() -> void:
 			if side >= 0:
 				rig.body.set_mirror_ice(side,0)
 				rig._note("Glass wiped clean.",3.0)
+		"storage_tag":
+			open_storage_tag = _storage_row_in_reach()
+			_refresh()
+			desk.show_document("storage_tag",state)
 		"bulk_pump":
 			nozzle_sale = 0
 			nozzle_cents = 0
@@ -1100,7 +1112,7 @@ func _dropped() -> void:
 		_sync_survey_scene()
 	else:
 		stored.append({"number":job.number,"route":job.route,"variant":job.get("variant",2),"plate":job.plate,"vin":job.vin,
-			"heavy_recovery":job.get("heavy_recovery",false)})
+			"heavy_recovery":job.get("heavy_recovery",false),"vehicle":job.get("vehicle",""),"location":job.get("location",""),"time":drop_time})
 	rig.end_job()
 	_display_storage()
 	_save()
@@ -1115,18 +1127,47 @@ func _turn_storage_north() -> void:
 func _display_storage() -> void:
 	for node in physical_cars:
 		if is_instance_valid(node):
+			node.hide()
 			node.queue_free()
 	physical_cars.clear()
 	if held or (campaign.released and not campaign.evidence.has("unit_departed")):
 		var car = rig.store_vehicle("hold",BAY,-PI/2)
 		if car is Node3D:
 			physical_cars.append(car)
-	for i in mini(stored.size(),PARKING.size()):
+	var capacity := PARKING.size()+(County.Fittings.WEST_STALLS if county.west_lot_open else 0)
+	for i in mini(stored.size(),capacity):
 		var entry: Dictionary = stored[i] if stored[i] is Dictionary else {"route":stored[i]}
 		var facing := 0.0 if entry.get("turned_north",false) or int(entry.get("number",i)) % 2 == 0 else PI
-		var car = rig.store_vehicle(entry.route,PARKING[i],facing,entry)
+		var stall: Vector3 = PARKING[i] if i < PARKING.size() else County.Fittings.west_stall(i-PARKING.size())
+		var ticket := entry.duplicate()
+		ticket["yard_tag"] = str(entry.get("number","YARD"))
+		var car = rig.store_vehicle(entry.route,stall,facing,ticket)
 		if car is Node3D:
+			car.set_meta("storage_row",i)
 			physical_cars.append(car)
+
+func _storage_row_in_reach() -> int:
+	if rig.in_cab or not county.yard_contains(Vector2(rig.foot.x,rig.foot.z)):
+		return -1
+	for car: Node3D in physical_cars:
+		if car.has_meta("storage_row") and _facing(car.global_position,3.1):
+			return int(car.get_meta("storage_row"))
+	return -1
+
+func _storage_tag(index: int) -> Dictionary:
+	if index < 0 or index >= stored.size():
+		return {}
+	var record: Dictionary = stored[index] if stored[index] is Dictionary else {"route":stored[index]}
+	var paper := record.duplicate()
+	# Old impounds contain fewer fields. Their filed carbons have the original details.
+	if not paper.has("vehicle") or not paper.has("time"):
+		var number := int(record.get("number",-1))
+		for slip in slips:
+			if int(slip.get("number",0)) == number:
+				paper.merge(slip)
+				break
+	paper["stall"] = "WEST  W-%02d" % (index-PARKING.size()+1) if index >= PARKING.size() else "FRONT  %02d" % (index+1)
+	return paper
 
 func _read_book() -> void:
 	book_read = true
@@ -1390,7 +1431,7 @@ func _prompt(site: String = _site_action()) -> String:
 		return "Offer a ride to " + Rides.destination(job)
 	if site == "let_out":
 		return "Let the passenger out at " + Rides.destination(job)
-	var words := {"yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"storage_tag":"Read the yard tag","yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1451,7 +1492,7 @@ func _route_note(favor_site := "") -> Dictionary:
 		return {}
 	var at: Vector3 = rig.get_truck_position()
 	var p := Vector2(at.x, at.z)
-	var in_yard := County.YARD.has_point(p) and p.x < -4
+	var in_yard: bool = county.yard_contains(p) and p.x < -4
 	var target := RoadDirections.DRIVEWAY
 	var landmark := "Brandt’s yard"
 	var title := "Route slip   /   Brandt yard"
@@ -1539,6 +1580,7 @@ func _refresh() -> void:
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"plat_marks":plat_pencil.marks,"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
+		"west_lot":county.west_lot_open,"storage_tag":_storage_tag(open_storage_tag) if desk.page == "storage_tag" or site == "storage_tag" else {},
 		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
 		"heavy_job_filed":heavy_job_filed,"second_winch":account.owns("second_winch"),
 		"nozzle_ready":_can_pump_at_tank(),"nozzle_sale":nozzle_sale,

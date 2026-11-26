@@ -356,7 +356,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"buy_second_winch", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"buy_second_winch", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):

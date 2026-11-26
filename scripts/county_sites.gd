@@ -191,7 +191,8 @@ func fence(a: Vector3, end: Vector3, height: float, mesh_fence := true, solid :=
 func yard() -> void:
 	site(0,0)
 	for edge: Array in [
-		[Vector3(-61,0,-86),Vector3(-4,0,-86)], [Vector3(-61,0,-86),Vector3(-61,0,-34)],
+		[Vector3(-61,0,-86),Vector3(-4,0,-86)], [Vector3(-61,0,-86),Vector3(-61,0,-72)],
+		[Vector3(-61,0,-57),Vector3(-61,0,-34)],
 		[Vector3(-61,0,-34),Vector3(-4,0,-34)], [Vector3(-4,0,-86),Vector3(-4,0,-74)],
 		[Vector3(-4,0,-54),Vector3(-4,0,-34)]
 	]:
@@ -204,7 +205,7 @@ func yard() -> void:
 		var xx := -59.+i*3.12
 		var span := rng.randf_range(4.1,7.)
 		draw.add("mound",p(xx,.06,-85.4+rng.randf_range(-.2,.3)),Vector3(span,rng.randf_range(.8,1.8),2.9),"snow",Vector3(0,rng.randf_range(-.1,.1),0))
-	for i in 6:
+	for i in [0,1,5]:
 		draw.add("mound",p(-60.2,.04,-78.+i*5.4),Vector3(2.2,rng.randf_range(.7,1.48),7.8),"snow")
 	for zz: float in [-77.,-82.,-50.4,-42.5]:
 		draw.add("mound",p(-5.2,.07,zz),Vector3(2.1,1.38,6.5),"snow")

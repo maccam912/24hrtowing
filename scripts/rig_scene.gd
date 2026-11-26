@@ -153,6 +153,10 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		var vin_strip := Vector3(-.38,base+.59,-.928)
 		g.box(vin_strip,Vector3(.37,.054,.012),BLACK,Vector3(windshield_tilt,0,0))
 		K.label(p,vin,vin_strip+Vector3(0,.003,-.008),.03,SNOW,Vector3(-windshield_tilt,PI,0),"plex_mono")
+	if identity.has("yard_tag"):
+		var card := Vector3(.42,base+.77,-.825)
+		g.box(card,Vector3(.28,.21,.011),Color("#efcc88"),Vector3(windshield_tilt,0,0))
+		K.label(p,"BRANDT\n"+str(identity.yard_tag),card+Vector3(0,.007,-.013),.047,BLACK,Vector3(-windshield_tilt,PI,0),"plex_mono")
 	if mail:
 		g.box(Vector3(-.38,base+.48,-.10),Vector3(.71,.12,.64),BLACK)
 		for i in 4:

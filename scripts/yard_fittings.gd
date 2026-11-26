@@ -44,3 +44,35 @@ func _coffee_shelf() -> void:
 	for i in range(4):
 		cyl(.58,1.04+i*.031,-.06,.15,.15,"cream")
 	placard(Vector3(.02,.76,-.42),"SHOP COFFEE",1.49,.25,PI,"green")
+
+const WEST_LOT := Rect2(-99,-86,38,52)
+const WEST_STALLS := 12
+
+static func west_stall(i: int) -> Vector3:
+	return Vector3(-93+(i%6)*5.0,0,-80 if i < 6 else -44)
+
+func west_fence(expanded: bool) -> void:
+	origin = Vector3.ZERO
+	if not expanded:
+		fence(Vector3(-61,0,-72),Vector3(-61,0,-57),2.3,true,true)
+		return
+	var nw := Vector3(WEST_LOT.position.x,0,WEST_LOT.position.y)
+	var sw := Vector3(nw.x,0,WEST_LOT.end.y)
+	var ne := Vector3(WEST_LOT.end.x,0,nw.z)
+	var se := Vector3(ne.x,0,sw.z)
+	fence(nw,sw,2.3,true,true)
+	fence(nw,ne,2.3,true,true)
+	fence(sw,se,2.3,true,true)
+	var pavement := Vector3.UP*.025
+	draw.quad(nw+pavement,ne+pavement,se+pavement,sw+pavement,"pavement")
+	for i in WEST_STALLS:
+		var at := west_stall(i)
+		var side := -1 if i < 6 else 1
+		b(at.x,.12,at.z+side*3.6,2.1,.19,.33,"cream")
+		b(at.x-2.45,.037,at.z,.11,.02,7.2,"stripe")
+		b(at.x,.8,at.z+side*4.35,.11,1.6,.13,"wood")
+		placard(at+Vector3(0,1.5,side*4.35),"W-%02d" % (i+1),1.35,.32,0 if side < 0 else PI,"green")
+	for post_z: float in [-72.,-57.]:
+		cyl(-61,1.18,post_z,.25,2.36,"oxide",true)
+		cyl(-61,1.79,post_z,.26,.26,"white")
+	placard(Vector3(-61,2.5,-55),"WEST STORAGE",3.7,.65,PI*.5,"black",true)

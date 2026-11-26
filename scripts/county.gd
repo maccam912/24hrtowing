@@ -60,6 +60,7 @@ var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
 var yard_dispenser := false
 var yard_brewer := false
+var west_lot_open := false
 var fittings_model: Node3D
 var fuel_door: Node3D
 var bay: Node3D
@@ -137,11 +138,15 @@ func _queue_build() -> void:
 		rebuild_queued = true
 		_build.call_deferred()
 
-func fit_yard(dispenser: bool, brewer: bool) -> void:
-	if dispenser == yard_dispenser and brewer == yard_brewer:
+func yard_contains(point: Vector2) -> bool:
+	return YARD.has_point(point) or (west_lot_open and Fittings.WEST_LOT.has_point(point))
+
+func fit_yard(dispenser: bool, brewer: bool, west_lot := false) -> void:
+	if dispenser == yard_dispenser and brewer == yard_brewer and west_lot == west_lot_open:
 		return
 	yard_dispenser = dispenser
 	yard_brewer = brewer
+	west_lot_open = west_lot
 	_build_yard_fittings()
 
 func _build_yard_fittings() -> void:
@@ -149,13 +154,13 @@ func _build_yard_fittings() -> void:
 		fittings_model.get_parent().remove_child(fittings_model)
 		fittings_model.queue_free()
 		fittings_model = null
-	if not yard_dispenser and not yard_brewer:
-		return
 	fittings_model = Node3D.new()
 	fittings_model.name = "ShopFittings"
 	county_model.add_child(fittings_model)
 	var geometry := Batch.new(fittings_model,materials)
-	Fittings.new(self,geometry).assemble(yard_dispenser,yard_brewer)
+	var fittings := Fittings.new(self,geometry)
+	fittings.assemble(yard_dispenser,yard_brewer)
+	fittings.west_fence(west_lot_open)
 	geometry.finish()
 
 func coffee_counter_point() -> Vector3:
@@ -366,7 +371,7 @@ func _distance_from_lot(x: float, z: float) -> float:
 	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
 	if Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
-	for lot: Rect2 in [YARD,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
+	for lot: Rect2 in [YARD,Fittings.WEST_LOT,Memorial.LOT,RiverLanes.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
 		var dz := maxf(0,maxf(lot.position.y-z, z-lot.end.y))
 		nearest = minf(nearest, maxf(dx,dz))
