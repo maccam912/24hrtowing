@@ -4,6 +4,7 @@ const County := preload("res://scripts/county.gd")
 const Rig := preload("res://scripts/rig.gd")
 const Desk := preload("res://scripts/desk.gd")
 const Audio := preload("res://scripts/radio_audio.gd")
+const Rides := preload("res://scripts/passenger_call.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const Ledger := preload("res://scripts/ledger.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
@@ -817,7 +818,7 @@ func _directions() -> void:
 	elif mode == "available":
 		_speak("DISPATCH","Standing by when you're ready to take the contract.")
 	elif job.get("kind") == "passenger" and rig.phase == "passenger":
-		_speak("DISPATCH","Pull in by the pumps. Mai’s on the register.")
+		_speak("DISPATCH",Rides.approach(job))
 	elif mode == "haul":
 		_say(rig.dropoff.radio)
 	elif mode in ["return","invoice"]:
@@ -844,15 +845,6 @@ func _survey() -> void:
 		roads_driven.append(street)
 	if completed >= 2 and not plow_heard and pos.distance_to(SPAWN) > 110 and sightings.active.is_empty():
 		plow_heard = scanner.plow_call(self)
-	if job.get("kind") == "passenger" and rig.phase == "passenger" and rig.in_cab and rig.is_stopped() and pos.distance_to(PUMP) < 16.0:
-		drop_odo = rig.odo
-		drop_time = _clock()
-		_speak("DRIVER","I know this place. I can call my sister from inside. Thanks for the ride.")
-		_clear_field_job()
-		rig.end_job()
-		_sync_survey_scene()
-		_prepare_offers()
-		_save()
 	if mode == "return" and (pos.distance_to(SPAWN) < 27 or _near(FAX,4.4)):
 		mode = "invoice"
 		_save()
@@ -872,6 +864,9 @@ func _facing(point: Vector3, radius: float) -> bool:
 	return d.length() < 1.45 or d.normalized().dot(Vector2(axis.x,axis.z).normalized()) > 0.30
 
 func _site_action() -> String:
+	if mode == "fieldwork" and job.get("kind") == "passenger" and rig.phase == "passenger" and rig.is_stopped():
+		if Rides.at_drop(job,rig.get_truck_position()) and (rig.in_cab or _facing(rig._passenger_step(),2.3)):
+			return "let_out"
 	if casework.tower_height >= 0.0:
 		return casework.tower_action()
 	if rig.in_cab or rig.at_dry_rig_door():
@@ -892,7 +887,7 @@ func _site_action() -> String:
 		if _facing(rig.get_witness_position(),4.3):
 			return "sign" if not signed_card else "deputy"
 	elif mode == "fieldwork" and job.get("kind") == "passenger" and rig.phase == "scene" and _facing(rig.get_witness_position(),3.9):
-		return "summer_ride"
+		return "offer_ride"
 	elif mode == "fieldwork" and job.get("kind") == "ditch" and not talked and _facing(rig.get_witness_position(),3.9):
 		return "driver"
 	# The panel and doors can sit within reach of the fax, chain or field book.
@@ -974,14 +969,23 @@ func _interact() -> void:
 		"deputy":
 			_say("light" if talked_twice else "kowalski_swamp")
 			talked_twice = true
-		"summer_ride":
+		"offer_ride":
 			if rig.get_truck_position().distance_to(rig.get_witness_position()) > 23.0:
-				_message("DRIVER","Can you bring the truck over here? I left my coat somewhere.")
+				_message("DRIVER","Can you bring the passenger door a little closer?")
 				return
-			rig.board_summer_driver()
-			pickup_time = _clock()
-			pickup_odo = rig.odo
-			_say("summer_driver")
+			if rig.offer_front_seat():
+				pickup_time = _clock()
+				pickup_odo = rig.odo
+				_speak("DRIVER",Rides.rider(job).pickup)
+		"let_out":
+			if rig.let_rider_out(job):
+				drop_odo = rig.odo
+				drop_time = _clock()
+				_speak("DRIVER",Rides.rider(job).arrival)
+				_clear_field_job()
+				rig.end_job()
+				_sync_survey_scene()
+				_prepare_offers()
 		"driver":
 			talked = true
 			_say(job.reply)
@@ -1250,7 +1254,11 @@ func _procedure() -> String:
 			return "County dispatch is standing by. Answer on the cab radio."
 		"fieldwork":
 			if job.kind == "passenger":
-				return "Stop beside the pumps at Esker Fuel & Food to let the driver out." if rig.phase == "passenger" else "Pull up by the car and speak to the driver in the summer shirt."
+				if rig.phase == "passenger":
+					return Rides.approach(job) + " At a full stop, use the door to let the passenger out."
+				if rig.phase == "boarding":
+					return "Keep the truck stopped while the driver walks to the passenger door."
+				return "Pull up with the passenger door clear. Step out and offer the %s a ride." % Rides.rider(job).person.to_lower()
 			if job.kind == "looksee":
 				if not survey.notes.has("house"):
 					return "Find the porch fire number beyond the Lindquist farm on Kolpack."
@@ -1307,7 +1315,7 @@ func _contract_hint(site: String) -> Dictionary:
 				if not instruction.is_empty():
 					title = job.title
 			elif job.kind == "passenger":
-				title = "Passenger · Esker Fuel & Food"
+				title = "Passenger · " + Rides.destination(job)
 				instruction = _procedure()
 			elif job.kind == "looksee":
 				title = "Look-see · N5104 Kolpack"
@@ -1350,7 +1358,11 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
-	var words := {"yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	if site == "offer_ride":
+		return "Offer a ride to " + Rides.destination(job)
+	if site == "let_out":
+		return "Let the passenger out at " + Rides.destination(job)
+	var words := {"yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1400,7 +1412,7 @@ func _road_note() -> Dictionary:
 	if Rig.uses_warning_triangle(job.kind,job):
 		identity += " Look for the red triangle."
 	elif job.kind == "passenger":
-		identity += " The driver's in a T-shirt."
+		identity += " %s is waiting by the car." % Rides.rider(job).person
 	if note.is_empty():
 		return {"title":"Pickup   /   %s" % job.location,"instruction":identity}
 	note.instruction += " " + identity
@@ -1435,8 +1447,9 @@ func _route_note(favor_site := "") -> Dictionary:
 			landmark = job.location
 		title = "Route slip   /   %04d" % int(job.number)
 		if job.kind == "passenger" and rig.phase == "passenger":
-			target = Vector2(PUMP.x,PUMP.z)
-			landmark = "Esker Fuel & Food"
+			var drop := Rides.target(job)
+			target = Vector2(drop.x,drop.z)
+			landmark = Rides.destination(job)
 	if not favor_site.is_empty() or (mode == "fieldwork" and not job.is_empty()):
 		if p.distance_to(target) < 23.0:
 			return {}
@@ -1502,6 +1515,7 @@ func _refresh() -> void:
 		"progress":_procedure(),"phase":s.phase,"work_available":s.fuel > 0.0 and rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
+	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
 	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM
 	state["tower_action"] = site if site.begins_with("tower_") else ""
@@ -1634,8 +1648,6 @@ func _restore(s: Dictionary) -> void:
 	rig.restore_state(rig_state)
 	if s.get("tower") is Dictionary and not rig.in_cab and county.case_landmarks.has("car_ring"):
 		casework.mount_tower(s.tower.get("height",0.0),s.tower.get("glasses",false))
-	if job.get("kind") == "passenger" and rig.phase == "passenger":
-		rig.board_summer_driver()
 	_fit_equipment()
 	# Older saves could close the chain around the operator or a parked rig.
 	if bay_locked and not _chain_obstruction().is_empty():

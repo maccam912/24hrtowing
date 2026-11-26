@@ -1055,7 +1055,7 @@ def model(deputy=False, farm=False, summer=False, clerk=False):
             )
         )
     m.clip("walk", [0, 0.19, 0.38, 0.57, 0.76], ch)
-    if farm or summer:
+    if not deputy and not clerk:
         # The passenger settles his boots in the cab footwell and occasionally glances at Brandt.
         seated = [
             (spine, "rotation", [quat(p, 0, 0.012) for p in (-0.04, -0.052, -0.04, -0.046, -0.04)]),

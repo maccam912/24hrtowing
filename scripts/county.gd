@@ -3,6 +3,7 @@ extends Node3D
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
 const Fittings := preload("res://scripts/yard_fittings.gd")
+const Memorial = preload("res://scripts/memorial_hospital.gd")
 const FuelStore = preload("res://scripts/fuel_store.gd")
 const CaseSites = preload("res://scripts/county_case_sites.gd")
 const Bay = preload("res://scripts/county_bay.gd")
@@ -22,7 +23,7 @@ const ROADS := [
 const PLACES := [
 	["Brandt Towing", -32,-64], ["Fuel & Food",-71,18], ["St. Hedwig’s",22,80],
 	["Brzezinski Dairy",90,425], ["Lindquist",431,246], ["Section 3",314,-400],
-	["River bridge",-435,0], ["Esker Co-op",40,-22], ["Tamarack",895,0],
+	["Tamarack Memorial",852,19], ["River bridge",-435,0], ["Esker Co-op",40,-22], ["Tamarack",895,0],
 ]
 var alder_open := false
 var case_landmarks := {"angie_house":true,"mailboxes":true}
@@ -355,7 +356,7 @@ func _distance_from_lot(x: float, z: float) -> float:
 	nearest = maxf(0,maxf(maxf(edge.position.x-x,x-edge.end.x),maxf(edge.position.y-z,z-edge.end.y)))
 	if Rect2(422,317,34,18).has_point(Vector2(x,z)):
 		return 0.0
-	for lot: Rect2 in [YARD,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
+	for lot: Rect2 in [YARD,Memorial.LOT,Rect2(-98,-2,46,31),Rect2(6,64,27,39),Rect2(426,230,43,36),Rect2(67,400,71,48),Rect2(-100,-28,140,55),Rect2(4,-38,78,43),Rect2(304,-412,19,13)]:
 		var dx := maxf(0,maxf(lot.position.x-x, x-lot.end.x))
 		var dz := maxf(0,maxf(lot.position.y-z, z-lot.end.y))
 		nearest = minf(nearest, maxf(dx,dz))
@@ -570,6 +571,7 @@ func _build() -> void:
 	places.build()
 	_build_yard_fittings()
 	FuelStore.new(self,draw).build()
+	Memorial.new(self,draw).build()
 	for x: float in [205.45,208.65]:
 		draw.spruce(Vector3(x,ground_height(x,-408.75),-408.75),5.65,x)
 	CaseSites.new(self,draw).alder_cut()
@@ -658,7 +660,7 @@ func _build_ground(draw) -> void:
 			var center := (a+c)*.5
 			var road := road_distance(center.x,center.z) <= 5.0
 			var yard_floor := YARD.has_point(Vector2(center.x,center.z))
-			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z))
+			var forecourt := Rect2(-98,-2,46,30).has_point(Vector2(center.x,center.z)) or Memorial.LOT.has_point(Vector2(center.x,center.z))
 			var material := "road" if road else ("pavement" if yard_floor or forecourt else "snow")
 			var uv := PackedVector2Array()
 			var highway := absf(center.z)<5.1 or absf(center.z-400)<5.1 or absf(center.z-800)<5.1 or absf(center.z+400)<5.1

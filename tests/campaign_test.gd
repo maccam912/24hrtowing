@@ -74,11 +74,16 @@ func file_rotation() -> void:
 		check(rig.warning_triangle == null, "the passenger waits beside the running car")
 		var driver: Vector3 = rig.get_witness_position()
 		rig.set_spawn(driver+Vector3(3,0,4))
-		inspect_at("summer_ride",driver)
+		inspect_at("offer_ride",driver)
+		for tick in 1200:
+			if rig.phase == "passenger":
+				break
+			rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,DT)
+		check(rig.phase == "passenger","passenger reaches the cab")
 		rig.in_cab = true
-		rig.set_spawn(game.PUMP+Vector3(0,0,5))
-		game._survey()
-		check(game.mode == "available", "the displaced driver made it to Esker Fuel & Food")
+		rig.set_spawn(game.Rides.target(game.job))
+		game._action("interact")
+		check(game.mode == "available","a stopped cab drops its passenger at the requested destination")
 	else:
 		game._recovered(game.job.kind)
 	if game.mode == "haul":

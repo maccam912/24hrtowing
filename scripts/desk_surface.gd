@@ -421,6 +421,10 @@ func _hud() -> void:
 		multiline(box.position+Vector2(15,39),words,subtle,18,WHITE,box.size.x-30)
 	if drawn.get("in_cab",true):
 		_driving_view()
+		if drawn.get("passenger_drop",false) and not desk.is_touch_mode():
+			var latch := Rect2(16,16,205,36)
+			draw_rect(latch,RUBBER)
+			fitted(latch,"E   Let the passenger out",subtle,17,WHITE)
 	if not desk.is_touch_mode() and (drawn.get("tower_height",-1.0) >= 0.0 or drawn.get("tower_action","") == "tower_ladder"):
 		_ladder_keys()
 	if desk.is_touch_mode():
@@ -538,7 +542,7 @@ func _mobile() -> void:
 		if drawn.get("aux_lamps",false):
 			_control("spot",Rect2(HUD_MARGIN,bottom-178-THUMB_GAP-94,132,94),"SPOT ON" if drawn.get("spot_on",false) else "SPOT OFF")
 		if stopped:
-			_control("interact",Rect2(pedal_x,bottom-164-THUMB_GAP-96,THUMB_WIDTH,96),"EXIT CAB")
+			_control("interact",Rect2(pedal_x,bottom-164-THUMB_GAP-96,THUMB_WIDTH,96),"LET OUT" if drawn.get("passenger_drop",false) else "EXIT CAB")
 	else:
 		stick_center = Vector2(HUD_MARGIN+STICK_RADIUS,bottom-STICK_RADIUS)
 		draw_circle(stick_center,STICK_RADIUS,RUBBER)

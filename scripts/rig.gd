@@ -95,6 +95,10 @@ var free_line:=0.0
 var reverse_timer:=0.0
 var slip_cooldown:=0.0
 var departures: Array[DepartingDriver] = []
+const RiderWalk := preload("res://scripts/passenger_walk.gd")
+const Rides := preload("res://scripts/passenger_call.gd")
+var boarding_walk: RiderWalk
+var exiting_riders: Array[RiderWalk] = []
 var walked:=0.0
 var dropoff: Dictionary:
 	get: return YardDrop.for_vehicle(kind)
@@ -162,22 +166,75 @@ func setup(county:Node3D) -> void:
 	_ready_to_run=true
 	set_spawn(Vector3.ZERO)
 
-func board_summer_driver() -> void:
-	if kind!="passenger" or not witness: return
-	witness.hide()
-	phase="passenger"
-	set_survey_passenger(true,true)
+func offer_front_seat() -> bool:
+	if kind != "passenger" or phase != "scene" or not witness or not is_stopped():
+		return false
+	var walk := RiderWalk.new(witness,vehicle_identity.driver_variant)
+	if not walk.plot(self,_passenger_step(),false,false):
+		_note("Leave room beside the passenger door and offer the ride again.",5)
+		return false
+	boarding_walk = walk
+	phase = "boarding"
+	return true
 
-func set_survey_passenger(on_board: bool, summer:=false) -> void:
+func _passenger_step() -> Vector3:
+	return truck.to_global(Vector3(1.78,0,Truck.DOOR.z))
+
+func _seat_rider() -> void:
+	witness.hide()
+	phase = "passenger"
+	set_survey_passenger(true,true)
+	boarding_walk = null
+
+func let_rider_out(ticket: Dictionary) -> bool:
+	if kind != "passenger" or phase != "passenger" or not is_stopped():
+		return false
+	var memorial: bool = Rides.rider(ticket).drop == "memorial"
+	var threshold := Rides.inside_door(ticket)
+	var sidewalk := Vector3(threshold.x,0,threshold.z-(1.5 if memorial else 2.25))
+	var walker := RiderWalk.new(witness,vehicle_identity.driver_variant)
+	witness.position = _passenger_step()
+	witness.position.y = _ground(witness.position)
+	if _obstructed(truck.to_global(Vector3(0,.80,Truck.DOOR.z)),truck.global_basis.x*1.80) or not walker.plot(self,sidewalk,true,memorial):
+		_note("Pull ahead a little. The passenger needs a clear step to the curb.",5)
+		return false
+	walker.entering_store = not memorial
+	walker.route.append(threshold)
+	witness.show()
+	witness = null
+	exiting_riders.append(walker)
+	set_survey_passenger(false)
+	sound_event.emit("door")
+	return true
+
+func _advance_riders(dt: float) -> void:
+	if boarding_walk:
+		if not is_stopped():
+			boarding_walk = null
+			phase = "scene"
+			witness.get_node("AnimationPlayer").play("idle")
+			_note("The driver stepped back. Park before offering the front seat.",5)
+		elif boarding_walk.advance(self,dt):
+			_seat_rider()
+			sound_event.emit("door")
+			_note("Passenger aboard.",3)
+	for i in range(exiting_riders.size()-1,-1,-1):
+		var walker := exiting_riders[i]
+		if walker.advance(self,dt):
+			walker.person.queue_free()
+			exiting_riders.remove_at(i)
+
+func set_survey_passenger(on_board: bool, rider:=false) -> void:
 	body.seat_gear.visible = not on_board
-	if on_board and is_instance_valid(survey_passenger) and survey_passenger.get_meta("summer",false)!=summer:
+	var model := int(vehicle_identity.get("driver_variant",2)) if rider else 3
+	if on_board and is_instance_valid(survey_passenger) and survey_passenger.get_meta("model",-1) != model:
 		survey_passenger.hide()
 		survey_passenger.queue_free()
 		survey_passenger=null
 	if on_board and not is_instance_valid(survey_passenger):
-		survey_passenger = Scene.person(body, false, 2 if summer else 3)
-		survey_passenger.name = "SummerPassenger" if summer else "TouVang"
-		survey_passenger.set_meta("summer",summer)
+		survey_passenger = Scene.person(body,false,model)
+		survey_passenger.name = "RoadPassenger" if rider else "TouVang"
+		survey_passenger.set_meta("model",model)
 		survey_passenger.position = Vector3(.54, 1.05, -.43)
 		survey_passenger.rotation.y = .16
 		var animation := survey_passenger.get_node("AnimationPlayer") as AnimationPlayer
@@ -588,7 +645,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["case_id", "recovery", "mail", "running", "open_door", "untaped"]:
+	for key in ["case_id", "rider", "recovery", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if kind == "hold":
@@ -633,6 +690,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	_update_highlight()
 
 func end_job() -> void:
+	boarding_walk = null
 	# The customer keeps the same car and driver when the radio assigns a new scene.
 	if kind=="passenger" and phase=="passenger":
 		set_survey_passenger(false)
@@ -683,7 +741,7 @@ func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node
 	return stored
 
 func _face_operator(dt: float) -> void:
-	if not witness or not witness.visible or phase == "departing":
+	if not witness or not witness.visible or phase in ["boarding","departing"]:
 		return
 	var distance := _flat_distance(foot, witness.position)
 	if distance < 0.4 or distance > 4.3:
@@ -898,7 +956,8 @@ func _hint() -> String:
 	if not in_cab and is_chocked() and fuel <= 0.0:
 		return DRY_RIG_HINT
 	if kind=="passenger":
-		return "Take the passenger to Esker Fuel & Food." if phase=="passenger" else "Pull up beside the driver, step down and ask if they need a lift."
+		if phase == "boarding": return "Keep the wrecker stopped while the passenger walks to its right-hand door."
+		return "Take the passenger to %s." % Rides.destination(vehicle_identity) if phase == "passenger" else "Pull up beside the driver, step down and ask if they need a lift."
 	if phase == "scene" and _boom_job():
 		return "Back toward the car. Leave 9–15 m between the rear controls and the casualty so the boom can swing clear."
 	if phase == "scene" and _recovery()=="ice":
@@ -1184,6 +1243,7 @@ func _in_wrecker(point:Vector3) -> bool:
 	return absf(local.x)<1.75 and local.z> -4.5 and local.z<5.1
 
 func _trail(dt:float) -> void:
+	_advance_riders(dt)
 	for i in range(departures.size()-1,-1,-1):
 		var driver := departures[i]
 		if driver.advance(dt):
@@ -1314,6 +1374,13 @@ func save_state() -> Dictionary:
 		d["identity"] = vehicle_identity.duplicate()
 	if loaded:
 		d["lift_height"]=body.lift.position.y
+	if boarding_walk:
+		d.boarding = boarding_walk.save_state(self)
+	if kind == "passenger" and phase == "scene" and witness:
+		d.waiting_rider = _v(witness.position)
+	d.exiting_riders = []
+	for walker in exiting_riders:
+		d.exiting_riders.append(walker.save_state(self))
 	d.departures = []
 	for driver in departures:
 		if driver.car == car:
@@ -1333,6 +1400,14 @@ func restore_state(d:Dictionary) -> void:
 		driver.car.queue_free()
 		driver.witness.queue_free()
 	departures.clear()
+	for walker in exiting_riders:
+		walker.person.queue_free()
+	exiting_riders.clear()
+	for data: Dictionary in d.get("exiting_riders",[]):
+		var model := int(data.get("variant",2))
+		var walker := RiderWalk.new(Scene.person(self,false,model),model)
+		walker.restore(self,data)
+		exiting_riders.append(walker)
 	for data: Dictionary in d.get("departures",[]):
 		var ticket: Dictionary = data.identity
 		var vehicle := Scene.car(self,"ditch",ticket.variant,ticket)
@@ -1368,7 +1443,13 @@ func restore_state(d:Dictionary) -> void:
 	second_line=d.get("second_line",false)
 	special_work=d.get("special_work",0.0)
 	if car:
-		if kind=="passenger" and phase=="passenger": board_summer_driver()
+		if kind == "passenger":
+			match phase:
+				"passenger": _seat_rider()
+				"boarding":
+					boarding_walk = RiderWalk.new(witness,vehicle_identity.driver_variant)
+					boarding_walk.restore(self,d.boarding)
+				"scene": witness.position = _unpack(d.get("waiting_rider"),witness.position)
 		car.position=_unpack(d.get("car"),car.position)
 		car.rotation=_unpack(d.get("car_rot"),car.rotation)
 		if kind=="hold" and phase not in ["scene","flared","cable"]:

@@ -109,6 +109,8 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		var shoulder: String = str(active_job.get("run","")).get_slice("/",1)
 		if not shoulder.is_empty():
 			note += "    /    %s shoulder" % shoulder.capitalize()
+		if active_job.get("kind","") == "passenger":
+			note += "\nPassenger delivered to " + str(active_job.get("destination","Esker Fuel & Food"))
 		if float(active_job.get("heavy_fee",0)) > 0:
 			note += "    /    Heavy recovery +$%.2f" % float(active_job.heavy_fee)
 		if float(active_job.get("rate_fee",0)) > 0:

@@ -3,6 +3,7 @@ extends RefCounted
 const Legacy := preload("res://scripts/legacy_dispatch.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
 const Snowplow := preload("res://scripts/county_snowplow.gd")
+const Rides := preload("res://scripts/passenger_call.gd")
 const Squad := preload("res://scripts/county_squad.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
@@ -86,7 +87,9 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var site_hazards := {}
 	var ditches := 0
 	var hazards := 0
-	var passenger_calls := 0
+	var ordinary_rides := 0
+	var last_ride := -1
+	var summer_filed := false
 	var met_angie := false
 	var last_plow := -1
 	var last_squad := -1
@@ -104,7 +107,12 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		used[site_id] = int(used.get(site_id, 0)) + 1
 		if slip.kind in ["ditch","passenger"]:
 			ditches += 1
-			if slip.kind=="passenger": passenger_calls+=1
+			if slip.kind == "passenger":
+				last_ride = ditches + hazards
+				if slip.get("rider","summer_driver") == "summer_driver":
+					summer_filed = true
+				else:
+					ordinary_rides += 1
 			var reply: String = slip.get("reply", "")
 			driver_calls[reply] = int(driver_calls.get(reply, 0)) + 1
 		else:
@@ -118,7 +126,8 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		kind = "hazard"
 	# Duane gets back on his route after the pull. Give him a stretch of
 	# good road between calls, and keep a due passenger's place on rotation.
-	var passenger_due := rotation_count >= 19 and ditches >= 10 + posmod(dispatch_seed,3) + passenger_calls*12
+	var summer_due := not summer_filed and rotation_count >= 19 and ditches >= 10 + posmod(dispatch_seed,3)
+	var passenger_due := summer_due or (rotation_count >= 9 and (last_ride < 0 or rotation_count-last_ride >= 12))
 	var stuck_plow := snatch_block and kind == "ditch" and not passenger_due and rotation_count >= 8 and (last_plow == -1 or rotation_count-last_plow >= 14)
 	var squad := kind == "ditch" and not passenger_due and not stuck_plow and rotation_count >= 12 and (last_squad == -1 or rotation_count-last_squad >= 17)
 	var route := ""
@@ -189,6 +198,9 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		job.clearance_seconds = 0.0
 		job.dispatch = "%s on %s by %s, %s shoulder. %s needs a pull to get back on patrol. County adds $%d for two minutes' scene work from your first flare. Regular rate either way." % [
 			job.vehicle,site.road,site.landmark,shoulder,job.person,Squad.PREMIUM]
+	elif kind == "ditch" and passenger_due:
+		var rider: Dictionary = Rides.SUMMER if summer_due else Rides.RIDERS[posmod(ordinary_rides+dispatch_seed,Rides.RIDERS.size())]
+		Rides.assign(job,site,rider)
 	elif kind == "ditch":
 		var reason: String
 		if not met_angie and route in ["angie", "coop", "frames"] and rng.randf() < .33:
@@ -202,9 +214,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			job.person = driver.person
 			job.reply = driver.reply
 			reason = driver.reason
-		if job.id=="rotation" and passenger_due:
-			job.reply = "summer_driver"
-		elif rotation_count >= 7 and posmod(rotation_count + dispatch_seed, 4) == 0:
+		if rotation_count >= 7 and posmod(rotation_count + dispatch_seed, 4) == 0:
 			if job.id == "angie":
 				job.reply = "angie_sunburn"
 			elif job.id == "farm":
@@ -223,14 +233,6 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			reason = "Service body’s loaded with tools. Bring the snatch block. " + reason
 		job.dispatch = "%s on %s by %s, %s shoulder. Checked and taped. Bring it to storage. %s" % [
 			job.vehicle, site.road, site.landmark, shoulder, reason]
-	if job.reply=="summer_driver":
-		job.kind="passenger"
-		job.id="summer_driver"
-		job.driver_variant=2
-		job.running=true
-		job.untaped=true
-		job.person="Driver in a T-shirt"
-		job.dispatch="There's a driver out by %s in a T-shirt. %s shoulder on %s. Bring them in to Esker Fuel & Food." % [site.landmark,shoulder,site.road]
 	job.directions = "%s Look on the %s side for the %s." % [site.approach, shoulder, job.vehicle.to_lower()]
 	return job
 
@@ -332,6 +334,9 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 		slip.pay = snappedf(slip.pay+slip.clearance_bonus,.01)
 	if job.has("recovery"):
 		slip.recovery = job.recovery
+	if job.kind == "passenger":
+		slip.rider = Rides.rider(job).id
+		slip.destination = Rides.destination(job)
 	if job.kind in ["ditch","passenger"]:
 		slip.reply = job.get("reply","")
 	return slip
