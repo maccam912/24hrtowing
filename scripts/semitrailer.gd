@@ -154,10 +154,11 @@ func restore(state: Dictionary, ground: Callable) -> void:
 
 func freight_lamps() -> Node3D:
 	var lamps := Kit.joint(trailer,Vector3.ZERO,"TowLights")
+	var signals := preload("res://scripts/vehicle_signals.gd").new()
+	signals.fit(lamps,Vector3(0,.69,BACK+.24),.86,Vector2(.26,.135))
 	var g := Kit.new(lamps)
 	g.box(Vector3(0,.69,BACK+.14),Vector3(2.31,.18,.18),BLACK)
 	for s:float in [-1,1]:
-		g.box(Vector3(s*.85,.69,BACK+.24),Vector3(.26,.135,.047),Color("#f64d3c"),Vector3.ZERO,"lamp")
 		g.box(Vector3(s*1.13,.69,BACK+.15),Vector3(.14,.14,.20),Color("#f8ac46"),Vector3.ZERO,"lamp")
 	g.finish()
 	return lamps

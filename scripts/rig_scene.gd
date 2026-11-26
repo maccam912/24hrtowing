@@ -262,10 +262,11 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 		var bar_y:=height+1.35
 		if car_body is Tanker:
 			lamps.position = Vector3(0,-.58,Tanker.SIZE.z-.11)
+		var signals := preload("res://scripts/vehicle_signals.gd").new()
+		signals.fit(lamps,Vector3(0,bar_y,-line_end*.096),.70,Vector2(.235,.128),line_end>0)
 		kit.box(Vector3(0,bar_y,0),Vector3(1.82,.17,.16),Color("#d7a44e"))
 		for side:float in [-1.0,1.0]:
 			kit.box(Vector3(side*.52,bar_y-.09,0),Vector3(.15,.09,.22),BLACK)
-			kit.box(Vector3(side*.72,bar_y,-line_end*.09),Vector3(.25,.13,.04),Color("#ff4039"),Vector3.ZERO,"lamp")
 			kit.box(Vector3(side*.855,bar_y,0),Vector3(.12,.13,.19),Color("#ffbe47"),Vector3.ZERO,"lamp")
 	else:
 		var plow: bool = car_body.get_meta("vin", "") == Snowplow.VIN

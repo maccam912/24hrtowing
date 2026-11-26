@@ -56,6 +56,7 @@ var axle_fault: WheelFault
 var road_wheels: Scene.RoadWheels
 var aux_tank: Reserve
 var reserve_fuel := 0.0
+var tow_signals: Truck.RoadSignals
 var car_lamps:Node3D
 var warning_triangle: Node3D
 var flash_time:=0.0
@@ -510,6 +511,7 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 		camera_yaw=wrapf(camera_yaw-look.x,-PI,PI)
 		camera_pitch=clampf(camera_pitch-look.y,-1.34,1.29)
 	var pin_travel := Vector3.ZERO
+	var braking := in_cab and (brake or speed*move.y > .20)
 	if in_cab:
 		pin_travel = _drive(move,brake,dt)
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
@@ -532,6 +534,10 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 	else:
 		_winch(operate,dt)
 	_trail(dt,pin_travel)
+	var backing := in_cab and speed < -.10
+	var signals: Truck.RoadSignals = rollback_deck.signals if rollback_active else body.signals
+	signals.set_lit(braking,backing)
+	if tow_signals: tow_signals.set_lit(loaded and braking,loaded and backing)
 	_update_eyes()
 	_cable_curve()
 	_update_highlight()
@@ -943,6 +949,7 @@ func end_job() -> void:
 	tanker=null
 	road_wheels=null
 	axle_fault=null
+	tow_signals=null
 	car_lamps=null
 	flash_time=0
 	witness=null
@@ -1687,6 +1694,7 @@ func _set_car_lamps(mode:String) -> void:
 	if mode == "running" and vehicle_identity.get("variant") == Scene.Ambulance.VARIANT:
 		mode = "ems_scene"
 	car_lamps=semi.freight_lamps() if semi and mode=="tow" else Scene.car_lamps(car,mode,line_end)
+	tow_signals = car_lamps.get_node_or_null("RoadSignals")
 
 func _track_underlift(pin_travel := Vector3.ZERO, first_hook := false) -> void:
 	if rollback_active:

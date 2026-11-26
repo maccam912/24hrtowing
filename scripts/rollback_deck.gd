@@ -26,6 +26,8 @@ const PROMPTS := {
 	"deck_pay":"Select winch payout for unloading",
 	"deck_store":"Place the rear of the carrier over the amber storage bay",
 }
+const RoadSignals := preload("res://scripts/vehicle_signals.gd")
+var signals: RoadSignals
 var bed: Node3D
 var restraints: Array[Node3D] = []
 var extension := 0.
@@ -61,6 +63,8 @@ func assemble(parent: Node3D) -> void:
 	fixed.finish()
 	Kit.label(self,"TILT    SLIDE    WINCH",Vector3(-1.338,1.13,2.56),.036,CREAM,Vector3(0,-PI/2,0))
 	bed = Kit.joint(self,HOME,"SlidingSteelBed")
+	signals = RoadSignals.new()
+	signals.fit(bed,Vector3(0,-.088,3.123),1.10,Vector2(.225,.103))
 	var g := Kit.new(bed)
 	g.box(Vector3(0,-.094,0),Vector3(2.54,.18,HALF_LENGTH*2),DARK)
 	for side: float in [-1.,1.]:
@@ -71,7 +75,6 @@ func assemble(parent: Node3D) -> void:
 		for i in 34:
 			g.box(Vector3(side*.83,.012,-2.76+i*.17),Vector3(.63,.014,.027),Color("#555d5b"))
 		g.beam(Vector3(side*1.16,0,-2.99),Vector3(side*1.16,1.05,-2.99),.07,.09,DARK)
-		g.box(Vector3(side*1.06,-.09,3.115),Vector3(.24,.066,.027),Color("#cb3936"),Vector3.ZERO,"lamp")
 		g.tube(Vector3(side*.88,.04,-2.54),Vector3(side*.88,.04,-2.37),.07,WEBBING)
 	for h:float in [.42,.77,1.05]:
 		g.box(Vector3(0,h,-2.99),Vector3(2.37,.055,.075),STEEL)

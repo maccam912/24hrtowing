@@ -36,6 +36,8 @@ var steer_wheel: Node3D
 var service_body: Node3D
 var pressure_needle: Node3D
 var lift: Node3D
+const RoadSignals := preload("res://scripts/vehicle_signals.gd")
+var signals: RoadSignals
 var stinger: Node3D
 var crossbar: WheelLift
 var boom: Node3D
@@ -301,12 +303,12 @@ func _bed(k) -> void:
 		for z in [.77,1.6,2.53,3.38]:
 			k.box(Vector3(s*1.256,1.55,z),Vector3(.035,.041,.15),CHROME)
 		k.box(Vector3(s*.98,.92,4.12),Vector3(.52,.36,.27),DEEP)
-		for x in [.85,1.08]:
-			k.box(Vector3(s*x,.98,4.27),Vector3(.15,.11,.04),TAIL,Vector3.ZERO,"lamp")
 		k.beam(Vector3(s*.72,1.53,.45),Vector3(s*.72,2.60,.94),.18,.22,MAROON)
 		k.beam(Vector3(s*.72,2.60,.94),Vector3(s*.72,1.48,2.93),.24,.24,MAROON)
 		k.tube(Vector3(s*.53,1.43,2.57),Vector3(s*.53,2.52,1.07),.102,IRON)
 		k.tube(Vector3(s*.54,2.03,1.76),Vector3(s*.54,2.52,1.07),.07,CHROME)
+	signals = RoadSignals.new()
+	signals.fit(service_body,Vector3(0,.98,4.279),1.075,Vector2(.19,.122))
 	boom=Kit.joint(self,Vector3(0,2.28,.84),"RecoveryBoom")
 	var arm:=Kit.new(boom)
 	arm.beam(Vector3.ZERO,Vector3(0,.61,2.61),.50,.40,MAROON)
