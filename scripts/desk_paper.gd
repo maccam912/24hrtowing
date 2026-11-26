@@ -38,6 +38,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"field": _field(c,p,s)
 		"parts": _parts(c,p,s)
 		"coffee": _coffee(c,p,s)
+		"bulk_pump": _bulk_pump(c,p,s)
 		"passenger": _passenger(c,p,s)
 		_: _slip(c,p,s)
 
@@ -627,13 +628,42 @@ func _coffee(c, p: Rect2, s: Dictionary) -> void:
 	if s.get("at_counter",false):
 		c.button("talk_mai",key,"Ask about the lot lights" if s.get("mai_lot",false) else "Talk to Mai")
 
+func _bulk_pump(c, p: Rect2, s: Dictionary) -> void:
+	c.switch_face(p,Color("#823e36"))
+	var face := p.grow(-18)
+	c.draw_rect(face,Color("#e0d7bb"))
+	var x := face.position.x+30
+	var width := face.size.x-60
+	c.text(Vector2(x,face.position.y+42),"BRANDT   /   BULK DIESEL",c.scaled,26,PAPER_INK)
+	c.rule(x,face.position.y+59,width,c.OXBLOOD,3)
+	var totals := [ ["THIS SALE","$ %06.2f" % s.get("nozzle_sale",0.0)], ["WRECKER TANK","%03d %%" % roundi(100*s.get("fuel",0.0))] ]
+	for i in totals.size():
+		var box := Rect2(x+width*.5*i,face.position.y+96,width*.5-12,85)
+		c.text(box.position+Vector2(0,-10),totals[i][0],c.MONO,15,FADED)
+		c.switch_face(box,Color("#343a34"),true)
+		c.fitted(box.grow(-10),totals[i][1],c.LCD,36,c.CREAM)
+	var status := "Cash in till   $%.2f" % float(s.get("paid",0))
+	var ready := bool(s.get("nozzle_ready",false))
+	if not ready: status = "Park the wrecker beside the bulk tank."
+	elif s.get("fuel",1.0) >= .9999: status = "Tank full."
+	elif s.get("paid",0.0) < .01: status = "Till empty."
+	c.fitted(Rect2(x,face.position.y+202,width,39),status,c.MONO,20,PAPER_INK,HORIZONTAL_ALIGNMENT_LEFT)
+	var handle := Rect2(x,face.end.y-147,width,105)
+	if ready and s.get("fuel",1.0) < .9999 and s.get("paid",0.0) >= .01:
+		c.button("nozzle",handle,"Hold nozzle to fill" if c.desk.is_touch_mode() else "Hold nozzle or Space to fill",true)
+	else:
+		c.switch_face(handle,Color("#62665d"),true)
+		c.fitted(handle,"NO FLOW",c.MONO,22,c.CREAM)
+
 func _parts(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d9d9c5"))
 	var at_office := bool(s.get("at_office",false))
 	var at_pump := bool(s.get("at_pump",false))
 	var scanner_available := bool(s.get("scanner_available",false) or s.get("scanner_fitted",false))
 	var station := "ESKER PUMPS" if at_pump else ("YARD COUNTER" if at_office else "FIELD COPY")
-	_header(c,p,"BRANDT TOWING   /   "+station,"Cab equipment" if c.desk.cab_parts else "Fuel & equipment","",c.print_face)
+	var leaf: int = c.desk.parts_page
+	var titles := ["Fuel & equipment","Cab & rig equipment","Yard fittings"]
+	_header(c,p,"BRANDT TOWING   /   "+station,titles[leaf],"",c.print_face)
 	var x := p.position.x+32
 	var width := p.size.x-64
 	var money := float(s.get("paid",0))
@@ -653,10 +683,10 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	var size := Vector2((width-gap)*0.5,126)
 	var left := Rect2(Vector2(x,p.position.y+183),size)
 	var right := Rect2(left.position+Vector2(size.x+gap,0),size)
-	c.text(left.position-Vector2(0,8),"WINTER EQUIPMENT" if c.desk.cab_parts else "FUEL & MAINTENANCE",c.MONO,13,GREEN)
-	if not c.desk.cab_parts:
+	c.text(left.position-Vector2(0,8),["FUEL & MAINTENANCE","WINTER EQUIPMENT","YARD INSTALLATION"][leaf],c.MONO,13,GREEN)
+	if leaf == 0:
 		c.text(right.position-Vector2(0,8),"RECOVERY EQUIPMENT",c.MONO,13,GREEN)
-	if c.desk.cab_parts:
+	if leaf == 1:
 		var can_fit := bool(s.get("can_order",false))
 		var location := "Park wrecker in yard" if at_office else "At Brandt yard office"
 		_equipment_card(c,left,"buy_mirrors","Heated mirrors","Electric elements clear the glass on long winter hauls.",ShopAccount.PRICES.mirrors,
@@ -667,7 +697,17 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 			left.position.y += size.y+8
 			_equipment_card(c,left,"buy_scanner","Scanner crystals","Hear the sheriff and county garage from the cab.",ShopAccount.PRICES.scanner,
 				"Fit crystals","Fitted" if s.get("scanner_fitted",false) else "",money,can_fit,location)
-		c.button("parts_leaf",Rect2(p.end.x-234,p.position.y+6,201,80),"‹ Fuel & equipment")
+		_parts_nav(c,p,leaf)
+		c.fitted(Rect2(x,p.end.y-38,width,32),s.get("shop_receipt",""),c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+		return
+	if leaf == 2:
+		var can_fit := bool(s.get("can_order",false))
+		var location := "At Brandt yard office"
+		_equipment_card(c,left,"buy_yard_pump","Bulk-tank pump","Meter your own diesel beside the storage stalls.",ShopAccount.PRICES.yard_pump,
+			"Install pump","Installed" if s.get("yard_pump",false) else "",money,can_fit,location)
+		_equipment_card(c,right,"buy_coffee_maker","Shop coffeemaker","Brew a cup at the office bench before heading out.",ShopAccount.PRICES.coffee_maker,
+			"Install brewer","Installed" if s.get("coffee_maker",false) else "",money,can_fit,location)
+		_parts_nav(c,p,leaf)
 		c.fitted(Rect2(x,p.end.y-38,width,32),s.get("shop_receipt",""),c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 		return
 	var fuel := clampf(float(s.get("fuel",1.0)),0.0,1.0)
@@ -707,7 +747,7 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		"Service winch","Serviced" if wear <= 0.001 else "",money,can_order,service_location)
 	_equipment_card(c,right,"buy_snatch_block","Snatch block set","Rig heavier recoveries, including the Unit 38 pickup.",ShopAccount.PRICES.snatch_block,
 		"Fit snatch block","Fitted" if s.get("snatch_block",false) else "",money,can_order,service_location)
-	c.button("parts_leaf",Rect2(p.end.x-234,p.position.y+6,201,80),"Cab equipment ›")
+	_parts_nav(c,p,leaf)
 	var note := str(s.get("shop_receipt",""))
 	if note.is_empty():
 		if at_pump:
@@ -717,6 +757,12 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		else:
 			note = "Order at Brandt’s office fax. Diesel is also available at Esker Fuel & Food."
 	c.fitted(Rect2(x,p.end.y-38,width,32),note,c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+
+func _parts_nav(c, p: Rect2, leaf: int) -> void:
+	var labels := ["Fuel & parts","Cab & rig","Yard fittings"]
+	var x := p.end.x-258
+	c.button("parts_prev",Rect2(x,p.position.y+6,80,80),"‹")
+	c.button("parts_leaf",Rect2(x+86,p.position.y+6,148,80),labels[(leaf+1)%labels.size()]+" ›")
 
 func _equipment_card(c, r: Rect2, id: String, title: String, description: String, price: float,
 		order: String, fitted_status: String, money: float, can_order: bool, location: String) -> void:
@@ -748,6 +794,13 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 			c.draw_rect(sketch.grow_individual(-3,-16,-3,-16),PAPER_INK,false,2)
 			for i in 6:
 				c.draw_circle(sketch.position+Vector2(11+i*10,sketch.size.y*.5),3.3,FORM_BLUE)
+		"buy_coffee_maker":
+			var m := sketch.get_center()
+			c.draw_rect(Rect2(m-Vector2(16,19),Vector2(32,8)),PAPER_INK,false,2)
+			c.draw_rect(Rect2(m-Vector2(16,11),Vector2(6,28)),PAPER_INK,false,2)
+			c.rule(m.x-17,m.y+18,37,PAPER_INK,3)
+			c.draw_arc(m+Vector2(3,5),10,deg_to_rad(-42),deg_to_rad(222),20,FORM_BLUE,2,true)
+			c.draw_arc(m+Vector2(14,4),4,deg_to_rad(-90),deg_to_rad(90),10,PAPER_INK,2,true)
 		"buy_scanner":
 			c.draw_rect(sketch.grow(-5),PAPER_INK,false,2)
 			c.draw_rect(Rect2(sketch.position+Vector2(10,13),Vector2(30,13)),FORM_BLUE,false,1.8)
@@ -756,7 +809,7 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 				c.rule(sketch.position.x+12,sketch.position.y+30+i*3,35,PAPER_INK)
 		"buy_chains": _chain_illustration(c,sketch)
 		"service_winch": _drum_illustration(c,sketch)
-		"buy_fuel": _diesel_illustration(c,sketch)
+		"buy_fuel","buy_yard_pump": _diesel_illustration(c,sketch)
 		"buy_snatch_block": _block_illustration(c,sketch)
 	c.multiline(r.position+Vector2(90,56),description,c.print_face,16,PAPER_INK,r.size.x-102,2)
 	var strip := Rect2(r.position+Vector2(1,92),Vector2(r.size.x-2,33))

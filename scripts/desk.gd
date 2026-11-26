@@ -17,7 +17,7 @@ var atlas_notes := false
 var pencil_open := false
 var pencil_tool := "return"
 var pencil_point := Vector2.ZERO
-var cab_parts := false
+var parts_page := 0
 var notes_page := 0
 var sighting_page := -1
 var scanner_open := false
@@ -93,7 +93,7 @@ func toggle_pause() -> void:
 func _change_page(id: String) -> void:
 	page = id
 	pencil_open = false
-	cab_parts = false
+	parts_page = 0
 	glance = false
 	slip_index = -1
 	fax_index = -1
@@ -127,6 +127,9 @@ func take_look() -> Vector2:
 	var motion := _look
 	_look = Vector2.ZERO
 	return motion
+
+func nozzle_held() -> bool:
+	return page == "bulk_pump" and (_is_down("nozzle") or Input.is_physical_key_pressed(KEY_SPACE))
 
 func work_held() -> bool:
 	return _is_down("work")
@@ -232,6 +235,8 @@ func _drag(index: int, point: Vector2, relative: Vector2) -> void:
 		if side in ["steer_l","steer_r"] and side != contact.id:
 			contact.id = side
 			surface.queue_redraw()
+	elif contact.id == "nozzle" and surface.hit_at(point) != "nozzle":
+		_touches.erase(index)
 	elif contact.id == "stick":
 		_stick = surface.stick_input(point)
 		surface.queue_redraw()
@@ -301,8 +306,8 @@ func _activate(id: String) -> void:
 			atlas_notes = true
 			notes_page = 0
 			action.emit(id)
-		"parts_leaf":
-			cab_parts = not cab_parts
+		"parts_leaf", "parts_prev":
+			parts_page = posmod(parts_page + (1 if id == "parts_leaf" else -1),3)
 			surface.hover = ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()
@@ -348,7 +353,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):

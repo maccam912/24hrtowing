@@ -2,6 +2,7 @@ extends Node3D
 ## A compressed Wisconsin township. All published locations are printed plat coordinates.
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
+const Fittings := preload("res://scripts/yard_fittings.gd")
 const FuelStore = preload("res://scripts/fuel_store.gd")
 const CaseSites = preload("res://scripts/county_case_sites.gd")
 const Bay = preload("res://scripts/county_bay.gd")
@@ -55,6 +56,9 @@ var spindrift: MultiMeshInstance3D
 var spindrift_shader: ShaderMaterial
 var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
+var yard_dispenser := false
+var yard_brewer := false
+var fittings_model: Node3D
 var fuel_door: Node3D
 var bay: Node3D
 var drop_guide := Node3D.new()
@@ -121,6 +125,27 @@ func _queue_build() -> void:
 	if county_model and not rebuild_queued:
 		rebuild_queued = true
 		_build.call_deferred()
+
+func fit_yard(dispenser: bool, brewer: bool) -> void:
+	if dispenser == yard_dispenser and brewer == yard_brewer:
+		return
+	yard_dispenser = dispenser
+	yard_brewer = brewer
+	_build_yard_fittings()
+
+func _build_yard_fittings() -> void:
+	if is_instance_valid(fittings_model):
+		fittings_model.get_parent().remove_child(fittings_model)
+		fittings_model.queue_free()
+		fittings_model = null
+	if not yard_dispenser and not yard_brewer:
+		return
+	fittings_model = Node3D.new()
+	fittings_model.name = "ShopFittings"
+	county_model.add_child(fittings_model)
+	var geometry := Batch.new(fittings_model,materials)
+	Fittings.new(self,geometry).assemble(yard_dispenser,yard_brewer)
+	geometry.finish()
 
 func coffee_counter_point() -> Vector3:
 	return FuelStore.FORECOURT + FuelStore.COUNTER
@@ -543,6 +568,7 @@ func _build() -> void:
 	_build_ground(draw)
 	var places = Sites.new(self,draw)
 	places.build()
+	_build_yard_fittings()
 	FuelStore.new(self,draw).build()
 	for x: float in [205.45,208.65]:
 		draw.spruce(Vector3(x,ground_height(x,-408.75),-408.75),5.65,x)

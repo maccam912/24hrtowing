@@ -1,7 +1,7 @@
 extends RefCounted
 
 const OPENING_CASH := 35.0
-const PRICES := {"chains":95.0, "snatch_block":175.0, "scanner":65.0, "mirrors":55.0, "lamps":115.0}
+const PRICES := {"chains":95.0, "snatch_block":175.0, "scanner":65.0, "mirrors":55.0, "lamps":115.0, "yard_pump":145.0, "coffee_maker":39.0}
 const REPAIR_PRICE := 24.0
 const YARD_RECOVERY_PRICE := 24.0
 const COFFEE_PRICE := 0.75
@@ -62,17 +62,17 @@ func pay_repair() -> bool:
 func buy_coffee() -> bool:
 	return _spend(COFFEE_PRICE)
 
-func fuel_quote(fuel: float) -> Dictionary:
+func fuel_quote(fuel: float, budget := INF) -> Dictionary:
 	var level := clampf(fuel, 0.0, 1.0)
 	var fill_price := snappedf((1.0 - level) * TANK_PRICE, 0.01)
-	var cost := minf(cash, fill_price)
+	var cost := minf(minf(cash,fill_price),maxf(0.0,budget))
 	var fuel_after := level
 	if cost > 0.0:
 		fuel_after = 1.0 if cost == fill_price else level + cost / TANK_PRICE
 	return {"cost":cost, "fuel_after":fuel_after}
 
-func buy_fuel(fuel: float) -> Dictionary:
-	var sale := fuel_quote(fuel)
+func buy_fuel(fuel: float, budget := INF) -> Dictionary:
+	var sale := fuel_quote(fuel,budget)
 	_spend(sale.cost)
 	return sale
 

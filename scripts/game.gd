@@ -74,6 +74,8 @@ var account := ShopAccount.new()
 var fuel_wait_left := 0.0
 var fuel_plow: FuelPlow
 var shop_receipt := ""
+var nozzle_sale := 0.0
+var nozzle_cents := 0.0
 var seconds_worked := 0.0
 var fax_text := "TAMARACK COUNTY HIGHWAY DEPARTMENT\nTOW BAN IN EFFECT UNTIL FURTHER NOTICE.\nSheriff-requested removals only. Record both odometer readings."
 var subtitle := ""
@@ -236,6 +238,8 @@ func _physics_process(dt: float) -> void:
 			_survey()
 			_check_lead_reminder(direction_timer)
 			direction_timer = 0.0
+	if active and desk.page == "bulk_pump":
+		_run_nozzle(dt)
 	if playing or (active and desk.page == "radio" and fuel_wait_left > 0.0):
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
@@ -387,7 +391,7 @@ func _action(id: String) -> void:
 				audio.stop_scanner()
 				if speaker.begins_with("SCANNER  /  "): sub_time = 0
 				_save()
-		"buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
+		"buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
 		"buy_coffee":
 			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
 				rig.warmth = 1.0
@@ -466,6 +470,33 @@ func _at_office() -> bool:
 func _at_pump() -> bool:
 	return not rig.in_cab and (_near(PUMP_ISLANDS[0],4.5) or _near(PUMP_ISLANDS[1],4.5))
 
+func _at_yard_nozzle() -> bool:
+	return county.yard_dispenser and not rig.in_cab and _facing(County.Fittings.NOZZLE,2.9)
+
+func _can_pump_at_tank() -> bool:
+	return _at_yard_nozzle() and rig.is_stopped() and rig.get_truck_position().distance_to(County.Fittings.NOZZLE) < 13.0
+
+func _run_nozzle(dt: float) -> void:
+	if not desk.nozzle_held() or not _can_pump_at_tank():
+		return
+	# The rollers count whole cents; holding the handle meters $3.60 per second.
+	nozzle_cents += dt*360.0
+	var cents := floori(nozzle_cents)
+	nozzle_cents -= cents
+	if cents <= 0:
+		return
+	var sale := account.buy_fuel(rig.fuel,cents/100.0)
+	if sale.cost <= 0.0:
+		return
+	rig.fuel = sale.fuel_after
+	nozzle_sale = snappedf(nozzle_sale+sale.cost,.01)
+	if fuel_wait_left > 0.0:
+		fuel_wait_left = 0.0
+		_speak("DISPATCH","Copy, Brandt. I'll cancel that fuel delivery.")
+	save_timer += dt
+	if save_timer >= 1.0:
+		_save()
+
 func _at_counter() -> bool:
 	return not rig.in_cab and county.inside_fuel_store(rig.foot) and _facing(county.coffee_counter_point(),2.5)
 
@@ -483,6 +514,7 @@ func _fit_equipment() -> void:
 	rig.snatch_block = account.owns("snatch_block")
 	rig.body.heated_mirrors = account.owns("mirrors")
 	rig.body.fit_lamps(account.owns("lamps"))
+	county.fit_yard(account.owns("yard_pump"),account.owns("coffee_maker"))
 	if not account.owns("lamps"):
 		rig.spot_on = false
 
@@ -515,6 +547,8 @@ func _shop_purchase(id: String) -> void:
 			return
 		_fit_equipment()
 		match part:
+			"yard_pump": shop_receipt = "Meter and hose fitted to the bulk tank by storage."
+			"coffee_maker": shop_receipt = "Coffee’s on at the bench beside the office."
 			"mirrors": shop_receipt = "Heater elements fitted to both mirrors."
 			"lamps": shop_receipt = "Driving bar and pillar spot fitted. Aim the spot by looking."
 			"chains": shop_receipt = "Drive-axle chains fitted."
@@ -859,6 +893,10 @@ func _site_action() -> String:
 		return ""
 	if _facing(FAX,4.4):
 		return "fax"
+	if _at_yard_nozzle():
+		return "bulk_pump"
+	if county.yard_brewer and _facing(County.Fittings.COFFEE,2.7):
+		return "yard_coffee"
 	if held and _facing(county.bay_latch_point(),2.7):
 		return "unlock" if bay_locked else "lock"
 	if held and not bay_locked and _facing(BAY,4.8):
@@ -961,6 +999,18 @@ func _interact() -> void:
 			if side >= 0:
 				rig.body.set_mirror_ice(side,0)
 				rig._note("Glass wiped clean.",3.0)
+		"bulk_pump":
+			nozzle_sale = 0
+			nozzle_cents = 0
+			_refresh()
+			desk.show_document("bulk_pump",state)
+		"yard_coffee":
+			if rig.coffee_left > 0:
+				_message("BRANDT","Still have coffee in my cup.")
+			else:
+				rig.warmth = 1.0
+				rig.coffee_left = Rig.HOT_COFFEE_SECONDS
+				_message("BRANDT","Fresh cup for the road.")
 		"coffee":
 			_refresh()
 			desk.show_document("coffee",state)
@@ -1293,7 +1343,7 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
-	var words := {"wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"yard_coffee":"Pour a cup of shop coffee","bulk_pump":"Lift the bulk-tank nozzle","wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1433,6 +1483,8 @@ func _refresh() -> void:
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
 		"plat_marks":plat_pencil.marks,"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
+		"yard_pump":county.yard_dispenser,"coffee_maker":county.yard_brewer,
+		"nozzle_ready":_can_pump_at_tank(),"nozzle_sale":nozzle_sale,
 		"at_counter":site == "coffee","coffee_left":rig.coffee_left,"mai_lot":sightings.seen.has("streetlights_out") and not mai_lot_heard,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
 		"can_refuel":_can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":_needs_fuel_can(),

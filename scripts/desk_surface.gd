@@ -307,8 +307,8 @@ func _documents() -> void:
 	var top := (dim.y-486)*0.5-(tab_height*0.5 if touch else 9.0)
 	var p := Rect2((dim.x-width)*0.5,top,width,486)
 	docs.paint(self,p,desk.page,drawn)
-	if desk.page == "coffee":
-		button("close",Rect2(p.end.x-148,p.end.y,148,tab_height),"Step away",true)
+	if desk.page in ["coffee","bulk_pump"]:
+		button("close",Rect2(p.end.x-148,p.end.y,148,tab_height),"Hang up" if desk.page == "bulk_pump" else "Step away",true)
 		return
 	# Labeled tabs project beyond the paper's bottom edge.
 	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Shop"]]
