@@ -68,7 +68,7 @@ func advance(dt: float, game) -> void:
 		_clear_reception(game)
 		return
 	rx_left = maxf(0,rx_left-dt)
-	var monitoring: bool = game.desk.scanner_open
+	var monitoring: bool = game.desk.scanner_open and not game.desk.broadcast_open
 	if game.sub_time > 0 or game.audio.voice_busy() or (not monitoring and (game.completed < 1 or absf(game.rig.speed) < 1.0)):
 		return
 	wait_seconds = maxf(0,wait_seconds-dt)

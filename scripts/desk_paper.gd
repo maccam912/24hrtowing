@@ -5,6 +5,7 @@ const Dispatch := preload("res://scripts/dispatch.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
 const NOTES_PER_PAGE := 6
 const SIGHTINGS_PER_PAGE := 3
+const Broadcast := preload("res://scripts/broadcast_radio.gd")
 const Scanner := preload("res://scripts/county_scanner.gd")
 const PAPER_INK := Color("#353f3c")
 const FORM_BLUE := Color("#475e72")
@@ -165,9 +166,11 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var reporting: bool = c.desk.sighting_page >= 0
 	var in_cab: bool = s.get("can_radio",s.get("in_cab",true))
 	var scanning: bool = in_cab and c.desk.scanner_open
-	c.text(Vector2(x,y),"VHF SCANNING RECEIVER" if scanning else "VHF TRANSCEIVER",c.MONO,13,Color("#b9c1ad"))
+	var listening: bool = scanning and c.desk.broadcast_open
+	var receiver := "VHF SCANNING RECEIVER" if scanning else "VHF TRANSCEIVER"
+	c.text(Vector2(x,y),"AM / FM RECEIVER" if listening else receiver,c.MONO,13,Color("#b9c1ad"))
 	c.text(Vector2(p.end.x-242,y),"BRANDT  /  UNIT 01",c.MONO,14,c.WHITE,208,HORIZONTAL_ALIGNMENT_RIGHT)
-	var lcd := Rect2(x,y+18,w*(.46 if in_cab and not (reporting or scanning) else .66),67)
+	var lcd := Rect2(x,y+18,w*(.46 if in_cab and not reporting else .66),67)
 	var button_height := 80 if c.desk.is_touch_mode() else 52
 	var report_key := Rect2(lcd.end.x+12,lcd.get_center().y-button_height*.5,w-lcd.size.x-12,button_height)
 	c.switch_face(lcd,Color("#171e1b"),true)
@@ -175,10 +178,21 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var display := "SIGHTING REPORT" if reporting else "COUNTY DISPATCH"
 	if scanning:
 		display = Scanner.CHANNELS.get(s.get("scanner_channel","highway"),"OFF")
+	if listening:
+		var station: Dictionary = Broadcast.STATIONS.get(s.get("broadcast_station","off"),{})
+		display = station.get("dial","OFF")
 	c.fitted(lcd.grow(-16),display,c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
 	if scanning:
-		c.button("close_scanner",report_key,"Back to dispatch",true)
-		_scanner(c,p,s,button_height)
+		var selector := report_key
+		selector.size.x = floorf((report_key.size.x-8)*.48)
+		report_key.position.x = selector.end.x+8
+		report_key.size.x = x+w-report_key.position.x
+		c.button("close_scanner",report_key,"Dispatch",true)
+		c.button("open_scanner" if listening else "open_broadcast",selector,"Scanner" if listening else "AM / FM")
+		if listening:
+			_broadcast_panel(c,p,s,button_height)
+		else:
+			_scanner(c,p,s,button_height)
 		return
 	var scanner_key := Rect2()
 	if in_cab and not reporting:
@@ -260,7 +274,49 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 			c.button("toggle_lead",Rect2(x+w-track_width,y+126,track_width,button_height),_track_label(s),true)
 	if in_cab:
 		c.button("report_sighting",report_key,"Report a sighting",true)
-		c.button("open_scanner",scanner_key,"Scanner",s.get("scanner_rx",false))
+		c.button("open_scanner",scanner_key,"Receivers",s.get("scanner_rx",false))
+
+func _broadcast_panel(c, p: Rect2, s: Dictionary, button_height: float) -> void:
+	var x := p.position.x+34
+	var width := p.size.x-68
+	var y := p.position.y+150
+	var id := str(s.get("broadcast_station","off"))
+	var station: Dictionary = Broadcast.STATIONS.get(id,{})
+	var signal_level := float(s.get("broadcast_signal",0.)) if not station.is_empty() else 0.
+	c.text(Vector2(x,y),"TUNER",c.MONO,14,Color("#bac2b3"))
+	c.text(Vector2(x+width-155,y),"SIGNAL",c.MONO,14,Color("#bac2b3"))
+	for lamp in 5:
+		var strength := (lamp+1)*.2
+		c.draw_rect(Rect2(x+width-88+lamp*18,y-4-lamp*2,12,5+lamp*2),c.AMBER if signal_level+.01 >= strength else Color("#536054"))
+	var dial := Rect2(x,y+15,width,61)
+	c.switch_face(dial,Color("#1b2421"),true)
+	var low := 540. if id == "am" else 88.
+	var high := 1660. if id == "am" else 108.
+	var step := 20. if id == "am" else .5
+	for mark in roundi((high-low)/step)+1:
+		var frequency := low+mark*step
+		var at := dial.position.x+19+(width-38)*inverse_lerp(low,high,frequency)
+		var major := int(frequency)%200 == 0 if id == "am" else mark%8 == 0
+		c.draw_line(Vector2(at,dial.position.y+12),Vector2(at,dial.position.y+(31 if major else 22)),Color("#a5ac9b"),2)
+		if major:
+			c.text(Vector2(at-13,dial.end.y-9),str(int(frequency)),c.MONO,13,c.CREAM)
+	if not station.is_empty():
+		var fraction := inverse_lerp(low,high,760. if id == "am" else 99.7)
+		var needle := dial.position.x+19+(width-38)*fraction
+		c.draw_rect(Rect2(needle-2,dial.position.y+7,4,dial.size.y-15),c.AMBER)
+		c.text(Vector2(x,y+115),station.name,c.scaled,28,c.CREAM)
+		var usable := signal_level >= .20
+		var label := str(s.get("broadcast_label","")) if usable else "Signal fading"
+		c.text(Vector2(x,y+145),label,c.MONO,16,c.WHITE)
+		var words := str(s.get("broadcast_words",""))
+		if not words.is_empty():
+			c.multiline(Vector2(x,y+176),words,c.subtle,18,c.CREAM,width,2)
+	else:
+		c.text(Vector2(x,y+120),"Receiver off",c.subtle,22,c.CREAM)
+	var key := Rect2(x,p.end.y-32-button_height,(width-20)/3.,button_height)
+	for choice: Array in [["am","760 AM  ·  Farm"],["fm","99.7 FM  ·  Country"],["off","Off"]]:
+		c.button("broadcast_"+choice[0],key,choice[1],id == choice[0])
+		key.position.x += key.size.x+10
 
 func _scanner(c, p: Rect2, s: Dictionary, button_height: float) -> void:
 	var x := p.position.x+34

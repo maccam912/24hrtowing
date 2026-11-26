@@ -21,6 +21,7 @@ var parts_page := 0
 var notes_page := 0
 var sighting_page := -1
 var scanner_open := false
+var broadcast_open := false
 var fps := 30
 var _touch_mode := false
 var _touches: Dictionary = {}
@@ -100,6 +101,7 @@ func _change_page(id: String) -> void:
 	fax_sheet = -1
 	sighting_page = -1
 	scanner_open = false
+	broadcast_open = false
 	_clear_controls()
 	if surface:
 		surface.hit_boxes.clear()
@@ -286,12 +288,13 @@ func _activate(id: String) -> void:
 		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "report_notes", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "roadside_fuel":
 			_change_page("")
 			action.emit(id)
-		"open_scanner","close_scanner":
-			scanner_open = id == "open_scanner"
+		"open_scanner","open_broadcast","close_scanner":
+			scanner_open = id != "close_scanner"
+			broadcast_open = id == "open_broadcast"
 			surface.hover = ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()
-		"scanner_highway","scanner_sheriff","scanner_garage","scanner_off","buy_scanner":
+		"broadcast_am","broadcast_fm","broadcast_off","scanner_highway","scanner_sheriff","scanner_garage","scanner_off","buy_scanner":
 			action.emit(id)
 		"report_sighting", "back_to_radio", "prev_sightings", "next_sightings":
 			match id:

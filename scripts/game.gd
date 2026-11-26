@@ -87,6 +87,7 @@ var ui_timer := 0.0
 var direction_timer := 0.0
 var road_directions := RoadDirections.new()
 var plow_heard := false
+var broadcast := preload("res://scripts/broadcast_radio.gd").new()
 var scanner := preload("res://scripts/county_scanner.gd").new()
 var saved_data := {}
 var state := {}
@@ -124,6 +125,7 @@ func _ready() -> void:
 	_resize()
 	audio = Audio.new()
 	add_child(audio)
+	add_child(broadcast)
 	rig.sound_event.connect(audio.effect)
 	saved_data = {} if test_session else Ledger.read()
 	desk = Desk.new()
@@ -244,6 +246,7 @@ func _physics_process(dt: float) -> void:
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
 	scanner.advance(dt,self)
+	broadcast.advance(dt,self)
 	var player_at: Vector3 = rig.get_player_position()
 	var in_store: bool = not rig.in_cab and county.inside_fuel_store(player_at)
 	var playing_shift: bool = active and not desk.is_title()
@@ -386,6 +389,10 @@ func _action(id: String) -> void:
 		"settings_30","settings_60":
 			Engine.max_fps = 30 if id == "settings_30" else 60
 			_save()
+		"broadcast_am","broadcast_fm","broadcast_off":
+			if rig.in_cab and desk.broadcast_open and broadcast.tune(id.trim_prefix("broadcast_")):
+				broadcast.advance(0.,self)
+				_save()
 		"scanner_highway","scanner_garage","scanner_sheriff","scanner_off":
 			if rig.in_cab and desk.scanner_open and scanner.tune(id.trim_prefix("scanner_"),account.owns("scanner")):
 				audio.stop_scanner()
@@ -1515,6 +1522,13 @@ func _refresh() -> void:
 	if site == "inspect_sighting" and not desk.is_touch_mode() and state.feedback.is_empty():
 		state.feedback = "E  ·  Take a closer look"
 	state["recovery_restarts_job"] = _restart_on_recovery()
+	state["broadcast_station"] = broadcast.station
+	state["broadcast_signal"] = broadcast.signal_strength
+	state["broadcast_label"] = broadcast.cue.get("label","")
+	state["broadcast_words"] = broadcast.caption()
+	if state.subtitle.is_empty() and not state.broadcast_words.is_empty():
+		state.speaker = broadcast.STATIONS[broadcast.station].name.to_upper()
+		state.subtitle = state.broadcast_words
 	state["scanner_available"] = _scanner_available()
 	state["scanner_fitted"] = account.owns("scanner")
 	state["scanner_channel"] = scanner.channel
@@ -1532,7 +1546,7 @@ func _save() -> void:
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
-		"sightings":sightings.save_state(),"scanner":scanner.save_state(),"mai_lot_heard":mai_lot_heard,
+		"sightings":sightings.save_state(),"scanner":scanner.save_state(),"broadcast":broadcast.save_state(),"mai_lot_heard":mai_lot_heard,
 		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
@@ -1569,6 +1583,7 @@ func _restore(s: Dictionary) -> void:
 	account.restore(s)
 	audio.stop_scanner()
 	scanner.restore(s.get("scanner",{}),account.owns("scanner"))
+	broadcast.restore(s.get("broadcast",{}))
 	_clear_fuel_plow()
 	fuel_wait_left = clampf(s.get("fuel_wait_left", 0.0), 0.0, ShopAccount.CAN_ETA_MINUTES)
 	shop_receipt = ""
