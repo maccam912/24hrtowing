@@ -4,6 +4,7 @@ const Batch := preload("res://scripts/county_mesh.gd")
 const Car := preload("res://scripts/rig_scene.gd")
 const Kit := preload("res://scripts/rig_mesh.gd")
 const Woods := preload("res://scripts/woods_passage.gd")
+const Deer := preload("res://scripts/deer_crossing.gd")
 const SKY_LIGHT := preload("res://assets/county/sky_lights.gdshader")
 
 const Thaw := preload("res://scripts/thawed_road.gd")
@@ -13,6 +14,7 @@ var lamps_material := ShaderMaterial.new()
 var props: Node3D
 var actor: Node3D
 var woods: Woods
+var herd: Deer
 var line_hum: AudioStreamPlayer3D
 var wire_origin := Vector3.ZERO
 var starting := Vector3.ZERO
@@ -58,24 +60,20 @@ func _vehicle(parent: Node3D, tint := 0, taped := false, identity := {}, running
 		Car.car_lamps(car,"running",-1)
 	return car
 
-func _animal(parent: Node3D, cow: bool) -> Node3D:
+func _cow(parent: Node3D) -> Node3D:
 	var body := Node3D.new()
 	parent.add_child(body)
 	var kit := Kit.new(body)
-	var hide := Color("#a09377") if not cow else Color("#403d38")
+	var hide := Color("#403d38")
 	var patch := Color("#c3c0ab")
-	kit.box(Vector3(0,1.05,0),Vector3(.64 if cow else .38,.66,1.44),hide)
-	if cow:
-		kit.box(Vector3(-.02,1.14,-.32),Vector3(.66,.53,.55),patch)
+	kit.box(Vector3(0,1.05,0),Vector3(.64,.66,1.44),hide)
+	kit.box(Vector3(-.02,1.14,-.32),Vector3(.66,.53,.55),patch)
 	kit.beam(Vector3(0,1.15,-.52),Vector3(0,1.82,-.80),.28,.31,hide)
 	kit.box(Vector3(0,1.80,-.92),Vector3(.38,.36,.57),hide,Vector3(-.32,0,0))
 	for side: float in [-1,1]:
 		kit.box(Vector3(side*.24,1.98,-.78),Vector3(.27,.085,.14),hide,Vector3(0,0,side*.36))
 		for z: float in [-.48,.52]:
 			kit.beam(Vector3(side*.19,.96,z),Vector3(side*.22,.02,z+.09),.095,.10,hide)
-		if not cow:
-			kit.beam(Vector3(side*.11,1.95,-.83),Vector3(side*.32,2.33,-.62),.044,.046,hide)
-			kit.beam(Vector3(side*.23,2.16,-.70),Vector3(side*.19,2.33,-.81),.034,.030,hide)
 	kit.finish()
 	return body
 
@@ -119,12 +117,12 @@ func _ground_patch(parent: Node3D, at: Vector3, radius: float, grassy: bool) -> 
 			flowers.box(ground(at+offset)+Vector3.UP*.16,Vector3(.10,.04,.10),Color("#e8cc4b"))
 		flowers.finish()
 
-func _marks(parent: Node3D, at: Vector3, forward: Vector3, hoof := false) -> void:
+func _bootprints(parent: Node3D, at: Vector3, forward: Vector3) -> void:
 	var kit := Kit.new(parent)
 	var side := forward.cross(Vector3.UP)
 	for i in 29:
 		var p := ground(at+forward*(i*.73)+side*.12*(1 if i%2 else -1))
-		kit.box(p+.045*Vector3.UP,Vector3(.16,.035,.21 if hoof else .32),Color("#9ca7ad"),Vector3(0,atan2(-forward.x,-forward.z),0))
+		kit.box(p+.045*Vector3.UP,Vector3(.16,.035,.32),Color("#9ca7ad"),Vector3(0,atan2(-forward.x,-forward.z),0))
 	kit.finish()
 
 func add_remnant(key: String, entry: Dictionary) -> void:
@@ -153,7 +151,7 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 		"cow_ring":
 			for i in 11:
 				var radial := Vector3(cos(i*TAU/11),0,sin(i*TAU/11))
-				var cow := _animal(parent,true)
+				var cow := _cow(parent)
 				cow.position = ground(at+radial*11.)
 				cow.rotation.y = atan2(radial.x,radial.z)
 				points.append(cow.position+Vector3.UP)
@@ -172,8 +170,10 @@ func add_remnant(key: String, entry: Dictionary) -> void:
 			grooves.finish()
 			for offset: float in [-14.,0.,14.]:
 				points.append(ground(at+facing*offset)+Vector3.UP*.08)
-		"hoofprints","bootprints":
-			_marks(parent,at,facing,id=="hoofprints")
+		"hoofprints":
+			points = Deer.hoofprints(parent,at,facing,world.surface_point)
+		"bootprints":
+			_bootprints(parent,at,facing)
 			for step: int in [0,14,28]:
 				points.append(ground(at+facing*step*.73)+Vector3.UP*.06)
 		"woods_tracks":
@@ -234,6 +234,7 @@ func clear_live() -> void:
 	street_lamps.clear()
 	actor = null
 	woods = null
+	herd = null
 	line_hum = null
 	if is_instance_valid(props):
 		props.hide()
@@ -279,10 +280,8 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 			Car.walk_person(actor)
 			actor.rotation.y = atan2(-crossroad.x,-crossroad.z)
 		"deer_line":
-			for i in 5:
-				var deer := _animal(props,false)
-				deer.position = ground(roadside+crossroad*(i*1.65))
-				deer.rotation.y = atan2(-crossroad.x,-crossroad.z)
+			herd = Deer.new()
+			herd.build(props,roadside-crossroad*Deer.BANK_OFFSET,crossroad,world.surface_point)
 		"power_lines":
 			# All named pole rows use the field side of the positive road axis.
 			var axis := Vector3(absf(direction.x),0,absf(direction.z))
@@ -346,8 +345,7 @@ func animate(id: String, t: float, strength: float, truck_at: Vector3, heading: 
 		"walker":
 			actor.position = ground(roadside+crossroad*t*13.)
 		"deer_line":
-			for i in props.get_child_count():
-				props.get_child(i).position = ground(roadside+crossroad*(i*1.65+smoothstep(.63,1.,t)*9.))
+			herd.pose(t)
 		"streetlights_out":
 			for i in street_lamps.size():
 				var wave := t*2.25-float(i)/maxi(1,street_lamps.size())*.6
@@ -398,8 +396,7 @@ func live_evidence(id: String) -> PackedVector3Array:
 				if id=="woods_car" and (not actor.visible or (actor.position-roadside).dot(crossroad)<Woods.TRACK_START): return points
 				points.append(actor.to_global(Vector3.UP))
 		"deer_line":
-			for deer: Node3D in props.get_children():
-				points.append(deer.to_global(Vector3.UP))
+			if herd: return herd.head_points()
 		"snow_up","snow_column":
 			for height: float in [2.,8.,15.]:
 				points.append(props.to_global(roadside+Vector3.UP*height))

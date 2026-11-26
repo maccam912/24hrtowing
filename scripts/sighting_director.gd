@@ -338,6 +338,10 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		at.x = near.point.x
 		at.z = near.point.y
 	shoulder = scene.ground(at+side*8.5)
+	if id == "deer_line" and not Scene.Deer.has_room(game,at,forward,street):
+		active = ""
+		used = true
+		return
 	if id=="woods_car" and not Scene.Woods.has_room(game,shoulder,forward):
 		active = ""
 		used = true
@@ -372,6 +376,7 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 			scene.remove_remnant(key)
 			aftermath.erase(key)
 	duration = 10.0 + level*2.0
+	if id=="deer_line": duration=23.0
 	if id=="set_down": duration=clampf(((shoulder-origin).dot(forward)-16.)/maxf(8.,game.rig.speed),2.4,5.8)
 	if id=="storm_hole": duration=58.
 	if id=="missing_time": duration=3.2
@@ -409,7 +414,7 @@ func finish(game) -> void:
 		"woods_car":
 			_record("woods_tracks",shoulder+side*Scene.Woods.TRACK_START,yaw-PI*.5,game.completed,0.,road)
 		"deer_line":
-			_record("hoofprints",shoulder,yaw-PI*.5,game.completed)
+			_record("hoofprints",shoulder+side*(Scene.Deer.OFFSETS[0]-Scene.Deer.BANK_OFFSET),yaw-PI*.5,game.completed,0.,road)
 		"yard_visit":
 			yard_turned = true
 			game._turn_storage_north()
@@ -444,6 +449,11 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 	if active == "woods_car":
 		var distance := maxf(1.,(shoulder-origin).dot(forward)-24.)
 		elapsed = maxf(elapsed,clampf((at-origin).dot(forward)/distance,0.,1.)*duration*.83)
+	if active=="deer_line":
+		var remaining := (shoulder-at).dot(forward)
+		var approach := clampf(maxf(0.,game.rig.speed)*2.1+3.,8.,44.)
+		var crossing := (1.-clampf((remaining-7.)/approach,0.,1.))*.98
+		elapsed = maxf(elapsed,crossing*duration)
 	if active == "set_down":
 		# A driver can accelerate mid-descent. Finish the landing and radio cue
 		# while the sedan remains in front of the bumper, even then.
@@ -461,10 +471,11 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 	var light := scene.animate(active,t,intensity,at,Vector3.FORWARD.rotated(Vector3.UP,game.rig.heading))
 	var safe_electrics: bool = absf(game.rig.acceleration)<3.5 and absf(game.rig.pitch)<.075
 	var electrical := intensity if safe_electrics and active in ["electrics_fade","overhead","set_down","mirror_follow"] else 0.0
-	game.rig.set_sighting(intensity,light,electrical)
+	var calm := intensity*(1.-smoothstep(.44,.55,t)) if active=="deer_line" else intensity
+	game.rig.set_sighting(calm,light,electrical)
 	game.rig.body.glass_material.set_shader_parameter("thaw",intensity if active in ["warm_air","thaw_glaze","dry_road"] else 0.)
-	game.audio.set_sighting(intensity,intensity*(.48 if level==1 else .92))
-	game.county.set_sighting_weather(active,intensity,t)
+	game.audio.set_sighting(calm,calm*(.48 if level==1 else .92))
+	game.county.set_sighting_weather(active,calm,t)
 	if active=="set_down" and not heard and t>=.76:
 		heard = true
 		game._speak("DISPATCH","Brandt, you on? I’ve got one on the shoulder right in front of you.")

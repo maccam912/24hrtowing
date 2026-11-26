@@ -60,6 +60,9 @@ var storm_travel := 0.0
 var thawed_roads := {}
 var roof_strength := 0.0
 var storm: MeshInstance3D
+var surface_x: Array
+var surface_z: Array
+var surface_rows: Array
 var snow_shader: ShaderMaterial
 var powder_clouds: MultiMeshInstance3D
 var powder_shader: ShaderMaterial
@@ -446,6 +449,21 @@ func ground_height(x: float, z: float) -> float:
 	var field := (0.37+0.7*sin(x*.019)+0.42*cos(z*.024))*smoothstep(10,30,d)
 	return (bank-.86*ditch+field)*smoothstep(0,5,lot)
 
+## Height of the triangle drawn under a small footprint on a sloping snowbank.
+func surface_point(at: Vector3) -> Vector3:
+	if surface_rows.is_empty(): return Vector3(at.x,ground_height(at.x,at.z),at.z)
+	var col := clampi(surface_x.bsearch(at.x)-1,0,surface_x.size()-2)
+	var row := clampi(surface_z.bsearch(at.z)-1,0,surface_z.size()-2)
+	var u := clampf(inverse_lerp(surface_x[col],surface_x[col+1],at.x),0.,1.)
+	var v := clampf(inverse_lerp(surface_z[row],surface_z[row+1],at.z),0.,1.)
+	var a: float = surface_rows[row][col]
+	var c: float = surface_rows[row+1][col+1]
+	if u >= v:
+		at.y = a*(1.-u)+surface_rows[row][col+1]*(u-v)+c*v
+	else:
+		at.y = a*(1.-v)+surface_rows[row+1][col]*(v-u)+c*u
+	return at
+
 func _paint(tint: String, texture_path := "", emission := 0.0) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(tint)
@@ -728,6 +746,9 @@ func _build_ground(draw) -> void:
 		for x: float in xs:
 			heights.append(ground_height(x,z) if x <= 1150 or absf(z) <= 265 else 0.0)
 		h_rows.append(heights)
+	surface_x = xs
+	surface_z = zs
+	surface_rows = h_rows
 	_bake_spindrift_ground(xs, zs, h_rows)
 	for row in range(zs.size()-1):
 		var z0 := float(zs[row])
