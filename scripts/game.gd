@@ -114,7 +114,9 @@ var test_session := false
 var shutting_down := false
 
 func _ready() -> void:
-	test_session = "--test-mode" in OS.get_cmdline_user_args()
+	# Scripted SceneTree entry points (tests and screenshot captures) use their
+	# in-memory shift even when launched directly from Godot without flags.
+	test_session = get_tree().get_script() != null or "--test-mode" in OS.get_cmdline_user_args()
 	world_view.name = "Storm"
 	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	world_view.own_world_3d = true
