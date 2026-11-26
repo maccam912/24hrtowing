@@ -383,6 +383,7 @@ func follow_camera(pos: Vector3, in_cab := false, in_store := false) -> void:
 				speaker.stop()
 
 func _fixture_audio() -> void:
+	if DisplayServer.get_name()=="headless": return
 	# Only the nearest fixture of each type can be heard above the storm.
 	for role: String in lamp_locations:
 		var sound_path := "res://assets/audio/"+role+".mp3"

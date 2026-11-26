@@ -22,7 +22,7 @@ func _process(dt: float) -> void:
 		var camera := get_viewport().get_camera_3d()
 		if camera and global_position.distance_squared_to(camera.global_position) < 65.0*65.0:
 			ring_time = 0.0
-			play()
+			if DisplayServer.get_name()!="headless": play()
 	if ring_time < 1.0:
 		ring_time = minf(1.0, ring_time + dt*pitch_scale)
 		var envelope := exp(-ring_time*4.7)*(1.0-ring_time)
