@@ -317,7 +317,7 @@ func _documents() -> void:
 	if desk.page in ["cab_heat","deputy_call"]:
 		button("close",Rect2(p.end.x-180,p.end.y,180,tab_height),"Back to cab" if desk.page == "cab_heat" else "End call",true)
 		return
-	if desk.page in ["coffee","bulk_pump","reserve_transfer","checked_tape","storage_tag","register_card","impound_register"]:
+	if desk.page in ["west_custody","coffee","bulk_pump","reserve_transfer","checked_tape","storage_tag","register_card","impound_register"]:
 		button("close",Rect2(p.end.x-148,p.end.y,148,tab_height),"Hang up" if desk.page == "bulk_pump" else "Step away",true)
 		return
 	# Labeled tabs project beyond the paper's bottom edge.

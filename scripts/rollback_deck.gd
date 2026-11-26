@@ -136,6 +136,8 @@ func bay_point(rig) -> Vector3:
 
 func fits_bay(rig) -> bool:
 	var p := bay_point(rig)
+	if rig.vehicle_identity.has("sheriff_order"):
+		return rig.WestBay.fits(rig.car,p,rig.heading)
 	var along: Vector3 = rig.truck.global_basis.z*1.95
 	var side: Vector3 = rig.truck.global_basis.x*.88
 	for corner: Vector3 in [along+side,along-side,-along+side,-along-side]:
@@ -178,10 +180,10 @@ func instruction(rig) -> String:
 		"cable": return "Take the carrier cable to the nearest tow eye."
 		"rigged": return "Return to the left side panel. Hold the winch to draw the car up the runners."
 		"at_lift":
-			if motion == "pay": return "Hold the winch at the left panel to pay the car down into storage."
+			if motion == "pay": return "Hold the winch at the left panel to pay the car down into %s." % rig.dropoff.sign
 			if unloading: return "Release the straps on each side of the bed. Select payout at the left panel."
 			return "Walk to each side of the car and ratchet its wheel straps. Return to the left panel and bring the bed home."
-		"loaded": return "Back the tail toward the amber storage bay. Leave enough room to roll the car down the bed."
+		"loaded": return "Back the tail toward %s. Leave enough room to roll the car down the bed." % rig.dropoff.sign
 	return ""
 
 func handle(rig, id: String) -> void:

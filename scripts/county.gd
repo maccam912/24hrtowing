@@ -65,6 +65,9 @@ var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
 var yard_dispenser := false
 var yard_brewer := false
+const WestBay := preload("res://scripts/west_hold_bay.gd")
+var west_bay: WestBay
+var west_bay_fitted := false
 var west_lot_open := false
 var fittings_model: Node3D
 var fuel_door: Node3D
@@ -154,12 +157,13 @@ func _queue_build() -> void:
 func yard_contains(point: Vector2) -> bool:
 	return YARD.has_point(point) or (west_lot_open and Fittings.WEST_LOT.has_point(point))
 
-func fit_yard(dispenser: bool, brewer: bool, west_lot := false) -> void:
-	if dispenser == yard_dispenser and brewer == yard_brewer and west_lot == west_lot_open:
+func fit_yard(dispenser: bool, brewer: bool, west_lot := false, second_bay := false) -> void:
+	if dispenser == yard_dispenser and brewer == yard_brewer and west_lot == west_lot_open and second_bay == west_bay_fitted:
 		return
 	yard_dispenser = dispenser
 	yard_brewer = brewer
 	west_lot_open = west_lot
+	west_bay_fitted = second_bay and west_lot
 	_build_yard_fittings()
 
 func _build_yard_fittings() -> void:
@@ -175,6 +179,14 @@ func _build_yard_fittings() -> void:
 	fittings.assemble(yard_dispenser,yard_brewer)
 	fittings.west_fence(west_lot_open)
 	geometry.finish()
+	if west_bay_fitted and not is_instance_valid(west_bay):
+		west_bay = WestBay.new()
+		add_child(west_bay)
+		west_bay.build(self)
+	elif not west_bay_fitted and is_instance_valid(west_bay):
+		remove_child(west_bay)
+		west_bay.queue_free()
+		west_bay = null
 
 func coffee_counter_point() -> Vector3:
 	return FuelStore.FORECOURT + FuelStore.COUNTER

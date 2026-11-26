@@ -38,6 +38,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"map": _atlas(c,p,s)
 		"radio","deputy_call": _radio(c,p,s)
 		"visit_call": _visit_call(c,p,s)
+		"west_custody": _west_custody(c,p,s)
 		"fax": _fax(c,p,s)
 		"custody": _custody(c,p,s)
 		"field": _field(c,p,s)
@@ -82,7 +83,9 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		caption += "   /   %d TO FAX" % pending.size()
 	var num := str(active_job.get("number",s.get("offer",{}).get("number",1001+history.size()+pending.size())))
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
-	if active_job.has("clearance_seconds"):
+	if active_job.has("sheriff_order"):
+		job_kind = "Sheriff hold"
+	elif active_job.has("clearance_seconds"):
 		job_kind = "Squad pull"
 	elif active_job.get("recovery") == "semi":
 		job_kind = "Freight recovery"
@@ -311,6 +314,63 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	if in_cab:
 		c.button("report_sighting",report_key,"Report a sighting",true)
 		c.button("open_scanner",scanner_key,"Receivers",s.get("scanner_rx",false))
+
+func _west_custody(c, p: Rect2, s: Dictionary) -> void:
+	var row: Dictionary = s.get("west_card",{})
+	var source := str(s.get("west_source",""))
+	var status := str(row.get("status",""))
+	var x := p.position.x+32
+	var w := p.size.x-64
+	var y := p.position.y+106
+	var button := Rect2(x,p.end.y-98,w,78)
+	c._sheet(p,ORIGINAL)
+	_header(c,p,"TAMARACK COUNTY SHERIFF   /   BRANDT YARD","West hold orders",status,c.print_face)
+	if row.has("sheriff_order"):
+		_entry(c,Rect2(x,y,w*.49,42),"SHERIFF ORDER",row.sheriff_order)
+		_entry(c,Rect2(x+w*.52,y,w*.48,42),"LICENSE PLATE",row.plate)
+		c.text(Vector2(x,y+77),row.vehicle+"   /   "+row.vin,c.MONO,18,PAPER_INK)
+		c.text(Vector2(x,y+106),row.location,c.print_face,22,PAPER_INK)
+		var narrative := str(row.get("reason",""))
+		if status=="RELEASED": narrative = "Released at %s by %s. %s received the keys and vehicle." % [row.released,row.released_by,row.release_signature]
+		elif status=="RELEASE AUTHORIZED": narrative = "The sheriff has authorized release to Deputy Pelz. Unlock the chain, then meet the deputy outside the bay to countersign."
+		elif status=="FILED": narrative = "Hold order filed. Keep the chain locked. Check the next service receipt for the sheriff’s release."
+		elif status=="IN YARD": narrative = "Lock West Hold 2 from outside and send the signed carbon with the tow slip."
+		c.multiline(Vector2(x,y+146),narrative,c.print_face,22,PAPER_INK,w,3)
+		if row.has("pickup_signature"):
+			c.text(Vector2(x,y+234),"TRANSFER   %s    /    Brandt    %s" % [row.pickup_signature,row.custody_start],c.MONO,17,FORM_BLUE)
+		elif status=="ORDER AVAILABLE":
+			c.text(Vector2(x,y+232),"County tow rates plus $20.00 for secured custody.",c.MONO,17,GREEN)
+		if row.has("arrived"):
+			c.text(Vector2(x,y+264),"WEST HOLD 2   %s    /    ODO %.1f" % [row.arrived,row.arrival_odo],c.MONO,17,FORM_BLUE)
+	else:
+		c.text(Vector2(x,y+48),"The sheriff has no fresh hold for this bay.",c.print_face,24,PAPER_INK)
+		c.text(Vector2(x,y+92),"The county tow rotation is open on the cab radio.",c.print_face,20,FADED)
+	var action := ""
+	var words := ""
+	if source=="west_pickup_card" and status=="AWAITING SIGNATURE":
+		action="west_sign_pickup"
+		words="Sign transfer · take keys"
+	elif source=="west_release_card" and status=="RELEASE AUTHORIZED" and not row.locked:
+		action="west_sign_release"
+		words="Countersign · release vehicle"
+	elif source=="west_order_book" and status=="ORDER AVAILABLE":
+		action="west_accept"
+		words="Accept this order"
+	if source=="west_order_book" and int(row.get("archive_count",0))>0:
+		var history_rect := button
+		if not action.is_empty() or row.archive_open:
+			button.size.x = (w-12)*.5
+			history_rect = Rect2(button.end.x+12,button.position.y,button.size.x,button.size.y)
+		if row.archive_open:
+			c.button("west_current",button,"Current orders")
+			if int(row.archive_count)>1:
+				history_rect.size.x=(history_rect.size.x-8)*.5
+				c.button("west_archive_prev",history_rect,"Previous")
+				history_rect.position.x+=history_rect.size.x+8
+				c.button("west_archive_next",history_rect,"Next")
+		else:
+			c.button("west_archive",history_rect,"Signed releases")
+	if not action.is_empty(): c.button(action,button,words,true)
 
 func _visit_call(c, p: Rect2, s: Dictionary) -> void:
 	var call: Dictionary = s.get("visit_offer",{})
@@ -998,6 +1058,10 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		left.position.y += size.y+8
 		_equipment_card(c,left,"buy_west_lot","West storage lot","Open the gate to twelve more impound spaces.",ShopAccount.PRICES.west_lot,
 			"Extend fence","Installed" if s.get("west_lot",false) else "",money,can_fit,location)
+		right.position.y += size.y+8
+		var gate := "Installed" if s.get("west_hold",false) else ("" if s.get("west_lot",false) else "Extend west lot first")
+		_equipment_card(c,right,"buy_west_hold","Second hold bay","Secure a separate sheriff vehicle. Get orders at the west gate book.",ShopAccount.PRICES.west_hold,
+			"Install hold bay",gate,money,can_fit,location)
 		_parts_nav(c,p,leaf)
 		c.fitted(Rect2(x,p.end.y-38,width,32),s.get("shop_receipt",""),c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
 		return
@@ -1103,7 +1167,7 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 			c.draw_rect(sketch.grow_individual(-3,-16,-3,-16),PAPER_INK,false,2)
 			for i in 6:
 				c.draw_circle(sketch.position+Vector2(11+i*10,sketch.size.y*.5),3.3,FORM_BLUE)
-		"buy_west_lot":
+		"buy_west_lot","buy_west_hold":
 			for i in 6:
 				var at := sketch.position+Vector2(6+i*8,8)
 				c.draw_line(at,at+Vector2(15,29),FORM_BLUE,1,true)

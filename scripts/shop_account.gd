@@ -1,7 +1,7 @@
 extends RefCounted
 
 const OPENING_CASH := 35.0
-const PRICES := {"chains":95.0, "snatch_block":175.0, "scanner":65.0, "mirrors":55.0, "lamps":115.0, "yard_pump":145.0, "coffee_maker":39.0, "west_lot":245.0, "second_winch":340.0, "aux_tank":155.0}
+const PRICES := {"chains":95.0, "snatch_block":175.0, "scanner":65.0, "mirrors":55.0, "lamps":115.0, "yard_pump":145.0, "coffee_maker":39.0, "west_lot":245.0, "west_hold":185.0, "second_winch":340.0, "aux_tank":155.0}
 const REPAIR_PRICE := 24.0
 const YARD_RECOVERY_PRICE := 24.0
 const COFFEE_PRICE := 0.75

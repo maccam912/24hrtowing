@@ -4,6 +4,7 @@ signal recovered(kind:String)
 signal dropped
 signal sound_event(id:String)
 
+const WestBay := preload("res://scripts/west_hold_bay.gd")
 const Rollback := preload("res://scripts/rollback_deck.gd")
 const Flowage := preload("res://scripts/flowage_pull.gd")
 const Rollover := preload("res://scripts/rollover.gd")
@@ -126,6 +127,7 @@ var exiting_riders: Array[RiderWalk] = []
 var walked:=0.0
 var dropoff: Dictionary:
 	get:
+		if vehicle_identity.has("sheriff_order"): return WestBay.DROP
 		if tanker: return Dairy.DROP
 		return RiverLanes.DROP if semi else YardDrop.for_vehicle(kind)
 var ground_period:=0.0
@@ -775,7 +777,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "mail", "running", "open_door", "untaped"]:
+	for key in ["sheriff_order", "case_id", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -829,8 +831,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * ahead
 		at.y = _ground(at)
 		warning_triangle = Scene.warning_triangle(self,at,road_yaw)
-	if kind in ["ditch","hold","passenger"] or semi or tanker:
-		witness=Scene.person(self,kind=="hold",vehicle_identity.driver_variant)
+	if kind in ["ditch","hold","passenger"] or semi or tanker or vehicle_identity.has("sheriff_order"):
+		witness=Scene.person(self,kind=="hold" or vehicle_identity.has("sheriff_order"),vehicle_identity.driver_variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
 		witness.position=Vector3(point.x,_ground(point),point.z)
 		witness.rotation.y=yaw-1.14
@@ -1014,6 +1016,7 @@ func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 
 func at_dropoff() -> bool:
 	if rollback_active and loaded: return rollback_deck.fits_bay(self)
+	if vehicle_identity.has("sheriff_order"): return loaded and WestBay.fits(car)
 	if semi: return loaded and semi.fits(RiverLanes.BAY)
 	if tanker: return loaded and tanker.fits(Dairy.BAY)
 	return loaded and is_instance_valid(car) and (YardDrop.contains(dropoff.center, car.position)
@@ -1114,10 +1117,12 @@ func _at_door() -> bool:
 
 func context_text() -> String:
 	var action:=action_id()
+	if action == "deck_unload": return "Lower the bed at %s" % dropoff.sign
+	if action == "deck_store": return "Aim the tail at the amber lamps at %s" % dropoff.sign
 	if Rollback.PROMPTS.has(action): return Rollback.PROMPTS[action]
 	if rollback_active and action == "winch" and rollback_deck.hauls(self):
 		var control := "WINCH" if OS.has_feature("mobile") else "Space"
-		return "Hold %s to pay the car down into storage" % control if rollback_deck.unloading else "Hold %s to reel the car up the runners" % control
+		return "Hold %s to pay the car down into %s" % [control,dropoff.sign] if rollback_deck.unloading else "Hold %s to reel the car up the runners" % control
 	if Semi.PROMPTS.has(action): return Semi.PROMPTS[action]
 	if tanker:
 		match action:
@@ -1795,7 +1800,7 @@ func restore_state(d:Dictionary) -> void:
 	for data: Dictionary in d.get("departures",[]):
 		var ticket: Dictionary = data.identity
 		var vehicle := Scene.car(self,"ditch",ticket.variant,ticket)
-		var driver := Scene.person(self,false,ticket.driver_variant)
+		var driver := Scene.person(self,ticket.get("west_release",false),ticket.driver_variant)
 		var lamps := Scene.car_lamps(vehicle,"hazard",-1)
 		var departure := DepartingDriver.new(self,vehicle,driver,lamps,_unpack(data.site,Vector3.ZERO),data.site_yaw,ticket)
 		departure.restore_state(data)

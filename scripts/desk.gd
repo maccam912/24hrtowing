@@ -337,7 +337,7 @@ func _activate(id: String) -> void:
 			surface.hover = ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()
-		"impound_prev", "impound_next", "impound_index", "impound_0", "impound_1", "impound_2", "buy_coffee", "talk_mai":
+		"west_accept","west_sign_pickup","west_sign_release","west_archive","west_archive_prev","west_archive_next","west_current","impound_prev", "impound_next", "impound_index", "impound_0", "impound_1", "impound_2", "buy_coffee", "talk_mai":
 			action.emit(id)
 		"turn_plat":
 			east_sheet = not east_sheet
@@ -408,7 +408,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"tank_main", "tank_reserve", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"tank_main", "tank_reserve", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_hold", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):
