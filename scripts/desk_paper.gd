@@ -1,9 +1,11 @@
 extends RefCounted
 
 const Campaign := preload("res://scripts/county_case.gd")
+const Dispatch := preload("res://scripts/dispatch.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
 const NOTES_PER_PAGE := 6
 const SIGHTINGS_PER_PAGE := 3
+const Scanner := preload("res://scripts/county_scanner.gd")
 const PAPER_INK := Color("#353f3c")
 const FORM_BLUE := Color("#475e72")
 const FADED := Color("#67746e")
@@ -13,8 +15,10 @@ const ORIGINAL := Color("#e4e0cd")
 const TISSUE := Color("#e3d5ce")
 const HATCH := Color("#a6b4a3")
 const RADIO_ENAMEL := preload("res://assets/ui/sign_enamel.jpg")
-const ATLAS_A := Vector2(-635,-575)
-const ATLAS_B := Vector2(934,836)
+const Pencil := preload("res://scripts/plat_pencil.gd")
+const ATLAS_A := Pencil.NORTHWEST
+const ATLAS_B := Pencil.SOUTHEAST
+var pencil_projection := Transform2D.IDENTITY
 const KEY_PLACES := [
 	["A","Brandt yard","Brandt Towing",Vector2(-32,-64)],
 	["B","Highway 64 bridge","River bridge",Vector2(-435,0)],
@@ -33,6 +37,7 @@ func paint(c, p: Rect2, page: String, s: Dictionary) -> void:
 		"custody": _custody(c,p,s)
 		"field": _field(c,p,s)
 		"parts": _parts(c,p,s)
+		"coffee": _coffee(c,p,s)
 		"passenger": _passenger(c,p,s)
 		_: _slip(c,p,s)
 
@@ -67,6 +72,10 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		caption += "   /   %d TO FAX" % pending.size()
 	var num := str(active_job.get("number",s.get("offer",{}).get("number",1001+history.size()+pending.size())))
 	var job_kind := str(active_job.get("kind","")).replace("_"," ").capitalize()
+	if active_job.has("clearance_seconds"):
+		job_kind = "Squad pull"
+	elif active_job.get("vin") == Dispatch.Snowplow.VIN:
+		job_kind = "Plow pull"
 	var detail: Dictionary = Campaign.DETAILS.get(active_job.get("case_id",""),{})
 	if not detail.is_empty():
 		job_kind = detail.title
@@ -107,6 +116,12 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 		if note.is_empty():
 			note = str(active_job.get("dispatch",active_job.get("directions","Dispatch calls come in on the county radio.")))
 	c.text(Vector2(x,y+231),"OPERATOR NOTES",c.MONO,12,FADED)
+	if active_job.has("clearance_seconds"):
+		var elapsed := Dispatch.Squad.clock(active_job.clearance_seconds)
+		var imprint := "SCENE CLOCK   %s / 2:00   •   $%d PREMIUM" % [elapsed,Dispatch.Squad.PREMIUM]
+		if archived or awaiting:
+			imprint = "CLEARED   %s   •   PREMIUM $%.2f" % [elapsed,active_job.get("clearance_bonus",0.0)]
+		c.fitted(Rect2(x+132,y+214,w-132,24),imprint,c.MONO,14,FORM_BLUE,HORIZONTAL_ALIGNMENT_RIGHT)
 	c.multiline(Vector2(x,y+257),note,c.HAND,24,FORM_BLUE,w,2)
 	var touch: bool = c.desk.is_touch_mode()
 	var archive_button := Vector2(82,80) if touch else Vector2(52,36)
@@ -146,16 +161,28 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	var x := p.position.x+34
 	var y := p.position.y+35
 	var w := p.size.x-68
-	c.text(Vector2(x,y),"VHF TRANSCEIVER",c.MONO,13,Color("#b9c1ad"))
-	c.text(Vector2(p.end.x-242,y),"BRANDT  /  UNIT 01",c.MONO,14,c.WHITE,208,HORIZONTAL_ALIGNMENT_RIGHT)
-	var lcd := Rect2(x,y+18,w*0.66,67)
 	var reporting: bool = c.desk.sighting_page >= 0
 	var in_cab: bool = s.get("can_radio",s.get("in_cab",true))
+	var scanning: bool = in_cab and c.desk.scanner_open
+	c.text(Vector2(x,y),"VHF SCANNING RECEIVER" if scanning else "VHF TRANSCEIVER",c.MONO,13,Color("#b9c1ad"))
+	c.text(Vector2(p.end.x-242,y),"BRANDT  /  UNIT 01",c.MONO,14,c.WHITE,208,HORIZONTAL_ALIGNMENT_RIGHT)
+	var lcd := Rect2(x,y+18,w*(.46 if in_cab and not (reporting or scanning) else .66),67)
 	var button_height := 80 if c.desk.is_touch_mode() else 52
-	var report_key := Rect2(lcd.end.x+16,lcd.get_center().y-button_height*.5,w-lcd.size.x-16,button_height)
+	var report_key := Rect2(lcd.end.x+12,lcd.get_center().y-button_height*.5,w-lcd.size.x-12,button_height)
 	c.switch_face(lcd,Color("#171e1b"),true)
 	c.draw_rect(lcd.grow(-7),Color("#c1ac75"))
-	c.fitted(lcd.grow(-16),"SIGHTING REPORT" if reporting else "COUNTY DISPATCH",c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
+	var display := "SIGHTING REPORT" if reporting else "COUNTY DISPATCH"
+	if scanning:
+		display = Scanner.CHANNELS.get(s.get("scanner_channel","highway"),"OFF")
+	c.fitted(lcd.grow(-16),display,c.LCD,26,Color("#322d22"),HORIZONTAL_ALIGNMENT_LEFT)
+	if scanning:
+		c.button("close_scanner",report_key,"Back to dispatch",true)
+		_scanner(c,p,s,button_height)
+		return
+	var scanner_key := Rect2()
+	if in_cab and not reporting:
+		report_key.size.x = floorf((report_key.size.x-8)*.58)
+		scanner_key = Rect2(report_key.end.x+8,report_key.position.y,x+w-report_key.end.x-8,button_height)
 	if in_cab and reporting:
 		_sighting_choices(c,p,s.get("sighting_reports",[]),button_height)
 		c.button("back_to_radio",report_key,"Back to dispatch",true)
@@ -177,9 +204,9 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		lead = case_lock
 	var fuel_eta := int(s.get("fuel_eta",0))
 	if fuel_eta > 0:
-		lead = "COUNTY PLOW / Duane is bringing a can to your wrecker."
+		lead = "COUNTY PLOW / The relief driver is bringing a can to your wrecker."
 	elif s.get("fuel_help",false):
-		lead = "OUT OF DIESEL / Duane can bring %d%% of a tank in %d minutes. Roadside diesel is double the pump price." % [roundi(ShopAccount.CAN_FILL*100),ShopAccount.CAN_ETA_MINUTES]
+		lead = "OUT OF DIESEL / A relief plow can bring %d%% of a tank in %d minutes. Roadside diesel is double the pump price." % [roundi(ShopAccount.CAN_FILL*100),ShopAccount.CAN_ETA_MINUTES]
 		var due := maxf(0.0, ShopAccount.CAN_PRICE - float(s.get("paid",0)))
 		if due > 0.0:
 			lead += " $%.2f on delivery. The county takes the $%.2f IOU from your next payment." % [ShopAccount.CAN_PRICE-due,due]
@@ -232,6 +259,34 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 			c.button("toggle_lead",Rect2(x+w-track_width,y+126,track_width,button_height),_track_label(s),true)
 	if in_cab:
 		c.button("report_sighting",report_key,"Report a sighting",true)
+		c.button("open_scanner",scanner_key,"Scanner",s.get("scanner_rx",false))
+
+func _scanner(c, p: Rect2, s: Dictionary, button_height: float) -> void:
+	var x := p.position.x+34
+	var width := p.size.x-68
+	var y := p.position.y+153
+	c.text(Vector2(x,y),"LAST RECEIVED",c.MONO,13,Color("#b9c1ad"))
+	var lamp := Rect2(x+width-49,y-11,12,9)
+	c.draw_rect(lamp,c.AMBER if s.get("scanner_rx",false) else Color("#555f55"))
+	c.text(Vector2(lamp.end.x+6,y),"RX",c.MONO,13,c.CREAM)
+	var records: Array = s.get("scanner_history",[])
+	if records.is_empty():
+		var words := "Receiver off." if s.get("scanner_channel","highway") == "off" else "Listening for county traffic."
+		if s.get("scanner_available",false) and not s.get("scanner_fitted",false):
+			words += " Kowalski's garage and sheriff channels are in the yard parts catalog."
+		c.multiline(Vector2(x,y+44),words,c.subtle,20,c.CREAM,width,3)
+	for i in records.size():
+		var record: Dictionary = records[i]
+		var row_y := y + i*70 + 26
+		var station := str(Scanner.CHANNELS.get(record.channel,"")).substr(0,2)
+		c.text(Vector2(x,row_y),"%s    CH %s    %s" % [record.clock,station,record.who],c.MONO,13,Color("#bbbfae"))
+		c.multiline(Vector2(x,row_y+23),record.words,c.subtle,19,c.WHITE,width,2)
+	var channels := ["highway","garage","sheriff","off"] if s.get("scanner_fitted",false) else ["highway","off"]
+	var key := Rect2(x,p.end.y-32-button_height,(width-(channels.size()-1)*10)/channels.size(),button_height)
+	for id: String in channels:
+		var label: String = {"highway":"Highway", "garage":"Garage", "sheriff":"Sheriff", "off":"Off"}[id]
+		c.button("scanner_"+id,key,label,id == s.get("scanner_channel","highway"))
+		key.position.x += key.size.x+10
 
 func _sighting_choices(c, p: Rect2, reports: Array, button_height: int) -> void:
 	var x := p.position.x+34
@@ -378,12 +433,24 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 		var hole := Vector2(p.position.x+11,p.position.y+35+i*37)
 		c.draw_circle(hole,3.2,Color("#64716b"))
 		c.draw_line(hole-Vector2(13,2),hole,Color("#9a9c89"),1.7,true)
-	_header(c,p,"OFFICE OF THE COUNTY SURVEYOR","Tamarack County","PLAT BOOK  /  SHEET 03",c.print_face)
+	_header(c,p,"OFFICE OF THE COUNTY SURVEYOR","Tamarack County","",c.print_face)
+	c.button("plat_pencil",Rect2(p.end.x-210,p.position.y+6,182,80),"Put pencil away" if c.desk.pencil_open else "Use pencil")
 	var map_box := Rect2(p.position+Vector2(30,105), Vector2(p.size.x*.64-35,p.size.y-147))
 	_map(c,map_box,s,true)
 	var cx := map_box.end.x+19
 	var cy := map_box.position.y+19
 	var column_w := p.end.x-cx-25
+	if c.desk.pencil_open:
+		var heading := "Tap the sheet to mark it." if c.desk.is_touch_mode() else "Click to mark · or arrows + Enter"
+		c.fitted(Rect2(cx,cy-17,column_w,26),heading,c.subtle,16,GREEN,HORIZONTAL_ALIGNMENT_LEFT)
+		var row := Rect2(cx,cy+18,column_w,80)
+		for tool: String in ["return","vehicle","lights","erase"]:
+			var title := str(Pencil.LABELS.get(tool,"Eraser"))
+			c.button("pencil_"+tool,row,title,tool == c.desk.pencil_tool)
+			if tool != "erase":
+				_pencil_symbol(c,row.position+Vector2(21,row.size.y*.5),tool,1.1)
+			row.position.y += 84
+		return
 	c.text(Vector2(cx,cy),"ESKER TOWNSHIP",c.scaled,17,GREEN)
 	c.rule(cx,cy+8,column_w,LINE)
 	var entries: Array = s.get("pencil_notes",[])
@@ -410,12 +477,12 @@ func _atlas(c, p: Rect2, s: Dictionary) -> void:
 
 func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	c.draw_rect(box,Color("#d5d7bc"))
-	var bounds := Rect2(ATLAS_A,ATLAS_B-ATLAS_A)
-	var pad := 12 if detailed else 4
-	var frame := box.grow(-pad)
-	var scale_factor := minf(frame.size.x/bounds.size.x,frame.size.y/bounds.size.y)
-	var center := frame.get_center()-bounds.get_center()*scale_factor
-	var project := func(v: Vector2) -> Vector2: return center+v*scale_factor
+	var transform := Pencil.projection(box,12 if detailed else 4)
+	var scale_factor := transform.x.x
+	var project := func(v: Vector2) -> Vector2: return transform*v
+	if detailed and c.desk.pencil_open:
+		pencil_projection = transform
+		c.hit("pencil_sheet",Rect2(transform*ATLAS_A,(ATLAS_B-ATLAS_A)*scale_factor))
 	# Engraved parcel lines and lot numbers on the county plat.
 	for xi in range(-2,5):
 		for zi in range(-1,4):
@@ -498,6 +565,24 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 		c.rule(sx,box.end.y-13,400*scale_factor,GREEN,2)
 		c.text(Vector2(sx,box.end.y-18),"1 MILE",c.MONO,10,GREEN)
 
+	for mark: Array in s.get("plat_marks",[]):
+		_pencil_symbol(c,transform*Vector2(mark[0],mark[1]),mark[2],1.0 if detailed else .54)
+	if detailed and c.desk.pencil_open and c.hover == "pencil_sheet":
+		var tip: Vector2 = transform*c.desk.pencil_point
+		c.draw_arc(tip,11,0,TAU,24,c.OXBLOOD,1.3,true)
+
+func _pencil_symbol(c, at: Vector2, kind: String, scale_factor: float) -> void:
+	var strokes: Array
+	match kind:
+		"return": strokes = [[Vector2(-5,-6),Vector2(5,6)],[Vector2(-5,5),Vector2(6,-6)]]
+		"lights": strokes = [[Vector2(-7,0),Vector2(-5,-2),Vector2(-3,0),Vector2(-5,2),Vector2(-7,0)],[Vector2(-2,-3),Vector2(0,-5),Vector2(2,-3),Vector2(0,-1),Vector2(-2,-3)],[Vector2(3,0),Vector2(5,-2),Vector2(7,0),Vector2(5,2),Vector2(3,0)]]
+		_: strokes = [[Vector2(-7,3),Vector2(-7,-1),Vector2(-3,-2),Vector2(-1,-5),Vector2(4,-5),Vector2(6,-1),Vector2(8,0),Vector2(8,3),Vector2(-7,3)],[Vector2(-4,3),Vector2(-4,5)],[Vector2(5,3),Vector2(5,5)]]
+	for stroke: Array in strokes:
+		var points := PackedVector2Array()
+		for offset: Vector2 in stroke:
+			points.append(at+offset*scale_factor)
+		c.draw_polyline(points,FORM_BLUE,1.7*scale_factor,true)
+
 func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 	var job: Dictionary = s.get("job",{})
 	c._sheet(p,ORIGINAL if page=="map" else TISSUE)
@@ -516,12 +601,39 @@ func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 		_entry(c,Rect2(x,p.position.y+24,p.size.x-24,46),"SERVICE LOCATION",str(job.get("location","—")))
 		c.multiline(Vector2(x,p.position.y+97),note,c.HAND,19,FORM_BLUE,p.size.x-24,2)
 
+func _coffee(c, p: Rect2, s: Dictionary) -> void:
+	c._sheet(p,ORIGINAL)
+	_header(c,p,"ESKER FUEL & FOOD   /   NIGHT COUNTER","Counter check","CUSTOMER COPY",c.print_face)
+	var x := p.position.x+34
+	var w := p.size.x-68
+	c.text(Vector2(x,p.position.y+145),"QTY      DESCRIPTION",c.MONO,15,FADED)
+	c.text(Vector2(x,p.position.y+145),"AMOUNT",c.MONO,15,FADED,w,HORIZONTAL_ALIGNMENT_RIGHT)
+	c.rule(x,p.position.y+161,w,LINE)
+	c.text(Vector2(x,p.position.y+202)," 1       Coffee, to go",c.MONO,23,PAPER_INK)
+	c.text(Vector2(x,p.position.y+202),"$%.2f" % ShopAccount.COFFEE_PRICE,c.MONO,23,PAPER_INK,w,HORIZONTAL_ALIGNMENT_RIGHT)
+	c.rule(x,p.position.y+224,w,LINE)
+	var cash := float(s.get("paid",0))
+	var buy: bool = s.get("at_counter",false) and cash >= ShopAccount.COFFEE_PRICE and float(s.get("coffee_left",0)) <= 0
+	var status := "Cash on hand  $%.2f" % cash
+	if float(s.get("coffee_left",0)) > 0:
+		status = "Your last cup is still warm."
+	elif cash < ShopAccount.COFFEE_PRICE:
+		status = "Cash on hand  $%.2f   ·   A cup costs 75¢." % cash
+	c.text(Vector2(x,p.position.y+268),status,c.HAND,26,FORM_BLUE)
+	var key := Rect2(x,p.end.y-116,(w-12)*.5,80)
+	if buy:
+		c.button("buy_coffee",key,"Buy coffee  ·  75¢",true)
+	key.position.x += key.size.x+12
+	if s.get("at_counter",false):
+		c.button("talk_mai",key,"Ask about the lot lights" if s.get("mai_lot",false) else "Talk to Mai")
+
 func _parts(c, p: Rect2, s: Dictionary) -> void:
 	c._sheet(p,Color("#d9d9c5"))
 	var at_office := bool(s.get("at_office",false))
 	var at_pump := bool(s.get("at_pump",false))
+	var scanner_available := bool(s.get("scanner_available",false) or s.get("scanner_fitted",false))
 	var station := "ESKER PUMPS" if at_pump else ("YARD COUNTER" if at_office else "FIELD COPY")
-	_header(c,p,"BRANDT TOWING & RECOVERY   /   UNIT 01","Fuel & equipment",station,c.print_face)
+	_header(c,p,"BRANDT TOWING   /   "+station,"Cab equipment" if c.desk.cab_parts else "Fuel & equipment","",c.print_face)
 	var x := p.position.x+32
 	var width := p.size.x-64
 	var money := float(s.get("paid",0))
@@ -541,8 +653,23 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	var size := Vector2((width-gap)*0.5,126)
 	var left := Rect2(Vector2(x,p.position.y+183),size)
 	var right := Rect2(left.position+Vector2(size.x+gap,0),size)
-	c.text(left.position-Vector2(0,8),"FUEL & MAINTENANCE",c.MONO,13,GREEN)
-	c.text(right.position-Vector2(0,8),"RECOVERY EQUIPMENT",c.MONO,13,GREEN)
+	c.text(left.position-Vector2(0,8),"WINTER EQUIPMENT" if c.desk.cab_parts else "FUEL & MAINTENANCE",c.MONO,13,GREEN)
+	if not c.desk.cab_parts:
+		c.text(right.position-Vector2(0,8),"RECOVERY EQUIPMENT",c.MONO,13,GREEN)
+	if c.desk.cab_parts:
+		var can_fit := bool(s.get("can_order",false))
+		var location := "Park wrecker in yard" if at_office else "At Brandt yard office"
+		_equipment_card(c,left,"buy_mirrors","Heated mirrors","Electric elements clear the glass on long winter hauls.",ShopAccount.PRICES.mirrors,
+			"Fit heated glass","Fitted" if s.get("heated_mirrors",false) else "",money,can_fit,location)
+		_equipment_card(c,right,"buy_lamps","Driving bar & spot","Wider beams and an aimable pillar lamp for reading fire plates.",ShopAccount.PRICES.lamps,
+			"Fit lamps","Fitted" if s.get("aux_lamps",false) else "",money,can_fit,location)
+		if scanner_available:
+			left.position.y += size.y+8
+			_equipment_card(c,left,"buy_scanner","Scanner crystals","Hear the sheriff and county garage from the cab.",ShopAccount.PRICES.scanner,
+				"Fit crystals","Fitted" if s.get("scanner_fitted",false) else "",money,can_fit,location)
+		c.button("parts_leaf",Rect2(p.end.x-234,p.position.y+6,201,80),"‹ Fuel & equipment")
+		c.fitted(Rect2(x,p.end.y-38,width,32),s.get("shop_receipt",""),c.subtle,18,FORM_BLUE,HORIZONTAL_ALIGNMENT_LEFT)
+		return
 	var fuel := clampf(float(s.get("fuel",1.0)),0.0,1.0)
 	var quote: Dictionary = s.get("fuel_quote",{})
 	var cost := float(quote.get("cost",0))
@@ -580,6 +707,7 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 		"Service winch","Serviced" if wear <= 0.001 else "",money,can_order,service_location)
 	_equipment_card(c,right,"buy_snatch_block","Snatch block set","Rig heavier recoveries, including the Unit 38 pickup.",ShopAccount.PRICES.snatch_block,
 		"Fit snatch block","Fitted" if s.get("snatch_block",false) else "",money,can_order,service_location)
+	c.button("parts_leaf",Rect2(p.end.x-234,p.position.y+6,201,80),"Cab equipment ›")
 	var note := str(s.get("shop_receipt",""))
 	if note.is_empty():
 		if at_pump:
@@ -610,6 +738,22 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 	c.fitted(Rect2(r.end.x-inset-amount_width,r.position.y+4,amount_width,30),price,c.MONO,16,FORM_BLUE,HORIZONTAL_ALIGNMENT_RIGHT)
 	var sketch := Rect2(r.position+Vector2(9,39),Vector2(72,47))
 	match id:
+		"buy_mirrors":
+			var center := sketch.get_center()
+			c.draw_rect(Rect2(center-Vector2(12,19),Vector2(24,36)),PAPER_INK,false,2)
+			for i in range(-1,2):
+				var at := center+Vector2(4*i,0)
+				c.draw_polyline(PackedVector2Array([at+Vector2(0,10),at+Vector2(-1,5),at+Vector2(1,1),at+Vector2(-1,-4),at+Vector2(1,-10)]),FORM_BLUE,1.2,true)
+		"buy_lamps":
+			c.draw_rect(sketch.grow_individual(-3,-16,-3,-16),PAPER_INK,false,2)
+			for i in 6:
+				c.draw_circle(sketch.position+Vector2(11+i*10,sketch.size.y*.5),3.3,FORM_BLUE)
+		"buy_scanner":
+			c.draw_rect(sketch.grow(-5),PAPER_INK,false,2)
+			c.draw_rect(Rect2(sketch.position+Vector2(10,13),Vector2(30,13)),FORM_BLUE,false,1.8)
+			c.draw_arc(sketch.position+Vector2(54,21),6,0,TAU,18,PAPER_INK,2,true)
+			for i in 3:
+				c.rule(sketch.position.x+12,sketch.position.y+30+i*3,35,PAPER_INK)
 		"buy_chains": _chain_illustration(c,sketch)
 		"service_winch": _drum_illustration(c,sketch)
 		"buy_fuel": _diesel_illustration(c,sketch)

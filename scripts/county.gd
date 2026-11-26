@@ -2,6 +2,7 @@ extends Node3D
 ## A compressed Wisconsin township. All published locations are printed plat coordinates.
 const Batch = preload("res://scripts/county_mesh.gd")
 const Sites = preload("res://scripts/county_sites.gd")
+const FuelStore = preload("res://scripts/fuel_store.gd")
 const CaseSites = preload("res://scripts/county_case_sites.gd")
 const Bay = preload("res://scripts/county_bay.gd")
 const Scene = preload("res://scripts/rig_scene.gd")
@@ -54,6 +55,7 @@ var spindrift: MultiMeshInstance3D
 var spindrift_shader: ShaderMaterial
 var wind_materials: Array[ShaderMaterial] = []
 var materials := {}
+var fuel_door: Node3D
 var bay: Node3D
 var drop_guide := Node3D.new()
 var favor_guide: Node3D
@@ -119,6 +121,15 @@ func _queue_build() -> void:
 	if county_model and not rebuild_queued:
 		rebuild_queued = true
 		_build.call_deferred()
+
+func coffee_counter_point() -> Vector3:
+	return FuelStore.FORECOURT + FuelStore.COUNTER
+
+func inside_fuel_store(point: Vector3) -> bool:
+	return FuelStore.inside(point)
+
+func is_heated_shelter(point: Vector3) -> bool:
+	return Bay.sheltered(point) or FuelStore.inside(point)
 
 func bay_latch_point() -> Vector3:
 	return Bay.LATCH
@@ -244,7 +255,9 @@ func advance_storm(dt: float) -> void:
 	storm_environment.fog_depth_begin = 420.0 if tower_view else lerpf(16.0,6.0,storm_gust)+75.0*calm
 	storm_environment.fog_depth_end = 760.0 if tower_view else lerpf(98.0,60.0,storm_gust)+100.0*calm
 
-func follow_camera(pos: Vector3) -> void:
+func follow_camera(pos: Vector3, in_cab := false, in_store := false) -> void:
+	if is_instance_valid(fuel_door):
+		fuel_door.sense(pos,get_physics_process_delta_time())
 	var elevated := pos.y >= 14.0 and Vector2(pos.x,pos.z).distance_to(Vector2(44,-68)) < 24.0
 	if elevated != tower_view:
 		tower_view = elevated
@@ -261,6 +274,7 @@ func follow_camera(pos: Vector3) -> void:
 	if lamp_update % 12 == 1:
 		for light_type: String in ballasts:
 			var speaker: AudioStreamPlayer3D = ballasts[light_type]
+			speaker.volume_db = lerpf(-12.5 - (17.0 if in_store else (12.0 if in_cab else 0.0)),-80.0,calm)
 			var nearest := Vector3.INF
 			var farthest := 27.0*27.0
 			for source: Vector3 in lamp_locations[light_type]:
@@ -268,7 +282,7 @@ func follow_camera(pos: Vector3) -> void:
 				if sq < farthest:
 					farthest=sq
 					nearest=source
-			if nearest.is_finite():
+			if nearest.is_finite() and calm < .985:
 				speaker.position=nearest
 				if not speaker.playing: speaker.play()
 			elif speaker.playing:
@@ -363,10 +377,15 @@ func _make_materials() -> void:
 		["lamp","ffac64","",0.82],["window","e6a46a","",0.43],["fluoro","dbe0db","",0.65],
 		["white","dfded1","",0.05],["red","be343c","",.80],
 		["safety_yellow","f6b83e","",.40],["amber_lens","ffb62a","",1.7],
-		["brass","b89d61"],
+		["brass","b89d61"],["blue_sign","285979","",.17],["decaf","fb7430"],
 		["sign","ffffff","brandt_enamel"],
 	]:
 		materials[item[0]] = _paint(item[1],item[2] if item.size()>2 else "",item[3] if item.size()>3 else 0.0)
+	var shop_glass := StandardMaterial3D.new()
+	shop_glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shop_glass.albedo_color = Color(.58,.75,.73,.19)
+	shop_glass.roughness = .32
+	materials["shop_glass"] = shop_glass
 	var road_material := ShaderMaterial.new()
 	road_material.shader = preload("res://assets/county/road.gdshader")
 	road_material.set_shader_parameter("asphalt",load("res://assets/county/salt_asphalt.png"))
@@ -436,6 +455,10 @@ func _weather() -> void:
 	storm = _airborne_snow(snow_shader, 4100)
 	powder_clouds = _airborne_snow(powder_shader, 280)
 	_build_spindrift()
+	var store_floor := Rect2(FuelStore.ROOM.position + Vector2(FuelStore.FORECOURT.x,FuelStore.FORECOURT.z), FuelStore.ROOM.size)
+	var sheltered := Vector4(store_floor.position.x,store_floor.position.y,store_floor.end.x,store_floor.end.y)
+	for flakes: ShaderMaterial in [snow_shader,powder_shader,spindrift_shader]:
+		flakes.set_shader_parameter("fuel_store_bounds",sheltered)
 	wind_materials.assign([snow_shader, powder_shader, spindrift_shader, materials.spruce, materials.conductor])
 	advance_storm(0.)
 
@@ -520,6 +543,7 @@ func _build() -> void:
 	_build_ground(draw)
 	var places = Sites.new(self,draw)
 	places.build()
+	FuelStore.new(self,draw).build()
 	for x: float in [205.45,208.65]:
 		draw.spruce(Vector3(x,ground_height(x,-408.75),-408.75),5.65,x)
 	CaseSites.new(self,draw).alder_cut()
@@ -585,8 +609,8 @@ func _axis(low: int, high: int, centers: Array, extra: Array) -> Array:
 	return result
 
 func _build_ground(draw) -> void:
-	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462])
-	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,18,31,146,164,236,246,331,336,341,425,448])
+	var xs := _axis(TERRAIN_X.x,TERRAIN_X.y,[-608,0,400,800,CaseSites.ALDER_X],[-501,-493,-458,-449,-98,-65,-52,-2,67,138,304,323,452,457,462,822,829,877,884])
+	var zs := _axis(TERRAIN_Z.x,TERRAIN_Z.y,[-400,0,400,800],[CaseSites.ALDER_END-5,CaseSites.ALDER_END,-482,-470,-461,-412,-153,-135,-108,-90,-84,-61,-35,-29,-2,4,14,18,24,31,47,146,164,236,246,331,336,341,425,448])
 	var ground := {}
 	var h_rows := []
 	for z: float in zs:

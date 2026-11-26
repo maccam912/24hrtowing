@@ -112,6 +112,45 @@ func inspect_at(id: String, point: Vector3) -> void:
 	check(point.is_finite() and game._site_action() == id, "field interaction available at " + id)
 	game._action("interact")
 
+func glass_lindquist_section() -> void:
+	# Same stick channel used by the touch controls. Swipes use the ordinary
+	# look calculation, with a smaller angle through the field glasses.
+	game.desk._stick = Vector2.UP
+	for tick in 96:
+		game._physics_process(DT)
+	game.desk._stick = Vector2.ZERO
+	var height: float = game.casework.tower_height
+	check(height > 3.0 and height < game.County.CaseSites.TANK_PLATFORM and not game.campaign.evidence.has("car_ring"),"the first rungs are climbed manually")
+	resume_shift()
+	var heading: float = rig.camera_yaw
+	game._physics_process(DT)
+	check(is_equal_approx(game.casework.tower_height,height) and rig.eyes.current,"continue on the same rung without moving")
+	game.mouse_motion = Vector2(95,-120)
+	game._physics_process(DT)
+	check(rig.camera_yaw != heading and is_equal_approx(rig.foot.y,height),"free look does not move the operator off a rung")
+	game.desk._stick = Vector2.UP
+	for tick in 530:
+		game._physics_process(DT)
+	game.desk._stick = Vector2.ZERO
+	check(game._site_action()=="tower_glass" and not game.campaign.evidence.has("car_ring"),"reaching the tank does not enter an observation")
+	game._action("interact")
+	check(game._site_action()=="tower_lower" and rig.eyes.fov < 15 and not game.campaign.evidence.has("car_ring"),"looking through glasses in the wrong direction leaves the notebook blank")
+	var toward: Vector3 = rig.eyes.global_position.direction_to(game.county.story_point("car_ring"))
+	var yaw := atan2(-toward.x,-toward.z)
+	var pitch := asin(toward.y)
+	game.mouse_motion = Vector2(angle_difference(yaw,rig.camera_yaw),rig.camera_pitch-pitch) / (.0023*.19)
+	game._physics_process(DT)
+	check(game._site_action()=="tower_note" and not game.campaign.evidence.has("car_ring"),"aim at the actual car ring before using the glasses to record it")
+	resume_shift()
+	check(game.casework.glasses and game._site_action()=="tower_note","the view and the unrecorded observation survive quitting on the landing")
+	game._action("interact")
+	check(game.campaign.evidence.has("car_ring") and game._site_action()=="tower_lower","deliberately record the ring once")
+	game.desk._stick = Vector2.DOWN
+	for tick in 510:
+		game._physics_process(DT)
+	game.desk._stick = Vector2.ZERO
+	check(game.casework.tower_height < 0 and not game.casework.glasses and rig.eyes.current and rig.foot.y < 1 and rig.eyes.fov > 60,"climb down to the same ladder foot")
+
 func check_legacy_progress() -> void:
 	game._save()
 	var old: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
@@ -176,11 +215,7 @@ func follow_detail(id: String) -> void:
 	match id:
 		"commission":
 			inspect_at("tower_ladder",game.county.story_point("tower_ladder"))
-			check(is_instance_valid(game.casework.tower_view) and game.casework.tower_view.current and game._site_action()=="tower_down","the ladder opens the view from the tank and has a return action")
-			for tick in 210:
-				game.casework.tower_climb.custom_step(1.0/60.0)
-			game._action("interact")
-			check(game.rig.get_camera().current and game.campaign.evidence.has("car_ring"),"dismount returns the view to Brandt with the ring observed")
+			glass_lindquist_section()
 		"bridge","mail":
 			if id == "bridge":
 				check(game.job.get("recovery")=="ice" and game.rig.car.position.distance_to(Vector3(-477,-2,-135))<2,"the running sedan sits in the middle of the flowage")

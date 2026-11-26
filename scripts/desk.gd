@@ -14,8 +14,13 @@ var slip_index := -1
 var fax_index := -1
 var fax_sheet := -1
 var atlas_notes := false
+var pencil_open := false
+var pencil_tool := "return"
+var pencil_point := Vector2.ZERO
+var cab_parts := false
 var notes_page := 0
 var sighting_page := -1
+var scanner_open := false
 var fps := 30
 var _touch_mode := false
 var _touches: Dictionary = {}
@@ -80,18 +85,21 @@ func dismiss() -> void:
 func toggle_pause() -> void:
 	if page.is_empty():
 		_change_page("pause" if started else "title")
-	elif page == "radio" and sighting_page >= 0:
+	elif page == "radio" and (sighting_page >= 0 or scanner_open):
 		_change_page("radio")
 	else:
 		dismiss()
 
 func _change_page(id: String) -> void:
 	page = id
+	pencil_open = false
+	cab_parts = false
 	glance = false
 	slip_index = -1
 	fax_index = -1
 	fax_sheet = -1
 	sighting_page = -1
+	scanner_open = false
 	_clear_controls()
 	if surface:
 		surface.hit_boxes.clear()
@@ -161,6 +169,18 @@ func _input(event: InputEvent) -> void:
 				_release(-1, point)
 			get_viewport().set_input_as_handled()
 	elif event is InputEventKey and event.pressed and not event.echo and is_blocking():
+		if pencil_open and page == "map" and surface.hover == "pencil_sheet":
+			var direction := Vector2.ZERO
+			match event.keycode:
+				KEY_LEFT: direction = Vector2.LEFT
+				KEY_RIGHT: direction = Vector2.RIGHT
+				KEY_UP: direction = Vector2.UP
+				KEY_DOWN: direction = Vector2.DOWN
+			if direction != Vector2.ZERO:
+				pencil_point = (pencil_point+direction*(100 if event.shift_pressed else 22)).clamp(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B)
+				surface.queue_redraw()
+				get_viewport().set_input_as_handled()
+				return
 		var choices: Array = surface.key_choices()
 		if choices.is_empty():
 			return
@@ -224,6 +244,9 @@ func _release(index: int, point: Vector2, canceled := false) -> void:
 	if id == "stick":
 		_stick = Vector2.ZERO
 	elif not canceled and id == surface.hit_at(point) and id not in ["steer_l", "steer_r", "gas", "reverse", "brake", "work", "look"]:
+		if id == "pencil_sheet":
+			pencil_point = surface.docs.pencil_projection.affine_inverse() * point
+			surface.hover = id
 		_activate(id)
 	surface.queue_redraw()
 
@@ -258,6 +281,13 @@ func _activate(id: String) -> void:
 		"report_unit", "take_case", "ask_farm", "report_farm", "take_detail", "report_detail", "report_notes", "talk_tou", "tou_0", "tou_1", "tou_2", "tou_3", "tou_4", "tou_5", "tou_6", "tou_7", "roadside_fuel":
 			_change_page("")
 			action.emit(id)
+		"open_scanner","close_scanner":
+			scanner_open = id == "open_scanner"
+			surface.hover = ""
+			surface.hit_boxes.clear()
+			surface.queue_redraw()
+		"scanner_highway","scanner_sheriff","scanner_garage","scanner_off","buy_scanner":
+			action.emit(id)
 		"report_sighting", "back_to_radio", "prev_sightings", "next_sightings":
 			match id:
 				"report_sighting": sighting_page = 0
@@ -271,6 +301,25 @@ func _activate(id: String) -> void:
 			atlas_notes = true
 			notes_page = 0
 			action.emit(id)
+		"parts_leaf":
+			cab_parts = not cab_parts
+			surface.hover = ""
+			surface.hit_boxes.clear()
+			surface.queue_redraw()
+		"buy_coffee", "talk_mai":
+			action.emit(id)
+		"plat_pencil":
+			pencil_open = not pencil_open
+			surface.hover = "pencil_sheet" if pencil_open else ""
+			surface.hit_boxes.clear()
+			surface.queue_redraw()
+		"pencil_vehicle", "pencil_lights", "pencil_return", "pencil_erase":
+			pencil_tool = id.trim_prefix("pencil_")
+			surface.hover = "pencil_sheet"
+			surface.queue_redraw()
+		"pencil_sheet":
+			if pencil_open and page == "map" and not glance:
+				action.emit("pencil_mark")
 		"atlas_notes":
 			if not atlas_notes:
 				notes_page = 0
@@ -299,7 +348,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):

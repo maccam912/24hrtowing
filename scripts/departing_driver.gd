@@ -28,6 +28,9 @@ func _running_lamps() -> void:
 	lamps.hide()
 	lamps.queue_free()
 	lamps = Scene.car_lamps(car,"running",-1)
+	if identity.get("variant",-1) == Scene.Snowplow.VARIANT:
+		Scene.board_plow_driver(car)
+		car.get_node("Blade").position.y = .38
 	if car == rig.car:
 		rig.car_lamps = lamps
 
@@ -80,7 +83,7 @@ func advance(dt: float) -> bool:
 	if car != rig.car and rig._flat_distance(car.position,rig.get_player_position()) > 165.0:
 		return true
 	if witness.visible:
-		var door:=car.to_global(Vector3(-1.10,0,-.25))
+		var door:=car.to_global(car.get_meta("driver_door",Vector3(-1.10,0,-.25)))
 		var stride:=door-witness.position
 		stride.y=0
 		if stride.length()>.16:
@@ -108,7 +111,8 @@ func advance(dt: float) -> bool:
 	var to_truck:Vector3=rig.truck.position-car.position
 	var truck_ahead:=to_truck.dot(lane_forward)
 	if truck_ahead> -8.0 and truck_ahead<13.0:
-		var clearance:float=1.35*absf(rig.truck.global_basis.x.dot(lane_right))+5.1*absf(rig.truck.global_basis.z.dot(lane_right))+1.35
+		var required_width := 2.08 if identity.get("variant",-1) == Scene.Snowplow.VARIANT else 1.35
+		var clearance:float=1.35*absf(rig.truck.global_basis.x.dot(lane_right))+5.1*absf(rig.truck.global_basis.z.dot(lane_right))+required_width
 		var side:float=-1.0 if to_truck.dot(lane_right)>0.0 else 1.0
 		var space:float=(aim-rig.truck.position).dot(lane_right)*side
 		aim+=lane_right*side*maxf(0.0,clearance-space)
@@ -121,14 +125,15 @@ func advance(dt: float) -> bool:
 		var step:=Vector3.FORWARD.rotated(Vector3.UP,yaw)*distance
 		# A close pull can leave the bumper pointed at the wrecker. Back up to
 		# make enough room to swing around its bed before trying forward again.
-		if backing_distance<=0 and rig._in_wrecker(car.position+step.normalized()*2.2+step):
+		var overhang := 4.40 if identity.get("variant",-1) == Scene.Snowplow.VARIANT else 2.2
+		if backing_distance<=0 and rig._in_wrecker(car.position+step.normalized()*overhang+step):
 			backing_distance=3.2
 		if backing_distance>0:
 			distance=minf(backing_distance,dt*2.6)
 			yaw=rotate_toward(car.rotation.y,yaw_target,distance*.38)
 			step=Vector3.BACK.rotated(Vector3.UP,yaw)*distance
 			backing_distance=maxf(0.0,backing_distance-distance)
-		if not rig._in_wrecker(car.position+step.normalized()*2.2+step):
+		if not rig._in_wrecker(car.position+step.normalized()*overhang+step):
 			car.rotation.y=yaw
 			car.position+=step
 			car.position.y=rig._ground(car.position)

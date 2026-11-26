@@ -229,6 +229,7 @@ func _choose(game, current_road: String, at: Vector3) -> String:
 		if id=="streetlights_out" and (current_road!="Highway 64" or absf(at.x)>130.): continue
 		if id=="gate_car" and game.campaign.stage<8: continue
 		if id=="mirror_follow" and not game.rig.loaded: continue
+		if id=="plow_stopped" and game.rig.duane_on_scene(): continue
 		if id in ["the_lift","empty_ditch"] and _taped_ahead(at,Vector3.FORWARD.rotated(Vector3.UP,game.rig.heading)).is_empty(): continue
 		if id=="missing_time" and _jump_point(game) == Vector3.INF: continue
 		if id=="yard_visit" and (game.stored.is_empty() or game.mode!="haul"): continue
@@ -439,7 +440,7 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 		game._speak("DRIVER","I’m fine. I just want to see.")
 	if active=="plow_stopped" and not heard and t>.68:
 		heard = true
-		game._say("plow")
+		game.scanner.plow_call(game)
 	if active=="missing_time":
 		var shade := 1.-smoothstep(0.,.32,t)*(1.-smoothstep(.62,1.,t))
 		game.picture.self_modulate = Color(shade,shade,shade)
@@ -473,7 +474,9 @@ func advance(dt: float,game) -> void:
 	var delicate: bool = rig.tension>.01 or rig.working or rig.phase in ["cable","rigged","at_lift","dollies","boom_lower"]
 	if not active.is_empty():
 		# Tou can get in before the full minute of clear sky has elapsed.
-		if active=="storm_hole" and game.job.get("case_id")=="ride" and game.campaign.evidence.has("passenger"):
+		if active=="plow_stopped" and rig.duane_on_scene():
+			finish(game)
+		elif active=="storm_hole" and game.job.get("case_id")=="ride" and game.campaign.evidence.has("passenger"):
 			finish(game)
 		else:
 			_advance_live(dt,game,at)

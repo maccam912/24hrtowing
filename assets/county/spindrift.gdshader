@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, shadows_disabled, cull_disabled, depth_draw_never, skip_vertex_transform;
 #include "res://assets/weather/headlamp.gdshaderinc"
+#include "res://assets/weather/fuel_store.gdshaderinc"
 
 uniform float storm_time;
 uniform float storm_gust;
@@ -47,6 +48,7 @@ void vertex() {
 		density = 0.;
 	}
 	if (point.x > 440.8 && point.x < 449.2 && point.y > 321.0 && point.y < 331.1) { density = 0.; }
+	if (inside_fuel_store(point)) { density = 0.; }
 	filaments = seed - storm_time * 2.4;
 	VERTEX = (VIEW_MATRIX * vec4(particle, 1.)).xyz;
 }

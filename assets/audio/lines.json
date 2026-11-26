@@ -151,6 +151,22 @@
     "COUNTY PLOW",
     "Garage, put a passenger-side wiper blade on the counter for me. I'll pick it up on my way in."
   ],
+  "duane_ditch": [
+    "DUANE",
+    "Had my eye on something over the field. There's still a load of salt in the box. Rear eye's clear."
+  ],
+  "duane_windrow": [
+    "DUANE",
+    "Blade found the soft shoulder before my tires did. Get me back on the crown and I'll take it from there."
+  ],
+  "pelz_pull": [
+    "DEPUTY PELZ",
+    "I got the flares out for a jackknifed trailer. They got it straightened up and here I am."
+  ],
+  "ruiz_pull": [
+    "DEPUTY RUIZ",
+    "Backed up to read a plate. Rear wheels dropped right off the edge. My relief's waiting on this car."
+  ],
   "displaced_driver": [
     "DRIVER",
     "I was on the four-lane outside Wausau. Where am I?"

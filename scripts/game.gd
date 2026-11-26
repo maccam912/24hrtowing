@@ -27,6 +27,7 @@ var county
 var rig
 var desk
 var audio
+var ambience := preload("res://scripts/county_ambience.gd").new()
 var world_view := SubViewport.new()
 var title_camera := Camera3D.new()
 var title_light := SpotLight3D.new()
@@ -51,6 +52,7 @@ var slips := []
 var pending_slips := []
 var calls := []
 var roads_driven := []
+var plat_pencil := preload("res://scripts/plat_pencil.gd").new()
 var stored := []
 var faxes := []
 var filed_card := ""
@@ -83,6 +85,7 @@ var ui_timer := 0.0
 var direction_timer := 0.0
 var road_directions := RoadDirections.new()
 var plow_heard := false
+var scanner := preload("res://scripts/county_scanner.gd").new()
 var saved_data := {}
 var state := {}
 var test_session := false
@@ -98,6 +101,7 @@ func _ready() -> void:
 	world_view.add_child(world)
 	county = County.new()
 	world.add_child(county)
+	world.add_child(ambience)
 	rig = Rig.new()
 	world.add_child(rig)
 	rig.setup(county)
@@ -210,10 +214,17 @@ func _physics_process(dt: float) -> void:
 		var look: Vector2 = mouse_motion*0.0023 + desk.take_look()*0.0039
 		var working: bool = desk.work_held() or Input.is_physical_key_pressed(KEY_F) or Input.is_physical_key_pressed(KEY_SPACE)
 		var brake: bool = desk.brake_held() or Input.is_physical_key_pressed(KEY_SHIFT) or Input.is_physical_key_pressed(KEY_SPACE)
-		if is_instance_valid(casework.tower_view):
-			move = Vector2.ZERO
-			look = Vector2.ZERO
-		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working,brake,dt)
+		var on_ladder := casework.tower_height >= 0.0
+		if on_ladder:
+			casework.climb(move.y,dt)
+			if casework.glasses:
+				look *= .19
+		# A clearance clock belongs to this ticket. Travel, paperwork, a fuel
+		# delivery and time spent away from the scene leave it where it was.
+		if job.has("clearance_seconds") and not rig.in_cab and rig.fuel > 0.0 and rig.phase in ["flared","cable","rigged"] and rig.near_casualty(42.0):
+			job.clearance_seconds += dt
+		rig.set_controls(move.clamp(Vector2(-1,-1),Vector2.ONE),look,working and not on_ladder,brake,dt,on_ladder)
+		casework.apply_glasses()
 		sightings.observations.sample(dt,self,sightings)
 		if rig.get_status().get("working",false):
 			seconds_worked += dt
@@ -228,7 +239,12 @@ func _physics_process(dt: float) -> void:
 	if playing or (active and desk.page == "radio" and fuel_wait_left > 0.0):
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
-	county.follow_camera(world_view.get_camera_3d().global_position)
+	scanner.advance(dt,self)
+	var player_at: Vector3 = rig.get_player_position()
+	var in_store: bool = not rig.in_cab and county.inside_fuel_store(player_at)
+	var playing_shift: bool = active and not desk.is_title()
+	county.follow_camera(world_view.get_camera_3d().global_position,rig.in_cab and playing_shift,in_store)
+	ambience.mix(player_at,rig.in_cab,in_store,audio.calm,playing_shift,dt)
 	if active and not desk.is_title() and desk.page not in ["pause", "guidance"]:
 		sub_time = maxf(0.0,sub_time-dt)
 	ui_timer += dt
@@ -236,7 +252,7 @@ func _physics_process(dt: float) -> void:
 	if ui_timer >= 0.10 or rig.is_stopped() != state.truck_stopped:
 		ui_timer = 0.0
 		_refresh()
-	audio.mix_truck(rig.get_status(),active and not desk.is_title(),playing,dt,county.storm_gust)
+	audio.mix_truck(rig.get_status(),playing_shift,playing,dt,county.storm_gust,in_store,player_at.distance_to(rig.get_truck_position()))
 	if not desk.is_touch_mode() and DisplayServer.get_name() != "headless":
 		var capture := Input.MOUSE_MODE_CAPTURED if playing else Input.MOUSE_MODE_VISIBLE
 		if Input.mouse_mode != capture:
@@ -265,6 +281,7 @@ func _input(event: InputEvent) -> void:
 		match event.physical_keycode:
 			KEY_E: _action("interact")
 			KEY_C: _action("camera")
+			KEY_L: _action("spot")
 			KEY_R: _action("radio")
 			KEY_T: _action("talk_in")
 			KEY_H: desk.show_document("help",state)
@@ -291,7 +308,6 @@ func _action(id: String) -> void:
 					_save()
 			desk.start_play()
 		"title":
-			casework.leave_tower()
 			_save()
 			title_camera.make_current()
 			title_light.visible = true
@@ -331,6 +347,9 @@ func _action(id: String) -> void:
 					campaign.asked.append(choice)
 				_speak("TOU",Campaign.QUESTIONS[choice][1])
 				_save()
+		"pencil_mark":
+			if desk.page == "map" and desk.pencil_open and not desk.glance and plat_pencil.write(desk.pencil_tool,desk.pencil_point):
+				_save()
 		"mark_sketch":
 			if book_read and desk.page == "field":
 				survey.record("sketch",rig.odo)
@@ -342,6 +361,11 @@ func _action(id: String) -> void:
 			else:
 				_message("BRANDT","Use the radio in the cab.")
 		"interact": _interact()
+		"spot":
+			if active and rig.in_cab and account.owns("lamps") and not desk.is_blocking():
+				rig.spot_on = not rig.spot_on
+				rig._note("Pillar spot · aim with your view." if rig.spot_on else "Pillar spot off.",3.0)
+				_save()
 		"camera":
 			if active and not desk.is_blocking() and rig.in_cab:
 				rig.toggle_driving_view()
@@ -358,12 +382,34 @@ func _action(id: String) -> void:
 		"settings_30","settings_60":
 			Engine.max_fps = 30 if id == "settings_30" else 60
 			_save()
-		"buy_chains","buy_snatch_block","service_winch","buy_fuel": _shop_purchase(id)
+		"scanner_highway","scanner_garage","scanner_sheriff","scanner_off":
+			if rig.in_cab and desk.scanner_open and scanner.tune(id.trim_prefix("scanner_"),account.owns("scanner")):
+				audio.stop_scanner()
+				if speaker.begins_with("SCANNER  /  "): sub_time = 0
+				_save()
+		"buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
+		"buy_coffee":
+			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
+				rig.warmth = 1.0
+				rig.coffee_left = Rig.HOT_COFFEE_SECONDS
+				desk.dismiss()
+				_speak("MAI","Seventy-five cents. Here, take the lid. It'll stay warm on the way out.")
+				_save()
+		"talk_mai":
+			if desk.page == "coffee" and _at_counter():
+				desk.dismiss()
+				if sightings.seen.has("streetlights_out") and not mai_lot_heard:
+					mai_lot_heard = true
+					_say("mai_lot")
+				else:
+					var lines := ["Leave the truck out front. I'll hear the county radio from here.","Milk truck came through before the plow tonight. Took his coffee with him.","The pot with the orange handle is decaf. Nobody touches that one on nights."]
+					_speak("MAI",lines[completed % lines.size()])
+				_save()
 		"roadside_fuel":
 			if _needs_fuel_can():
 				_clear_fuel_plow()
 				fuel_wait_left = ShopAccount.CAN_ETA_MINUTES
-				_speak("COUNTY PLOW","Copy, Brandt. I've got a can on the plow. Give me %d minutes." % ShopAccount.CAN_ETA_MINUTES)
+				_speak("COUNTY PLOW","Copy, Brandt. Relief plow here. I have a can in the box. Give me %d minutes." % ShopAccount.CAN_ETA_MINUTES)
 				_save()
 		"quit":
 			_save()
@@ -420,6 +466,9 @@ func _at_office() -> bool:
 func _at_pump() -> bool:
 	return not rig.in_cab and (_near(PUMP_ISLANDS[0],4.5) or _near(PUMP_ISLANDS[1],4.5))
 
+func _at_counter() -> bool:
+	return not rig.in_cab and county.inside_fuel_store(rig.foot) and _facing(county.coffee_counter_point(),2.5)
+
 func _truck_in_yard() -> bool:
 	var at: Vector3 = rig.get_truck_position()
 	return rig.is_stopped() and County.YARD.has_point(Vector2(at.x,at.z))
@@ -432,6 +481,13 @@ func _can_refuel() -> bool:
 func _fit_equipment() -> void:
 	rig.tire_chains = account.owns("chains")
 	rig.snatch_block = account.owns("snatch_block")
+	rig.body.heated_mirrors = account.owns("mirrors")
+	rig.body.fit_lamps(account.owns("lamps"))
+	if not account.owns("lamps"):
+		rig.spot_on = false
+
+func _scanner_available() -> bool:
+	return signed_card or held or campaign.released or account.owns("scanner")
 
 func _shop_purchase(id: String) -> void:
 	if id == "buy_fuel":
@@ -454,10 +510,16 @@ func _shop_purchase(id: String) -> void:
 		shop_receipt = "Winch serviced. Cable and drum ready."
 	else:
 		var part := id.trim_prefix("buy_")
+		if part == "scanner" and not _scanner_available(): return
 		if not account.buy(part):
 			return
 		_fit_equipment()
-		shop_receipt = "Drive-axle chains fitted." if part == "chains" else "Snatch block fitted. Heavy pulls cleared for dispatch."
+		match part:
+			"mirrors": shop_receipt = "Heater elements fitted to both mirrors."
+			"lamps": shop_receipt = "Driving bar and pillar spot fitted. Aim the spot by looking."
+			"chains": shop_receipt = "Drive-axle chains fitted."
+			"snatch_block": shop_receipt = "Snatch block fitted. Heavy pulls cleared for dispatch."
+			"scanner": shop_receipt = "Crystals fitted. Tune the cab scanner to Sheriff or Garage."
 	audio.effect("fax")
 	_save()
 
@@ -739,9 +801,8 @@ func _survey() -> void:
 	var street := _current_road_map().driven_road(Vector2(pos.x,pos.z))
 	if not street.is_empty() and not street in roads_driven:
 		roads_driven.append(street)
-	if completed >= 2 and not plow_heard and sub_time == 0 and pos.distance_to(SPAWN) > 110 and rig.in_cab:
-		plow_heard = true
-		_say("plow")
+	if completed >= 2 and not plow_heard and pos.distance_to(SPAWN) > 110 and sightings.active.is_empty():
+		plow_heard = scanner.plow_call(self)
 	if job.get("kind") == "passenger" and rig.phase == "passenger" and rig.in_cab and rig.is_stopped() and pos.distance_to(PUMP) < 16.0:
 		drop_odo = rig.odo
 		drop_time = _clock()
@@ -770,6 +831,8 @@ func _facing(point: Vector3, radius: float) -> bool:
 	return d.length() < 1.45 or d.normalized().dot(Vector2(axis.x,axis.z).normalized()) > 0.30
 
 func _site_action() -> String:
+	if casework.tower_height >= 0.0:
+		return casework.tower_action()
 	if rig.in_cab or rig.at_dry_rig_door():
 		return ""
 	var detail_site := casework.site()
@@ -800,8 +863,12 @@ func _site_action() -> String:
 		return "unlock" if bay_locked else "lock"
 	if held and not bay_locked and _facing(BAY,4.8):
 		return "field"
+	if _at_counter():
+		return "coffee"
 	if _facing(PUMP_ISLANDS[0],4.5) or _facing(PUMP_ISLANDS[1],4.5):
 		return "fuel"
+	if rig.action_id() in ["","enter"] and rig.wipeable_mirror() >= 0:
+		return "wipe_mirror"
 	if rig.action_id().is_empty() and not sightings.observations.inspectable(self,sightings).is_empty():
 		return "inspect_sighting"
 	return ""
@@ -820,6 +887,8 @@ func _chain_instruction() -> String:
 
 func _interact() -> void:
 	var site := _site_action()
+	if casework.tower_height >= 0.0 and site.is_empty():
+		return
 	if Casework.PROMPTS.has(site):
 		casework.inspect(site)
 		_save()
@@ -887,10 +956,15 @@ func _interact() -> void:
 			audio.effect("ratchet")
 			_message("BRANDT","Bay secured. Key back on the ring." if bay_locked else "Hold bay open.")
 		"field": _read_book()
+		"wipe_mirror":
+			var side: int = rig.wipeable_mirror()
+			if side >= 0:
+				rig.body.set_mirror_ice(side,0)
+				rig._note("Glass wiped clean.",3.0)
+		"coffee":
+			_refresh()
+			desk.show_document("coffee",state)
 		"fuel":
-			if sightings.seen.has("streetlights_out") and not mai_lot_heard:
-				mai_lot_heard = true
-				_say("mai_lot")
 			_open_shop()
 		_:
 			if mode == "fieldwork" and job.get("case_id") == "angie" and not campaign.evidence.has("angie_consent") and rig.action_id() == "flare":
@@ -1059,6 +1133,8 @@ func _file_slip(slip: Dictionary) -> void:
 	fax_text = "TO  BRANDT TOWING & RECOVERY\nRE  SERVICE SLIP %04d\n\nReceived for county review.\nCall-out  $%d    Hookup  $%d\nWinch  $%d    Storage  $%d\nLoaded  %.1f mi @ $3.25" % [slip.number,slip.call_out,slip.hookup,slip.winch,slip.storage,slip.loaded]
 	if slip.heavy_fee > 0:
 		fax_text += "\nHeavy recovery  $%d" % slip.heavy_fee
+	if slip.has("clearance_bonus"):
+		fax_text += "\nSquad clearance  %s    Bonus  $%.2f" % [Dispatch.Squad.clock(slip.clearance_seconds),slip.clearance_bonus]
 	if slip.get("rate_fee",0) > 0:
 		fax_text += "\n%s  $%.2f" % [slip.rate_name,slip.rate_fee]
 	fax_text += "\nNet invoice  $%.2f\n\nD. Pfaff  /  Accounts Payable" % slip.pay
@@ -1094,6 +1170,9 @@ func _speak(who: String, words: String) -> void:
 			calls.pop_front()
 
 func _message(who: String, words: String) -> void:
+	if not who.begins_with("SCANNER  /  "):
+		audio.stop_scanner()
+		scanner.rx_left = 0
 	speaker = who
 	subtitle = words
 	sub_time = clampf(2+words.length()/17.0,4,9)
@@ -1214,7 +1293,7 @@ func _prompt(site: String = _site_action()) -> String:
 		var obstruction := _chain_obstruction()
 		if not obstruction.is_empty():
 			return obstruction
-	var words := {"inspect_sighting":"Take a closer look","summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
+	var words := {"wipe_mirror":"Wipe the mirror glass","coffee":"Stop at Mai’s counter","inspect_sighting":"Take a closer look","summer_ride":"Offer the driver a ride to Esker","unit":"Read the lettering on the pickup","rod":"Turn over the survey rod case","house":"Look through the open door","farm_ring":"Inspect the bare ring in the drive","lock":"Lock the evidence bay","unlock":"Unlock the evidence bay","tripod":"Collect the survey tripod","sign":"Sign Kowalski’s custody card","deputy":"Ask Kowalski about the lights","driver":"Speak to the driver","field":"Open the pickup · field book","fuel":"Check the diesel pump","fax":"Fax finished paperwork" if _can_file_here() else "Open yard office · diesel, parts & fax"}
 	if words.has(site):
 		return words[site]
 	return rig.context_text()
@@ -1340,7 +1419,8 @@ func _refresh() -> void:
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":subtitle if sub_time>0 else "","speaker":speaker,
 		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
-		"can_inspect_sighting":site == "inspect_sighting",
+		"can_inspect_sighting":site == "inspect_sighting","can_wipe":site == "wipe_mirror",
+		"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
 		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and (not rig.is_chocked() or rig.fuel <= 0.0) and site.is_empty(),
@@ -1352,7 +1432,8 @@ func _refresh() -> void:
 		"case_evidence":campaign.evidence,"tou_asked":campaign.asked,
 		"pencil_notes":survey.notebook()+casework.notebook(),"observations":survey.notes,"can_mark_sketch":book_read and not survey.notes.has("sketch"),
 		"faxes":faxes,"fax_text":fax_text,"field_available":book_read,"custody_text":card,"can_fax":_can_file_here(),
-		"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
+		"plat_marks":plat_pencil.marks,"roads":county.map_roads(),"places":county.map_places(),"road_names":roads_driven,
+		"at_counter":site == "coffee","coffee_left":rig.coffee_left,"mai_lot":sightings.seen.has("streetlights_out") and not mai_lot_heard,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
 		"can_refuel":_can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":_needs_fuel_can(),
 		"fuel_eta":ceili(fuel_wait_left),
@@ -1362,6 +1443,17 @@ func _refresh() -> void:
 		"progress":_procedure(),"phase":s.phase,"work_available":s.fuel > 0.0 and rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
+	state["tower_height"] = casework.tower_height
+	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM
+	state["tower_action"] = site if site.begins_with("tower_") else ""
+	state["tower_glasses"] = casework.glasses
+	if casework.glasses:
+		state["glass_bearing"] = fposmod(-rad_to_deg(rig.camera_yaw),360)
+	if casework.tower_height >= 0.0:
+		state.hint_title = "Esker water tower"
+		state.hint_action = casework.tower_instruction()
+		state.work_available = false
+		state.can_enter_cab = false
 	state["can_track_lead"] = _can_track_lead()
 	state["tracked_lead"] = survey.tracked_lead
 	state["lead_label"] = casework.lead_label()
@@ -1371,6 +1463,11 @@ func _refresh() -> void:
 	if site == "inspect_sighting" and not desk.is_touch_mode() and state.feedback.is_empty():
 		state.feedback = "E  ·  Take a closer look"
 	state["recovery_restarts_job"] = _restart_on_recovery()
+	state["scanner_available"] = _scanner_available()
+	state["scanner_fitted"] = account.owns("scanner")
+	state["scanner_channel"] = scanner.channel
+	state["scanner_history"] = scanner.history
+	state["scanner_rx"] = scanner.rx_left > 0
 	state["recovery_due"] = account.recovery_due
 	state["heading_degrees"] = s.heading
 	desk.update_view(state)
@@ -1383,12 +1480,14 @@ func _save() -> void:
 		"dispatch_seed":dispatch_seed,"ticket":Dispatch.pack(job),"offer":Dispatch.pack(rotation_offer),
 		"case_offer":Dispatch.pack(case_offer),"survey":survey.save_state(),"campaign":campaign.save_state(),
 		"survey_anchor":Dispatch.pack({"point":county.survey_point,"angle":county.survey_yaw}),
-		"sightings":sightings.save_state(),"mai_lot_heard":mai_lot_heard,
-		"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"book_read":book_read,
+		"sightings":sightings.save_state(),"scanner":scanner.save_state(),"mai_lot_heard":mai_lot_heard,
+		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
 		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_wait_left,
 		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps,"spoken":audio.spoken}
+	if casework.tower_height >= 0.0:
+		saved_data.tower = {"height":casework.tower_height,"glasses":casework.glasses}
 	if not test_session and not Ledger.write(saved_data):
 		push_warning("Could not save current tow ticket")
 
@@ -1399,6 +1498,7 @@ func _restore(s: Dictionary) -> void:
 	slips = s.slips
 	pending_slips = s.get("pending_slips",[])
 	calls = s.calls.duplicate()
+	plat_pencil.restore(s.get("plat_marks",[]))
 	roads_driven = s.roads
 	stored = s.stored
 	held = s.held
@@ -1415,6 +1515,8 @@ func _restore(s: Dictionary) -> void:
 	pickup_time = s.pickup_time
 	drop_time = s.drop_time
 	account.restore(s)
+	audio.stop_scanner()
+	scanner.restore(s.get("scanner",{}),account.owns("scanner"))
 	_clear_fuel_plow()
 	fuel_wait_left = clampf(s.get("fuel_wait_left", 0.0), 0.0, ShopAccount.CAN_ETA_MINUTES)
 	shop_receipt = ""
@@ -1463,6 +1565,8 @@ func _restore(s: Dictionary) -> void:
 	_sync_survey_scene()
 	_prepare_offers()
 	rig.restore_state(rig_state)
+	if s.get("tower") is Dictionary and not rig.in_cab and county.case_landmarks.has("car_ring"):
+		casework.mount_tower(s.tower.get("height",0.0),s.tower.get("glasses",false))
 	if job.get("kind") == "passenger" and rig.phase == "passenger":
 		rig.board_summer_driver()
 	_fit_equipment()

@@ -319,34 +319,6 @@ func favor_lamps() -> void:
 		for yaw: float in [0.0,PI*.5]:
 			draw.add("quad",p(x,.78,0),Vector3(2.1,2.1,1),"sodium",Vector3(0,yaw,0))
 
-func fuel() -> void:
-	site(-71,18)
-	b(-4,2.10,8.0,18.,4.2,7.5,"brick",true)
-	b(-4,4.25,8.0,18.5,.24,8.0,"snow")
-	for xx: float in [-10,-6,-1.8,2.2]:
-		window(Vector3(xx,2.12,4.18),2.8,1.86,PI,true)
-	placard(Vector3(-4,3.81,4.08),"ESKER  FUEL & FOOD",13,.81,PI,"oxide")
-	b(0,4.20,-2,11,.47,6.8,"oxide")
-	b(0,4.49,-2,11.19,.14,6.95,"snow")
-	for xx: float in [-3.7,3.7]:
-		b(xx,2.15,-2,.19,4.3,.2,"silver",true)
-		b(xx,.12,-2,2.1,.24,1.02,"cream")
-		b(xx,1.03,-2,1.07,1.85,.6,"oxide",true)
-		b(xx,1.43,-2,1.12,.89,.68,"cream")
-		b(xx,1.54,-2.36,.8,.34,.05,"glass")
-		label(Vector3(xx,1.55,-2.39),"0.00",.18,PI,Color("#dbe2ca"))
-		label(Vector3(xx,1.22,-2.36),"DIESEL",.125,PI,Color("#282b28"))
-		beam(Vector3(xx+.48,1.54,-2.1),Vector3(xx+.80,1.17,-2.1),.050,.05,"black")
-		beam(Vector3(xx+.80,1.17,-2.1),Vector3(xx+.85,.49,-2.1),.05,.05,"black")
-		beam(Vector3(xx+.85,.49,-2.1),Vector3(xx+.75,.32,-2.1),.05,.05,"black")
-		beam(Vector3(xx+.75,.32,-2.1),Vector3(xx+.63,.40,-2.1),.05,.05,"black")
-		b(xx+.68,.91,-2.07,.09,1.1,.1,"black")
-		b(xx,3.88,-2,1.3,.12,.3,"fluoro")
-	beam(Vector3(2.4,1.40,-2),Vector3(2.4,.34,-2),.10,.10,"black")
-	b(-12.8,3.4,-8.4,.34,6.8,.38,"silver")
-	placard(Vector3(-12.8,5.9,-8.4),"FUEL  •  24 HR",5.6,1.45,PI,"oxide",true)
-	lamp(-6.5,-5,4.1)
-
 func esker() -> void:
 	# Paired bell towers of St. Hedwig's read before its sign.
 	site(22,80)
@@ -399,8 +371,25 @@ func esker() -> void:
 		for side: float in [-1.,1.]:
 			beam(Vector3(2.55*side,level,-2.55),Vector3(-2.55*side,level+8,-2.55),.14,.14,"post")
 			beam(Vector3(2.55,level,-2.55*side),Vector3(2.55,level+8,2.55*side),.14,.14,"post")
-	b(3.7,35.4,2.0,3.1,.16,2.2,"silver")
-	placard(Vector3(4.75,1.92,2.1),"TANK LADDER",1.1,.35,PI*.5,"green")
+	# The east service landing clears the tank and has a ladder opening.
+	b(4.45,35.4,2.10,2.45,.16,2.52,"silver")
+	for z: float in [.89,3.31]:
+		for x: float in [3.34,5.56]:
+			b(x,36.04,z,.063,1.12,.063,"post")
+		for y: float in [35.96,36.58]:
+			beam(Vector3(3.31,y,z),Vector3(5.60,y,z),.058,.060,"post")
+	for z: float in [1.34,2.85]:
+		b(5.56,36.04,z,.063,1.12,.063,"post")
+		var end := .89 if z < 2.0 else 3.31
+		beam(Vector3(5.56,36.58,z),Vector3(5.56,36.58,end),.058,.060,"post")
+	# Glasses and a pencilled bearing sit together on a shelf by the tank.
+	b(4.40,36.66,1.60,.62,.07,.49,"wood")
+	for z: float in [1.53,1.65]:
+		draw.add("cylinder",p(4.40,36.75,z),Vector3(.109,.22,.109),"black",Vector3(0,0,PI*.5))
+	b(4.42,36.75,1.59,.075,.06,.13,"dark")
+	placard(Vector3(4.44,36.96,1.59),"LINDQUIST   SE",.79,.20,PI*.5,"green")
+	b(4.47,2.02,.92,.08,1.06,.08,"post")
+	placard(Vector3(4.53,2.18,.92),"TANK LADDER",1.3,.38,PI*.5,"green")
 	site(-30,14)
 	b(0,2.35,7,11.5,4.7,9,"oxide",true)
 	b(0,4.85,7,12,.30,9.5,"snow")
@@ -764,7 +753,6 @@ func survey_tripod() -> void:
 func build() -> void:
 	yard()
 	storage_pad()
-	fuel()
 	esker()
 	river_and_seat()
 	rural_grid()

@@ -79,9 +79,7 @@ func check_later_leads() -> void:
 				inspect_at("farm_ring",game.county.story_point("farm_ring"))
 			"commission":
 				inspect_at("tower_ladder",game.county.story_point("tower_ladder"))
-				for tick in 210:
-					game.casework.tower_climb.custom_step(1.0/60.0)
-				game._action("interact")
+				glass_lindquist_section()
 			"mail": inspect_at("carrier_prints",game.county.story_point("carrier_prints"))
 			"line":
 				check("N5420" in game._road_note().instruction,"the marked logging-road entrance is named on the talk-in")

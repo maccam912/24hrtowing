@@ -1,5 +1,7 @@
 extends RefCounted
 const K=preload("res://scripts/rig_mesh.gd")
+const Snowplow := preload("res://scripts/county_snowplow.gd")
+const Squad := preload("res://scripts/county_squad.gd")
 const BLACK=Color("#272b2c")
 const GLASS=Color("#38464b")
 const STEEL=Color("#929895")
@@ -27,6 +29,8 @@ static func snatch_block(parent: Node3D) -> Node3D:
 	return block
 
 static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node3D:
+	if variant == Snowplow.VARIANT and kind == "ditch":
+		return Snowplow.build(parent)
 	var is_hold:=kind=="hold"
 	var open_door: bool = is_hold and identity.get("open_door",false)
 	var mail: bool = identity.get("mail",false)
@@ -42,6 +46,8 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 	var body:Color=HOLD_BODY if is_hold else [Color("#607e98"),Color("#7d6159"),Color("#7b838e"),Color("#79635a")][posmod(variant,4)]
 	if utility:
 		body = Color("#bd753b")
+	if variant == Squad.VARIANT:
+		body = Squad.PAINT
 	var size := PICKUP_SIZE if pickup else SEDAN_SIZE
 	p.set_meta("body_size",size)
 	var width:=size.x
@@ -66,6 +72,8 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 	var cab_end:=.49 if pickup else (1.86 if wagon else 1.04)
 	var top_end:=.40 if pickup else (1.65 if wagon else .68)
 	var head_y:=base+1.16
+	if variant == Squad.VARIANT:
+		Squad.fit(p,g,width,base,head_y,plate)
 	# Glazed greenhouse tapers from the belt line to the roof; two sloped panes.
 	g.box(Vector3(0,head_y,(top_end-.56)*.5),Vector3(width*1.63,.115,top_end+.56),body)
 	g.box(Vector3(-.032,head_y+.064,(top_end-.56)*.5),Vector3(width*1.54,.022,top_end+.48),SNOW)
@@ -159,16 +167,27 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}) -> Node
 		e.finish()
 	return p
 
-static func county_plow(parent: Node3D, identity := {}) -> Node3D:
-	var plow := car(parent,"unattended",UTILITY_VARIANT,identity)
+static func fuel_service_plow(parent: Node3D) -> Node3D:
+	var plow := car(parent,"unattended",UTILITY_VARIANT)
 	car_lamps(plow,"running",-1)
 	var blade := K.new(plow)
 	blade.box(Vector3(0,.49,-2.89),Vector3(3.12,.84,.24),Color("#997249"),Vector3(.17,.24,.05))
 	blade.finish()
-	var duane := person(plow,false,1)
-	duane.position = Vector3(-.45,.45,-.13)
-	duane.get_node("AnimationPlayer").play("seated")
+	var driver := person(plow,false,1)
+	driver.position = Vector3(-.45,.45,-.13)
+	driver.get_node("AnimationPlayer").play("seated")
 	return plow
+
+static func county_plow(parent: Node3D) -> Node3D:
+	var plow := Snowplow.build(parent)
+	car_lamps(plow,"running",-1)
+	board_plow_driver(plow)
+	return plow
+
+static func board_plow_driver(plow: Node3D) -> void:
+	var duane := person(plow,false,Snowplow.DRIVER)
+	duane.position = Vector3(-.51,1.06,-.86)
+	duane.get_node("AnimationPlayer").play("seated")
 
 static func _survey_door(vehicle: Node3D, width: float, base: float) -> void:
 	var hinge:=K.joint(vehicle,Vector3(-width,base,-.91),"DriverDoor")
@@ -218,10 +237,19 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 			kit.box(Vector3(side*.72,bar_y,-line_end*.09),Vector3(.25,.13,.04),Color("#ff4039"),Vector3.ZERO,"lamp")
 			kit.box(Vector3(side*.855,bar_y,0),Vector3(.12,.13,.19),Color("#ffbe47"),Vector3.ZERO,"lamp")
 	else:
+		var plow: bool = car_body.get_meta("vin", "") == Snowplow.VIN
+		if car_body.get_meta("patrol",false):
+			Squad.add_patrol_lights(kit,height)
+		if plow:
+			for side:float in [-1,1]:
+				kit.box(Vector3(side*.79,2.95,-.98),Vector3(.33,.20,.27),Color("#ffad36"),Vector3.ZERO,"lamp")
 		for end_sign:float in [-1.0,1.0]:
 			var tint:=Color("#ffaa35") if mode=="hazard" else (Color("#ffeac2") if end_sign<0 else Color("#f03937"))
 			for side:float in [-1.0,1.0]:
-				kit.box(Vector3(side*width*.82,height+.25,end_sign*length*.997),Vector3(.19,.112,.035),tint,Vector3.ZERO,"lamp")
+				if plow and end_sign<0:
+					kit.box(Vector3(side*1.02,1.32,-3.28),Vector3(.27,.17,.033),tint,Vector3.ZERO,"lamp")
+				else:
+					kit.box(Vector3(side*width*.82,height+.25,end_sign*length*.997),Vector3(.19,.112,.035),tint,Vector3.ZERO,"lamp")
 		if mode=="running":
 			var beam:=SpotLight3D.new()
 			lamps.add_child(beam)
@@ -238,6 +266,7 @@ static func car_lamps(car_body:Node3D,mode:String,line_end:int) -> Node3D:
 
 static var vapor_material: StandardMaterial3D
 static var surveyor_skin: ShaderMaterial
+static var highway_jacket: ShaderMaterial
 
 static func _exhaust(lamps: Node3D, outlet: Vector3) -> void:
 	if vapor_material==null:
@@ -273,15 +302,23 @@ static func _exhaust(lamps: Node3D, outlet: Vector3) -> void:
 
 static func person(parent: Node3D, deputy: bool, variant: int = 0) -> Node3D:
 	var scene := preload("res://assets/characters/stranded_driver.glb")
-	if deputy:
+	if deputy or variant == Squad.DRIVER:
 		scene = preload("res://assets/characters/deputy.glb")
 	elif variant == 2:
 		scene = preload("res://assets/characters/summer_driver.glb")
-	elif variant in [1,3]:
+	elif variant in [1,3,Snowplow.DRIVER]:
 		scene = preload("res://assets/characters/farm_driver.glb")
 	var witness := scene.instantiate() as Node3D
 	witness.name = "Deputy" if deputy else "Driver"
 	parent.add_child(witness)
+	if variant == Snowplow.DRIVER and not deputy:
+		var jacket := witness.find_child("Jacket",true,false) as MeshInstance3D
+		if jacket:
+			if not highway_jacket:
+				highway_jacket = ShaderMaterial.new()
+				highway_jacket.shader = preload("res://assets/characters/highway_jacket.gdshader")
+				highway_jacket.set_shader_parameter("palette",preload("res://assets/characters/winter_palette.png"))
+			jacket.material_override = highway_jacket
 	if variant==3 and not deputy:
 		var head:=witness.find_child("Head",true,false) as MeshInstance3D
 		if head:

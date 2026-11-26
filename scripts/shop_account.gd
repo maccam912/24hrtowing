@@ -1,9 +1,10 @@
 extends RefCounted
 
 const OPENING_CASH := 35.0
-const PRICES := {"chains":95.0, "snatch_block":175.0}
+const PRICES := {"chains":95.0, "snatch_block":175.0, "scanner":65.0, "mirrors":55.0, "lamps":115.0}
 const REPAIR_PRICE := 24.0
 const YARD_RECOVERY_PRICE := 24.0
+const COFFEE_PRICE := 0.75
 const TANK_PRICE := 48.0
 const CAN_FILL := 0.20
 const CAN_PRICE := snappedf(TANK_PRICE * CAN_FILL * 2.0, 0.01)
@@ -57,6 +58,9 @@ func buy(id: String) -> bool:
 
 func pay_repair() -> bool:
 	return _spend(REPAIR_PRICE)
+
+func buy_coffee() -> bool:
+	return _spend(COFFEE_PRICE)
 
 func fuel_quote(fuel: float) -> Dictionary:
 	var level := clampf(fuel, 0.0, 1.0)

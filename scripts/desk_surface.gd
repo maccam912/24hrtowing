@@ -307,6 +307,9 @@ func _documents() -> void:
 	var top := (dim.y-486)*0.5-(tab_height*0.5 if touch else 9.0)
 	var p := Rect2((dim.x-width)*0.5,top,width,486)
 	docs.paint(self,p,desk.page,drawn)
+	if desk.page == "coffee":
+		button("close",Rect2(p.end.x-148,p.end.y,148,tab_height),"Step away",true)
+		return
 	# Labeled tabs project beyond the paper's bottom edge.
 	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Shop"]]
 	if not str(drawn.get("custody_text","")).is_empty():
@@ -388,6 +391,8 @@ func _pencil_arrow(center: Vector2, maneuver: String) -> void:
 		draw_polyline(stroke,BLUE,3.6,true)
 
 func _hud() -> void:
+	if drawn.get("tower_glasses",false):
+		_field_glasses()
 	if not drawn.get("in_cab",true):
 		draw_circle(dim*0.5,1.7,Color(0.08,0.11,0.13,0.70))
 		draw_circle(dim*0.5,1.0,Color(0.92,0.95,0.90,0.82))
@@ -416,10 +421,52 @@ func _hud() -> void:
 		multiline(box.position+Vector2(15,39),words,subtle,18,WHITE,box.size.x-30)
 	if drawn.get("in_cab",true):
 		_driving_view()
+	if not desk.is_touch_mode() and (drawn.get("tower_height",-1.0) >= 0.0 or drawn.get("tower_action","") == "tower_ladder"):
+		_ladder_keys()
 	if desk.is_touch_mode():
 		_mobile()
 		if drawn.get("work_available",false) and not drawn.get("in_cab",true):
 			_tension_dial()
+
+const TOWER_LABELS := {"tower_ladder":"LADDER","tower_off":"STEP OFF","tower_glass":"GLASSES","tower_lower":"LOWER","tower_note":"NOTE RING"}
+
+func _ladder_keys() -> void:
+	var action := str(drawn.get("tower_action",""))
+	var controls := "" if action == "tower_ladder" else ("S   Descend" if drawn.get("tower_top",false) else "W / S   Climb")
+	if TOWER_LABELS.has(action):
+		var verb := "Take ladder" if action == "tower_ladder" else str(drawn.prompt)
+		controls += ("     " if not controls.is_empty() else "") + "E   " + verb
+	var width := subtle.get_string_size(controls,HORIZONTAL_ALIGNMENT_LEFT,-1,17).x + 24
+	var box := Rect2(16,16,width,36)
+	hud_panels.append(box)
+	draw_rect(box,RUBBER)
+	fitted(box.grow(-5),controls,subtle,17,WHITE)
+
+func _field_glasses() -> void:
+	# The rubber eyecups frame the real county view. Leave the middle clear.
+	var radius := Vector2(dim.x*.48,dim.y*.46)
+	for side: float in [-1.0,1.0]:
+		var lip := PackedVector2Array()
+		for step in 65:
+			var angle := PI*step/64.
+			var x := cos(angle)
+			var y := sin(angle)*(.90+.15*absf(x))
+			lip.append(dim*.5 + Vector2(x*radius.x,side*y*radius.y))
+		var brim := lip.duplicate()
+		var edge_y := 0.0 if side < 0.0 else dim.y
+		brim.append(Vector2(0,dim.y*.5))
+		brim.append(Vector2(0,edge_y))
+		brim.append(Vector2(dim.x,edge_y))
+		brim.append(Vector2(dim.x,dim.y*.5))
+		draw_colored_polygon(brim,Color("#101417"))
+		draw_polyline(lip,Color("#44494a"),4,true)
+	# A magnetic scale floats below the sight line in the lower lens.
+	var heading := float(drawn.get("glass_bearing",0))
+	var bearing := posmod(roundi(heading/45.0),8)
+	var compass := "%s   %03d°" % [["N","NE","E","SE","S","SW","W","NW"][bearing],posmod(roundi(heading),360)]
+	var plate := Rect2(dim.x*.5-59,dim.y*.91,118,28)
+	draw_rect(plate,Color("#101417"))
+	fitted(plate,compass,MONO,18,CREAM)
 
 func _driving_view() -> void:
 	var chase: bool = drawn.get("driving_view","chase") == "chase"
@@ -488,6 +535,8 @@ func _mobile() -> void:
 		var reverse_label: bool = reversing or (stopped and not desk.brake_held())
 		_control("gas",Rect2(pedal_x,bottom-164,THUMB_WIDTH,164),"GAS")
 		_control("brake",Rect2(brake_x,bottom-130,THUMB_WIDTH,130),"REVERSE" if reverse_label else "BRAKE")
+		if drawn.get("aux_lamps",false):
+			_control("spot",Rect2(HUD_MARGIN,bottom-178-THUMB_GAP-94,132,94),"SPOT ON" if drawn.get("spot_on",false) else "SPOT OFF")
 		if stopped:
 			_control("interact",Rect2(pedal_x,bottom-164-THUMB_GAP-96,THUMB_WIDTH,96),"EXIT CAB")
 	else:
@@ -495,14 +544,21 @@ func _mobile() -> void:
 		draw_circle(stick_center,STICK_RADIUS,RUBBER)
 		draw_arc(stick_center,STICK_RADIUS-1,0,TAU,48,Color("#a29b85"),2,true)
 		draw_arc(stick_center,STICK_RADIUS-13,0,TAU,48,Color(0.75,0.71,0.59,0.24),1.3,true)
+		if drawn.get("tower_height",-1.0) >= 0.0:
+			fitted(Rect2(stick_center-Vector2(52,86),Vector2(104,28)),"CLIMB",scaled,18,CREAM)
+			fitted(Rect2(stick_center+Vector2(-52,57),Vector2(104,28)),"DESCEND",scaled,16,CREAM)
 		var thumb: Vector2 = stick_center + desk._stick*(STICK_RADIUS-33)
 		draw_circle(thumb,31,Color("#706b59"),true,-1,true)
 		draw_arc(thumb,29,PI,TAU,24,CREAM,1.7,true)
 		for i in [-1,0,1]:
 			rule(thumb.x-11,thumb.y+i*5,22,Color("#47453a"),1.6)
 		hit("stick",Rect2(stick_center-Vector2.ONE*STICK_RADIUS,2*Vector2.ONE*STICK_RADIUS).grow(8))
-		var use_label := "INSPECT" if drawn.get("can_inspect_sighting",false) else "USE"
-		_control("interact",Rect2(right-144,bottom-112,144,112),"ENTER CAB" if drawn.get("can_enter_cab",false) else use_label)
+		var use_label := "WIPE" if drawn.get("can_wipe",false) else ("INSPECT" if drawn.get("can_inspect_sighting",false) else "USE")
+		var tower_action := str(drawn.get("tower_action",""))
+		if TOWER_LABELS.has(tower_action):
+			use_label = TOWER_LABELS[tower_action]
+		if drawn.get("tower_height",-1.0) < 0.0 or not tower_action.is_empty():
+			_control("interact",Rect2(right-144,bottom-112,144,112),"ENTER CAB" if drawn.get("can_enter_cab",false) else use_label)
 		if drawn.get("work_available",false):
 			_control("work",Rect2(right-144,bottom-112-THUMB_GAP-106,144,106),"WINCH")
 

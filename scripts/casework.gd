@@ -3,7 +3,8 @@ extends RefCounted
 const Campaign := preload("res://scripts/county_case.gd")
 const Sites := preload("res://scripts/county_case_sites.gd")
 const PROMPTS := {
-	"tower_ladder":"Climb the Esker tank ladder", "tower_down":"Climb back down",
+	"tower_ladder":"Take hold of the Esker tank ladder", "tower_off":"Step off the ladder",
+	"tower_glass":"Raise the field glasses", "tower_lower":"Lower the glasses", "tower_note":"Note the ring of cars",
 	"carrier_prints":"Look at the last footprint", "last_cap":"Brush the snow off Tou’s pencil",
 	"tou":"Offer Tou the passenger seat", "release":"Countersign Unit 38’s release",
 	"angie":"Speak to Angie at the porch",
@@ -21,8 +22,10 @@ const INSPECTIONS := {
 }
 var game
 var campaign: Campaign
-var tower_view: Camera3D
-var tower_climb: Tween
+# A negative height puts Brandt back on foot. The same camera turns on every rung.
+var tower_height := -1.0
+var glasses := false
+var usual_far := 570.0
 var released_pickup: Node3D
 var departure_path := Curve3D.new()
 var departure_distance := 0.0
@@ -118,8 +121,8 @@ func lead_instruction() -> String:
 	return "Use the cab radio to take the county assignment for %s." % lead_label()
 
 func site() -> String:
-	if is_instance_valid(tower_view):
-		return "tower_down"
+	if tower_height >= 0.0:
+		return tower_action()
 	if game.county.case_landmarks.has("car_ring") and game._facing(game.county.story_point("tower_ladder"),3.2):
 		return "tower_ladder"
 	var id: String = game.job.get("case_id","")
@@ -137,43 +140,77 @@ func site() -> String:
 		return ""
 	return item if game._facing(game.county.story_point(item),3.3) else ""
 
-func _climb_tank() -> void:
-	# A real view through the operator's binoculars from the catwalk. The same
-	# ring stays in the fields if the operator goes looking at road level.
-	tower_view = Camera3D.new()
-	tower_view.name = "EskerTankView"
-	tower_view.far = 1100.0
-	tower_view.fov = 60
-	game.world.add_child(tower_view)
-	var target := Sites.POINTS.car_ring
-	var start: Vector3 = game.county.story_point("tower_ladder") + Vector3.UP
-	var top := Vector3(start.x+0.65,Sites.TANK_PLATFORM+1.55,start.z)
-	tower_view.global_position = start
-	tower_view.look_at(target, Vector3.UP)
-	tower_view.make_current()
-	var view := tower_view
-	tower_climb = view.create_tween()
-	tower_climb.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	tower_climb.tween_method(func(t: float):
-		view.global_position = start.lerp(top,t)
-		view.look_at(target,Vector3.UP),0.0,1.0,2.2)
-	tower_climb.tween_property(view,"fov",11.0,1.1)
-	tower_climb.tween_callback(_see_ring)
+func tower_action() -> String:
+	if tower_height == 0.0:
+		return "tower_off"
+	if tower_height < Sites.TANK_PLATFORM:
+		return ""
+	if not glasses:
+		return "tower_glass"
+	if not campaign.evidence.has("car_ring") and ring_in_glass():
+		return "tower_note"
+	return "tower_lower"
 
-func _see_ring() -> void:
-	if not campaign.evidence.has("car_ring"):
-		campaign.evidence["car_ring"] = game.rig.odo
-		game._finish_favor("commission")
-		game._message("BRANDT","There’s the Hoffmanns’ blue car. Every hood points at the trunk ahead of it.")
+func ring_in_glass() -> bool:
+	if not glasses or tower_height != Sites.TANK_PLATFORM or not game.county.case_landmarks.has("car_ring"):
+		return false
+	var camera: Camera3D = game.rig.get_camera()
+	var ring: Vector3 = camera.to_local(game.county.story_point("car_ring"))
+	# The whole east-west arc spans about thirteen degrees at this distance.
+	# A look at either half of it through the glasses is enough to record it.
+	return ring.z < 0.0 and absf(atan2(ring.x,-ring.z)) < deg_to_rad(6.5) and absf(atan2(ring.y,-ring.z)) < deg_to_rad(2.6)
+
+func mount_tower(height: float = 0.0, raised: bool = false) -> void:
+	var camera: Camera3D = game.rig.get_camera()
+	usual_far = camera.far
+	camera.far = 1100.0
+	tower_height = clampf(height,0.0,Sites.TANK_PLATFORM)
+	glasses = raised and tower_height == Sites.TANK_PLATFORM
+	_place_climber()
+	game.rig._update_eyes()
+	apply_glasses()
+
+func climb(axis: float, dt: float) -> void:
+	if tower_height < 0.0 or absf(axis) < .12:
+		return
+	var next := clampf(tower_height-clampf(axis,-1.0,1.0)*dt*4.2,0.0,Sites.TANK_PLATFORM)
+	if next == 0.0 and axis > 0:
+		leave_tower()
 		game._save()
+		return
+	if next == tower_height:
+		return
+	if next == Sites.TANK_PLATFORM:
+		game._message("BRANDT","Made the catwalk. Lindquist’s section is southeast, past the dairy silos.")
+	tower_height = next
+	glasses = false
+	_place_climber()
+
+func _place_climber() -> void:
+	var ladder: Vector3 = game.county.story_point("tower_ladder")
+	game.rig.foot = Vector3(ladder.x+.58,tower_height,ladder.z)
+
+func apply_glasses() -> void:
+	if glasses:
+		game.rig.get_camera().fov = 11.0
 
 func leave_tower() -> void:
-	if is_instance_valid(tower_view):
-		if tower_climb and tower_climb.is_valid():
-			tower_climb.kill()
-		game.rig.get_camera().make_current()
-		tower_view.queue_free()
-		tower_view = null
+	if tower_height < 0.0:
+		return
+	tower_height = 0.0
+	_place_climber()
+	tower_height = -1.0
+	glasses = false
+	game.rig._update_eyes()
+	game.rig.get_camera().far = usual_far
+
+func tower_instruction() -> String:
+	var controls := "Push the thumb pad up or down" if game.desk.is_touch_mode() else "Hold W to climb or S to descend"
+	if tower_height < Sites.TANK_PLATFORM:
+		return controls + ". Let go of the control to rest on a rung."
+	if campaign.evidence.has("car_ring"):
+		return "The ring is in your field notes. Climb down to the cab when you’re ready."
+	return "Look southeast past the dairy silos. Raise the field glasses and use them to record what you can see."
 
 func inspect(item: String) -> void:
 	if INSPECTIONS.has(item):
@@ -181,9 +218,17 @@ func inspect(item: String) -> void:
 		game._finish_favor("mail" if item == "carrier_prints" else "line")
 		game._message("BRANDT",INSPECTIONS[item])
 	elif item == "tower_ladder":
-		_climb_tank()
-	elif item == "tower_down":
+		mount_tower()
+	elif item == "tower_off":
 		leave_tower()
+	elif item in ["tower_glass","tower_lower"]:
+		glasses = item == "tower_glass"
+		game.rig._update_eyes()
+		apply_glasses()
+	elif item == "tower_note" and ring_in_glass():
+		campaign.evidence["car_ring"] = game.rig.odo
+		game._finish_favor("commission")
+		game._message("BRANDT","There’s the Hoffmanns’ blue car. Every hood points at the trunk ahead of it.")
 	elif item == "tou":
 		if game.rig.get_truck_position().distance_to(game.county.story_point("tou")) > 23.0:
 			game._speak("TOU","Bring the cab up here, would you? There’s a seat in there I could use.")
@@ -260,8 +305,8 @@ func advance_departure(dt: float) -> void:
 func procedure() -> String:
 	match game.job.get("case_id",""):
 		"commission":
-			if is_instance_valid(tower_view):
-				return "Look across Lindquist’s section. Climb down when you’re ready."
+			if tower_height >= 0.0:
+				return tower_instruction()
 			if not campaign.evidence.has("car_ring"):
 				return "Find the ladder on the east leg of the Esker water tower. Climb to the tank."
 		"bridge":

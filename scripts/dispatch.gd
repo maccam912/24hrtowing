@@ -2,6 +2,8 @@ extends RefCounted
 
 const Legacy := preload("res://scripts/legacy_dispatch.gd")
 const YardDrop := preload("res://scripts/yard_drop.gd")
+const Snowplow := preload("res://scripts/county_snowplow.gd")
+const Squad := preload("res://scripts/county_squad.gd")
 const GATE := Vector2(0, -64)
 const METERS_PER_GAME_MILE := 400.0
 # Points are centerline stations on the county plat.
@@ -37,7 +39,7 @@ const SITES := {
 		"after_jobs":8, "hazard_reasons":["Highway crew needs the shoulder for snow.", "The clerk is holding the keys at the counter."],
 		"approach":"Go south on K, left at Main. Stay on sixty-four past County FF to the brick county building."},
 }
-const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan", "County utility pickup"]
+const VEHICLES := ["Blue compact sedan", "Brown sedan", "Gray station wagon", "Tan four-door sedan", "County utility pickup", "Orange county snowplow", "White sheriff’s squad"]
 const HEAVY_VARIANT := 4
 const HEAVY_FEE := 36
 const DRIVERS := [
@@ -86,11 +88,19 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var hazards := 0
 	var passenger_calls := 0
 	var met_angie := false
+	var last_plow := -1
+	var last_squad := -1
+	var squad_calls := 0
 	for slip: Dictionary in slips:
 		met_angie = met_angie or slip.get("vin", "") == Legacy.JOBS.angie.vin
 		if slip.has("case_id") or slip.kind not in ["ditch", "hazard","passenger"]:
 			continue
 		var site_id := _site_on_slip(slip)
+		if slip.get("vin") == Snowplow.VIN:
+			last_plow = ditches + hazards
+		if slip.has("clearance_seconds"):
+			last_squad = ditches + hazards
+			squad_calls += 1
 		used[site_id] = int(used.get(site_id, 0)) + 1
 		if slip.kind in ["ditch","passenger"]:
 			ditches += 1
@@ -106,13 +116,22 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 	var kind := "ditch"
 	if rotation_count > 0 and (ditches > hazards or (ditches == hazards and rng.randf() < 0.5)):
 		kind = "hazard"
+	# Duane gets back on his route after the pull. Give him a stretch of
+	# good road between calls, and keep a due passenger's place on rotation.
+	var passenger_due := rotation_count >= 19 and ditches >= 10 + posmod(dispatch_seed,3) + passenger_calls*12
+	var stuck_plow := snatch_block and kind == "ditch" and not passenger_due and rotation_count >= 8 and (last_plow == -1 or rotation_count-last_plow >= 14)
+	var squad := kind == "ditch" and not passenger_due and not stuck_plow and rotation_count >= 12 and (last_squad == -1 or rotation_count-last_squad >= 17)
 	var route := ""
 	var best := INF
 	for id: String in SITES:
 		var site: Dictionary = SITES[id]
 		if rotation_count < int(site.get("after_jobs",0)) or (rotation_count == 0 and not site.get("local", false)):
 			continue
-		if kind == "ditch" and site.get("hazard_only", false):
+		if kind == "ditch" and not squad and site.get("hazard_only", false):
+			continue
+		if stuck_plow and id not in ["frames","farm","dairy","ff_barn"]:
+			continue
+		if squad and id not in ["bridge","river_lanes","county_seat"]:
 			continue
 		var score := float(used.get(id, 0)) + rng.randf_range(0, 1.25)
 		if score < best:
@@ -144,7 +163,33 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 		"vehicle":VEHICLES[variant], "plate":"%s %03d" % [["WFS","ETK","JRG","AKP","PFS"][rng.randi_range(0,4)], rng.randi_range(100,999)],
 		"vin":"1BTRS39C5WJ%06d" % posmod(dispatch_seed + completed * 7919, 1000000),
 		"reply":"clear", "schedule":_scheduled_miles(station), "run":route + "/" + shoulder}
-	if kind == "ditch":
+	if stuck_plow:
+		# A blade caught in the windrow leaves the rear eye facing the road.
+		var into_bank := (Vector3.RIGHT if north_south else Vector3.BACK) * side
+		var forward := Vector3.FORWARD.rotated(Vector3.UP,yaw) + into_bank*.76
+		job.angle = atan2(-forward.x,-forward.z)
+		job.id = "stuck_plow"
+		job.variant = Snowplow.VARIANT
+		job.driver_variant = Snowplow.DRIVER
+		job.heavy_recovery = true
+		job.plate = Snowplow.PLATE
+		job.vin = Snowplow.VIN
+		job.person = "Duane"
+		job.reply = "duane_ditch" if last_plow == -1 else "duane_windrow"
+		job.vehicle = VEHICLES[Snowplow.VARIANT]
+		job.dispatch = "%s on %s by %s, %s ditch. Duane caught the windrow. Take your snatch block and pull from the rear eye. He'll finish his route." % [
+			job.vehicle,site.road,site.landmark,shoulder]
+	elif squad:
+		job.merge(Squad.UNITS[posmod(dispatch_seed+squad_calls,Squad.UNITS.size())],true)
+		job.id = "squad_pull"
+		job.variant = Squad.VARIANT
+		job.driver_variant = Squad.DRIVER
+		job.running = true
+		job.vehicle = VEHICLES[Squad.VARIANT]
+		job.clearance_seconds = 0.0
+		job.dispatch = "%s on %s by %s, %s shoulder. %s needs a pull to get back on patrol. County adds $%d for two minutes' scene work from your first flare. Regular rate either way." % [
+			job.vehicle,site.road,site.landmark,shoulder,job.person,Squad.PREMIUM]
+	elif kind == "ditch":
 		var reason: String
 		if not met_angie and route in ["angie", "coop", "frames"] and rng.randf() < .33:
 			_named_driver(job, "angie", "nurse_pull", 0)
@@ -157,7 +202,7 @@ static func ordinary(completed: int, dispatch_seed: int, slips: Array, snatch_bl
 			job.person = driver.person
 			job.reply = driver.reply
 			reason = driver.reason
-		if job.id=="rotation" and rotation_count>=19 and ditches>=10+posmod(dispatch_seed,3)+passenger_calls*12:
+		if job.id=="rotation" and passenger_due:
 			job.reply = "summer_driver"
 		elif rotation_count >= 7 and posmod(rotation_count + dispatch_seed, 4) == 0:
 			if job.id == "angie":
@@ -280,6 +325,11 @@ static func issue_slip(job: Dictionary, start: float, pickup: float, drop: float
 	if rate_fee > 0:
 		slip.rate_name = job.get("rate_name","Vehicle on ice")
 		slip.rate_fee = rate_fee
+	if job.has("clearance_seconds"):
+		var elapsed := snappedf(maxf(0.0,job.clearance_seconds),.001)
+		slip.clearance_seconds = elapsed
+		slip.clearance_bonus = Squad.PREMIUM if elapsed <= Squad.LIMIT_SECONDS else 0.0
+		slip.pay = snappedf(slip.pay+slip.clearance_bonus,.01)
 	if job.has("recovery"):
 		slip.recovery = job.recovery
 	if job.kind in ["ditch","passenger"]:

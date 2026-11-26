@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never, skip_vertex_transform;
 #include "res://assets/weather/headlamp.gdshaderinc"
+#include "res://assets/weather/fuel_store.gdshaderinc"
 
 uniform float storm_time;
 uniform float storm_gust;
@@ -48,6 +49,7 @@ void fragment() {
 	bool sheltered = world_point.x > -60. && world_point.x < -42. && world_point.z > -51.
 		&& world_point.z < -38.3 && world_point.y < 5.18;
 	sheltered = sheltered || (world_point.x > 440.8 && world_point.x < 449.2 && world_point.z > 321.0 && world_point.z < 331.1 && world_point.y < 5.);
+	sheltered = sheltered || (world_point.y < 4.2 && inside_fuel_store(world_point.xz));
 	float light = headlamp_scatter(world_point);
 	ALBEDO = mix(vec3(.59,.61,.66), vec3(.96,.92,.83), light);
 	ALPHA = sheltered ? 0. : fade * plume * (.09 + .20 * storm_gust + light * (.36 + .29 * storm_gust));

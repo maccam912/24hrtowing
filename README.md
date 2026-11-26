@@ -48,6 +48,12 @@ Park in the yard and walk to the office fax to buy diesel or fit equipment. You 
 
 A **$175 snatch block** lets you rig a double line for loaded pickups. Once it’s fitted, Arlene can offer county utility trucks on rotation. Heavy recoveries pay an extra $36. **$95 tire chains** improve grip and braking and help the wrecker through deep snow. The office also services a worn winch for $24.
 
+At Esker Fuel & Food, walk through the glass doors to Mai’s counter. A 75¢ coffee warms your hands for two minutes of outdoor work. The shop and Brandt’s heated bay also warm you up. From the full-size plat, choose **Use pencil** to mark a vehicle, lights, or a place to revisit. Choose **Eraser** to remove a mark.
+
+The yard catalog’s **Cab equipment** page sells $55 heated mirrors and a $115 driving bar with a pillar spot. To clear stock glass by hand, stand beside the truck, look up at a frosted mirror and use it. With the lamp kit fitted, tap the spot switch or press **L** and look toward the shoulder. The beam follows your view. After meeting Kowalski on Unit 38, you can fit $65 scanner crystals and listen to the sheriff or county garage. Open **Radio → Scanner** to tune the receiver.
+
+With a snatch block fitted, Arlene can send you to Duane’s stuck plow. Go around the buried blade and take the rear recovery eye. Later on rotation, a stranded squad car can earn a $24 quick-clearance bonus. The two-minute allowance starts at flare placement. Take as long as you need to earn the regular fee.
+
 The first two jobs give you time to learn the wrecker. If something catches your eye on the road, keep it in view for a moment. For a closer look at something left behind, park, walk over and press **E** or tap **USE**. In the cab, choose **RADIO → Report a sighting**, then pick what you saw. Arlene will log it and tell you what to do. Your current slip stays open. If a vehicle needs a tow and your rig has the equipment, the sheriff can authorize its recovery on a later rotation call.
 
 If Arlene sends you to a driver in a summer shirt, offer them the passenger seat and stop by the pumps at Esker Fuel & Food. Check the fax after your fifth ordinary job for the first lead in the county survey case. Your case notes stay in the plat book until you’re ready to call them in. **Keep me on rotation** accepts another paying job and leaves the case waiting.
@@ -61,7 +67,7 @@ The eight-part case is paced for roughly three hours. Taking each lead when it c
 
 1. **Secure Unit 38.** Find the white county pickup at the Section 3 turnout. Its driver’s door is open. Follow the prints from the tripod’s bare ring to the dry rod case where the prints stop. Read the door and examine the case, then report both from the cab. Fit the snatch block, meet Kowalski, sign her card and stow the tripod. Bring the pickup into the evidence bay on dollies and lock the corner chain before filing.
 2. **Look in on the Hoffmanns.** Tou’s field book has circles on section corners, N5104 marked and a drawing of the water tower. The milk hauler reports every light on at N5104. Take Arlene’s look-see, check the open door and the wet ring in the empty drive, then call it in.
-3. **Climb the Esker water tower.** Use the ladder behind the co-op. Look across Lindquist’s section from the tank. The cars are parked nose to tail in a ring. Climb down and tell Arlene.
+3. **Climb the Esker water tower.** Use the ladder behind the co-op. Climb with the walking controls, raise the field glasses and look across Lindquist’s section. The cars are parked nose to tail in a ring. Climb down and tell Arlene.
 4. **Recover the flowage sedan.** Take Highway 64 west and approach from the dam landing. Leave the wrecker ashore and pay out the long cable to the running car on the ice. Kowalski explains the missing hours and the tow ban in her report.
 5. **Bring in the relief carrier’s wagon.** Find it at the Route 2 mailboxes with the mail still on the seat. Her footprints end in the field. Watch the mirror during the loaded haul.
 6. **Follow Tou’s line.** Fit tire chains. Turn onto Alder Cut before the Swamp Road barricade. The modern plat ends at N5420. Continue on the old logging road to the striped stakes. Look for Tou’s pencil and call Arlene when the portable comes through.

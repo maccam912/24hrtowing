@@ -11,7 +11,7 @@ var departed := 0.0
 func setup(world: Node3D, truck: Vector3) -> void:
 	county = world
 	county.add_child(self)
-	Vehicle.county_plow(self)
+	Vehicle.fuel_service_plow(self)
 	var truck_at := Vector2(truck.x,truck.z)
 	var best := INF
 	# Use the other lane, even if the wrecker is parked on the centerline.

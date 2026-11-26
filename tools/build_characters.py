@@ -635,10 +635,10 @@ def torso_and_arms(deputy, farm):
     return t
 
 
-def summer_shirt():
+def short_sleeved_shirt(clerk=False):
     t = Mesh()
-    cotton = "b9ac91"
-    skin = "ba927f"
+    cotton = "6f7673" if clerk else "b9ac91"
+    skin = "ad8570" if clerk else "ba927f"
     t.loft([
         (.85, 0, .01, .198, .111), (.88, 0, .01, .202, .115),
         (1.08, 0, .01, .184, .112), (1.24, 0, -.002, .215, .132),
@@ -656,17 +656,31 @@ def summer_shirt():
                 ((side*.237,.90,-.090),.029,.032),
                 ((side*.23,.85,-.094),.033,.03),
                 ((side*.224,.808,-.084),.02,.017)], skin)
+    if clerk:
+        # Polycotton apron with shoulder tapes, a pencil pocket and a name badge.
+        apron = "38453f"
+        t.loft([(.72, 0, .005, .222, .135), (.79, 0, .008, .212, .13),
+                (1.01, 0, .007, .195, .122)], apron, 16)
+        t.patch([(-.167, .99, -.116), (-.118, 1.294, -.143),
+                 (.117, 1.294, -.143), (.168, .99, -.116)], apron)
+        for side in (-1, 1):
+            t.line((side*.105, 1.288, -.137), (side*.072, 1.379, -.080), .015, apron)
+        t.patch([(-.100, 1.264, -.145), (-.044, 1.264, -.145),
+                 (-.044, 1.245, -.145), (-.100, 1.245, -.145)], "c9b7a4")
+        return t
     # A faded horizontal stripe wraps the short-sleeve tee.
     t.loft([(1.237,0,-.002,.216,.133),(1.268,0,-.005,.216,.133)],"58676b",16)
     return t
 
 
-def face(deputy, farm, summer=False):
+def face(deputy, farm, summer=False, clerk=False):
     t = Mesh()
-    skin = "ad8570" if (deputy or farm) else "ba927f"
-    cheek = "bd8875" if (deputy or farm) else "c48d77"
-    lips = "8a5e51" if (deputy or farm) else "996c63"
+    skin = "ad8570" if (deputy or farm or clerk) else "ba927f"
+    cheek = "bd8875" if (deputy or farm or clerk) else "c48d77"
+    lips = "8a5e51" if (deputy or farm or clerk) else "996c63"
     hair = "514440" if not farm else "5c5549"
+    if clerk:
+        hair = "343e43"
     knit = "515c69" if not deputy else "414b46"
     if farm:
         knit = "7b6650"
@@ -886,7 +900,12 @@ def face(deputy, farm, summer=False):
             hair,
             8,
         )
-    if summer:
+    if clerk:
+        t.loft([(base+.17, 0, shift+.103, .052, .034),
+                (base+.20, 0, shift+.117, .060, .047),
+                (base+.24, -.006, shift+.118, .050, .04),
+                (base+.255, -.008, shift+.106, .026, .025)], hair, 12)
+    if summer or clerk:
         t.loft([(base+.148,0,shift+.003,.094,.091),
                 (base+.181,0,shift+.004,.096,.095),
                 (base+.221,-.003,shift+.008,.083,.083),
@@ -963,13 +982,13 @@ def face(deputy, farm, summer=False):
     return t
 
 
-def model(deputy=False, farm=False, summer=False):
+def model(deputy=False, farm=False, summer=False, clerk=False):
     m = Model()
-    m.node("Deputy" if deputy else "Motorist")
+    m.node("Deputy" if deputy else ("NightClerk" if clerk else "Motorist"))
     legs = [leg(m, s, deputy) for s in (-1, 1)]
-    torso = summer_shirt() if summer else torso_and_arms(deputy, farm)
-    spine = m.node("Shirt" if summer else "Jacket", (0.00, 0.865, 0.012), 0, torso)
-    head = m.node("Head", (0, 1.443, -0.023), spine, face(deputy, farm, summer))
+    torso = short_sleeved_shirt(clerk) if summer or clerk else torso_and_arms(deputy, farm)
+    spine = m.node("Shirt" if summer or clerk else "Jacket", (0.00, 0.865, 0.012), 0, torso)
+    head = m.node("Head", (0, 1.443, -0.023), spine, face(deputy, farm, summer, clerk))
     # Small asymmetric posture replaces the rigid, square standing pose.
     head_pose = (-0.07, 0.13, -0.047) if not deputy else (-0.028, -0.13, 0.024)
 
@@ -1055,6 +1074,8 @@ def model(deputy=False, farm=False, summer=False):
             if deputy
             else "farm_driver.glb"
             if farm
+            else "night_clerk.glb"
+            if clerk
             else "summer_driver.glb"
             if summer
             else "stranded_driver.glb"
@@ -1153,3 +1174,4 @@ if __name__ == "__main__":
     model(deputy=True)
     model(farm=True)
     model(summer=True)
+    model(clerk=True)

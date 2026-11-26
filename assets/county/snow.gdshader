@@ -1,6 +1,7 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, depth_draw_never, skip_vertex_transform;
 #include "res://assets/weather/headlamp.gdshaderinc"
+#include "res://assets/weather/fuel_store.gdshaderinc"
 
 uniform float storm_time;
 uniform float storm_gust;
@@ -31,7 +32,8 @@ void vertex() {
 	bool kitchen = center.x > 440.8 && center.x < 449.2 && center.z > 321.0 && center.z < 331.1 && center.y < 5.;
 	float light = headlamp_scatter(center);
 	snow_color = mix(vec3(.62,.65,.70), vec3(1.,.95,.83), light);
-	opacity = (bay || pump || kitchen) ? 0.0 : falloff * (.31 + .22 * strength + .47 * light);
+	bool store = center.y < 4.2 && inside_fuel_store(center.xz);
+	opacity = (bay || pump || kitchen || store) ? 0.0 : falloff * (.31 + .22 * strength + .47 * light);
 
 	vec3 wind = normalize(mix(vec3(1., -.20 + .055 * sin(swirl), .26 + .08 * cos(swirl)), vec3(.001,-1.,0.), calm));
 	vec3 sight = normalize(CAMERA_POSITION_WORLD - center + vec3(.0001));

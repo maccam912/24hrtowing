@@ -105,7 +105,7 @@ func check_tower() -> void:
 	game._accept(game.campaign.ticket(1001+game.completed))
 	inspect_at("tower_ladder",game.county.story_point("tower_ladder"))
 	confirm_from_pause()
-	check(game.casework.tower_view == null and rig.eyes.current and game.mode == "fieldwork" and not game.campaign.evidence.has("car_ring"),
+	check(game.casework.tower_height < 0 and rig.eyes.current and game.mode == "fieldwork" and not game.campaign.evidence.has("car_ring"),
 		"a recovery during the tower climb releases the view and keeps the unobserved ring unreported")
 
 func check_passenger_and_release() -> void:

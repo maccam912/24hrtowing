@@ -74,7 +74,10 @@ var engine_rpm := IDLE_RPM
 var engine_load := 0.0
 var odo:=START_ODO
 var fuel:=.84
+const HOT_COFFEE_SECONDS := 120.0
 var warmth:=1.0
+var coffee_left := 0.0
+var spot_on := false
 var wear:=0.0
 var ground_spring:=0.0
 var pitch:=0.0
@@ -284,7 +287,7 @@ func _truck_obstacle(step:Vector3, turn:float) -> bool:
 			return true
 	return false
 
-func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) -> void:
+func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_ladder := false) -> void:
 	if not _ready_to_run: return
 	dt=minf(dt,.0667)
 	info_timer=maxf(0,info_timer-dt)
@@ -308,15 +311,29 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float) ->
 		chase_heading = lerp_angle(chase_heading,heading,1.0-exp(-5.5*dt))
 	else:
 		_update_engine(0.0,dt)
-		_walk(move,dt)
+		if not on_ladder:
+			_walk(move,dt)
 		_face_operator(dt)
 		_suspension(dt)
+	body.weather_mirrors(dt,sighting_calm,speed,fuel > 0)
+	if body.search_beam:
+		if in_cab:
+			var spot_yaw := camera_yaw if driving_view == "cab" else wrapf(chase_heading+chase_orbit-heading,-PI,PI)
+			body.point_spot(spot_on,spot_yaw,camera_pitch if driving_view == "cab" else -.06)
+		elif body.search_on:
+			body.point_spot(false,0,0)
 	_winch(operate,dt)
 	_trail(dt)
 	_update_eyes()
 	_cable_curve()
 	_update_highlight()
-	warmth=clampf(warmth + dt*(.014 if in_cab else lerpf(-.0017,.017,sighting_calm)),0,1)
+	var warmth_rate := lerpf(-.0017,.017,sighting_calm)
+	if in_cab or (world and world.has_method("is_heated_shelter") and world.is_heated_shelter(foot)):
+		warmth_rate = .014
+	elif coffee_left > 0:
+		coffee_left = maxf(0,coffee_left-dt)
+		warmth_rate = maxf(0,warmth_rate)
+	warmth = clampf(warmth + dt*warmth_rate,0,1)
 	if in_cab and fuel>0:
 		fuel=maxf(fuel-dt*.000017,0)
 	body.glass_material.set_shader_parameter("cold",1.0-warmth)
@@ -526,6 +543,18 @@ func _update_eyes() -> void:
 		eyes.rotation=Vector3(camera_pitch,camera_yaw,0)
 	torch.visible=not in_cab
 
+func wipeable_mirror() -> int:
+	if in_cab:
+		return -1
+	for i in body.mirror_centers.size():
+		if body.mirror_ice[i] < .12:
+			continue
+		var target: Vector3 = body.mirror_centers[i].global_position
+		var towards := target-eyes.global_position
+		if towards.length() < 2.6 and towards.normalized().dot(-eyes.global_basis.z) > .96:
+			return i
+	return -1
+
 func _heading_degrees() -> float:
 	return fposmod(-rad_to_deg(heading),360)
 
@@ -579,6 +608,11 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		"":
 			if kind == "hazard" and not vehicle_identity.get("running",false):
 				VehicleDrifts.place(car, _ground)
+			elif _county_plow():
+				var nose := car.to_global(Vector3.FORWARD*3.4)
+				var tail := car.to_global(Vector3.BACK*3.2)
+				car.rotation.x = clampf(atan2(_ground(nose)-_ground(tail),6.6),-.17,.17)
+				VehicleDrifts.place(car,_ground)
 	_set_car_lamps("running" if _running_car() else "hazard")
 	if phase == "scene" and uses_warning_triangle(kind,vehicle_identity):
 		# Face traffic from either direction, on the road side of the car.
@@ -587,7 +621,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		var across := Vector3.RIGHT.rotated(Vector3.UP,road_yaw)
 		if _road(target + across) > _road(target - across):
 			across = -across
-		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * 3.5
+		var ahead := 6.0 if _county_plow() else 3.5
+		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * ahead
 		at.y = _ground(at)
 		warning_triangle = Scene.warning_triangle(self,at,road_yaw)
 	if kind in ["ditch","hold","passenger"]:
@@ -692,7 +727,19 @@ func _eyelet(end:int) -> Vector3:
 	return car.to_global(Vector3(0,size.y-.087,end*size.z*1.016))
 
 func _nearest_eyelet() -> int:
+	if _county_plow(): return 1
 	return 1 if _flat_distance(foot,_eyelet(1))<_flat_distance(foot,_eyelet(-1)) else -1
+
+func _county_plow() -> bool:
+	return vehicle_identity.get("variant",-1) == Scene.Snowplow.VARIANT
+
+func duane_on_scene() -> bool:
+	if _county_plow() and phase != "done":
+		return true
+	for driver in departures:
+		if driver.identity.get("variant",-1) == Scene.Snowplow.VARIANT:
+			return true
+	return false
 
 func _reaches() -> bool:
 	var reach := CABLE_REACH
@@ -796,6 +843,7 @@ func action_id() -> String:
 			if _in_range(_side_eye(1.0 if second_line else -1.0),2.35): return "check_line" if second_line else "roll_hook"
 			return "restow" if panel_range else ""
 		if _in_range(_eyelet(_nearest_eyelet()),2.45): return "attach"
+		if _county_plow() and _in_range(_eyelet(-1),2.6): return "plow_blade"
 		if panel_range: return "restow"
 	if phase=="rigged":
 		if panel_range: return "winch"
@@ -836,6 +884,8 @@ func context_text() -> String:
 	if action=="too_far" and _boom_job(): return "Bring rear of wrecker within 15 m of the car"
 	if action=="cable" and _boom_job(): return "Chock wheels and unfold recovery boom"
 	if vehicle_identity.get("heavy_recovery",false):
+		if action == "plow_blade": return "Go around the blade to the rear recovery eye"
+		if action == "attach" and _county_plow(): return "Shackle the block to the rear recovery eye"
 		if action == "need_block": return "Fit the snatch block from the yard parts counter"
 		if action == "cable": return "Chock wheels & take snatch block"
 		if action == "attach": return "Shackle snatch block to tow eye"
@@ -853,6 +903,11 @@ func _hint() -> String:
 		return "Back toward the car. Leave 9–15 m between the rear controls and the casualty so the boom can swing clear."
 	if phase == "scene" and _recovery()=="ice":
 		return "Stay on the bank, 22–52 m from the car. Set a flare at the rear controls and run the cable onto the ice."
+	if _county_plow():
+		if phase == "scene":
+			return "Park on firm road behind the plow and set a flare. Duane needs a short pull back onto the crown."
+		if phase == "cable":
+			return "Carry the snatch block around to the rear of the salt box. Shackle it to the recovery eye below the tailgate."
 	if phase == "cable":
 		if _boom_job(): return "Set the lifting sling from the rear boom controls."
 		if _roll_job(): return "Attach the second line on the opposite side." if second_line else "Carry the block to the sling on the car’s left side."
@@ -963,6 +1018,7 @@ func interact() -> void:
 			sound_event.emit("lift")
 			dropped.emit()
 		"need_block": _note("This recovery needs a double line. Order the snatch block at the yard.",4)
+		"plow_blade": _note(context_text(),3)
 		"boom_space": _note("The car needs open ground under all four wheels. Move back toward the road.",4)
 		"shore": _note("Ice won't hold the wrecker. Set up on the bank.",4)
 		"too_far": _note(context_text(),3)
@@ -1042,6 +1098,8 @@ func _winch(operate:bool,dt:float) -> void:
 	var amount:float=minf(taut,minf(gap,shortening*(.37+traction*.72)))
 	car.position+=toward.normalized()*amount
 	car.position.y=lerpf(car.position.y,_ground(car.position),1-exp(-7.0*dt))
+	if _county_plow():
+		car.rotation.x = move_toward(car.rotation.x,0.0,amount*.045)
 	var desired:=atan2(toward.x,toward.z)+(PI if line_end<0 else 0.0)
 	car.rotation.y=lerp_angle(car.rotation.y,desired,clampf(amount*.16,0,.20))
 	if gap<=1.15 or (kind=="ditch" and _road(car.position)<4.55 and car.position.distance_to(job_site)>3.0):
@@ -1050,7 +1108,10 @@ func _winch(operate:bool,dt:float) -> void:
 		if kind=="ditch":
 			phase="departing"
 			_begin_departure()
-			_note("Ditch pull complete · driver leaving. Clear for the next call.",8.0)
+			if _county_plow():
+				_note("Plow free · Duane's taking the route back.",6.0)
+			else:
+				_note("Ditch pull complete · driver leaving. Clear for the next call.",8.0)
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("ratchet")
@@ -1245,7 +1306,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 	return fallback
 
 func save_state() -> Dictionary:
-	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
+	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d.special_work = special_work
 	d.second_line = second_line
@@ -1293,6 +1354,11 @@ func restore_state(d:Dictionary) -> void:
 	odo=d.get("odo",START_ODO)
 	fuel=d.get("fuel",.84)
 	warmth=d.get("warmth",1.0)
+	coffee_left = clampf(d.get("coffee_left",0.0),0,HOT_COFFEE_SECONDS)
+	spot_on = d.get("spot_on",false)
+	var ice: Array = d.get("mirror_ice",[])
+	for i in body.mirror_glass.size():
+		body.set_mirror_ice(i,float(ice[i]) if i < ice.size() else 0.0)
 	wear=d.get("wear",0.0)
 	tire_chains=d.get("chains",false)
 	phase=d.get("phase","idle")

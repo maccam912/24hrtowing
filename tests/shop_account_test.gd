@@ -48,11 +48,13 @@ func test_heavy_dispatch() -> void:
 	var heavy_calls := 0
 	for i in 20:
 		var base := Dispatch.ordinary(i, 22, slips)
-		check(not base.has("heavy_recovery") and base.variant < Dispatch.HEAVY_VARIANT, "the standard line can serve every base rotation")
+		check(not base.has("heavy_recovery") and base.variant not in [Dispatch.HEAVY_VARIANT,Dispatch.Snowplow.VARIANT], "the standard line can serve every base rotation")
 		var job := Dispatch.ordinary(i, 22, slips, true)
 		var slip := Dispatch.issue_slip(job, 100, 101, 102, 5, "03:35")
 		var ordinary := Dispatch.issue_slip(base, 100, 101, 102, 5, "03:35")
-		if job.get("heavy_recovery", false):
+		if job.id == "stuck_plow":
+			check(job.kind == "ditch" and job.variant == Dispatch.Snowplow.VARIANT and slip.heavy_fee == Dispatch.HEAVY_FEE, "county plow is a heavy ditch pull")
+		elif job.get("heavy_recovery", false):
 			heavy_calls += 1
 			check(job.kind == "hazard" and job.variant == Dispatch.HEAVY_VARIANT and "snatch block" in job.dispatch and job.vin != Dispatch.Legacy.JOBS.hold.vin, "upgraded dispatch can issue a separate heavy pickup")
 			check(slip.heavy_fee == Dispatch.HEAVY_FEE and is_equal_approx(slip.pay - ordinary.pay, slip.heavy_fee), "heavy recovery is itemized and paid")

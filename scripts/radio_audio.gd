@@ -8,9 +8,11 @@ var chatter_streams := {}
 var engines := {}
 var samples := {}
 var chatter := AudioStreamPlayer.new()
+var wind_filter: AudioEffectLowPassFilter
 var effects: Array[AudioStreamPlayer] = []
 var cursor := 0
 var radio_tail := false
+var scanner_voice := false
 var spoken := false
 var native_voices := PackedStringArray()
 var utterance := 0
@@ -31,6 +33,16 @@ func _ready() -> void:
 		hi.cutoff_hz = 3000.0
 		AudioServer.add_bus_effect(radio_bus, lo)
 		AudioServer.add_bus_effect(radio_bus, hi)
+	var wind_bus := AudioServer.get_bus_index("Outside wind")
+	if wind_bus < 0:
+		AudioServer.add_bus()
+		wind_bus = AudioServer.bus_count - 1
+		AudioServer.set_bus_name(wind_bus,"Outside wind")
+		wind_filter = AudioEffectLowPassFilter.new()
+		wind_filter.cutoff_hz = 7800.
+		AudioServer.add_bus_effect(wind_bus,wind_filter)
+	else:
+		wind_filter = AudioServer.get_bus_effect(wind_bus,0)
 	add_child(chatter)
 	chatter.finished.connect(_chatter_finished)
 	for i in 7:
@@ -49,6 +61,7 @@ func _ready() -> void:
 		var stream = _sample(id).duplicate()
 		stream.loop = true
 		loop_player.stream = stream
+		if id == "wind": loop_player.bus = &"Outside wind"
 		loop_player.volume_db = -55.0
 		add_child(loop_player)
 		if audible:
@@ -68,11 +81,24 @@ func set_spoken(enabled: bool) -> void:
 	else:
 		if utterance > 0: DisplayServer.tts_stop()
 
+func voice_busy() -> bool:
+	return chatter.playing or (audible and spoken and utterance > 0 and DisplayServer.tts_is_speaking())
+
+func stop_scanner() -> void:
+	if not scanner_voice:
+		return
+	scanner_voice = false
+	radio_tail = false
+	chatter.stop()
+	if audible and spoken and utterance > 0:
+		utterance += 1
+		DisplayServer.tts_stop()
+
 func _try_spoken(who: String, words: String) -> bool:
 	if not spoken or native_voices.is_empty():
 		return false
 	chatter.stop()
-	radio_tail = who in ["DISPATCH","COUNTY PLOW"]
+	radio_tail = scanner_voice or who in ["DISPATCH","COUNTY PLOW"]
 	utterance += 1
 	var pitch: float = clampf(float(Chatter.SPEAKER_HZ.get(who,320))/320,.78,1.16)
 	var voice := native_voices[posmod(who.hash(),native_voices.size())]
@@ -92,27 +118,31 @@ func _sample(id: String) -> AudioStream:
 	return samples[id]
 
 func say(id: String) -> void:
+	scanner_voice = false
 	var line: Array = lines[id]
 	if _try_spoken(line[0],line[1]): return
 	if not chatter_streams.has(id):
 		chatter_streams[id] = Chatter.render(line[0], line[1])
 	_play_chatter(line[0], chatter_streams[id])
 
-func speak(who: String, words: String) -> void:
+func speak(who: String, words: String, from_scanner := false) -> void:
+	scanner_voice = from_scanner
 	if _try_spoken(who,words): return
 	# Generated tickets vary indefinitely. Keep only the utterance on the radio.
 	_play_chatter(who, Chatter.render(who, words))
 
 func _play_chatter(who: String, stream: AudioStream) -> void:
-	radio_tail = who in ["DISPATCH","COUNTY PLOW"]
+	radio_tail = scanner_voice or who in ["DISPATCH","COUNTY PLOW"]
 	chatter.bus = &"County radio" if radio_tail else &"Master"
-	chatter.volume_db = -10.0 if radio_tail else -13.0
+	chatter.volume_db = -15.0 if scanner_voice else (-10.0 if radio_tail else -13.0)
 	chatter.stream = stream
 	if audible:
 		chatter.play()
 
 func _chatter_finished() -> void:
+	scanner_voice = false
 	if radio_tail:
+		radio_tail = false
 		effect("radio")
 
 func effect(id: String) -> void:
@@ -128,14 +158,22 @@ func effect(id: String) -> void:
 	if audible:
 		p.play()
 
-func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: float, gust: float = 0.0) -> void:
+func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: float, gust: float = 0.0,
+		in_store := false, truck_distance := 0.0) -> void:
 	var cab: bool = s.get("in_cab",true)
-	var wind_db := (-28.0 if cab else -15.0) if player_active else -21.0
+	var wind_db := -21.0
+	var cutoff := 7800.0
+	if player_active:
+		wind_db = -15.0
+		if cab or in_store:
+			wind_db = -37.0 if in_store else -28.0
+			cutoff = 610.0 if in_store else 1150.0
+	wind_filter.cutoff_hz = lerpf(wind_filter.cutoff_hz,cutoff,1.0 - exp(-delta * 6.0))
 	_volume("wind", lerpf(wind_db + gust * (4.0 if cab and player_active else 6.0),-76.0,calm), delta)
 	var signal_level := pulse if cab and controls_live else 0.0
 	if chatter.playing: signal_level *= .24
 	_volume("pulse",linear_to_db(maxf(.0001,signal_level*.42)),delta)
-	_volume("heater", -29.0 if cab and player_active else -65.0, delta)
+	_volume("heater", lerpf(-23.0,-29.0,float(s.get("warmth",1.0))) if cab and player_active else -65.0, delta)
 	_volume("winch", -13.0 if s.get("working",false) and player_active else -65.0, delta)
 	engines.winch.pitch_scale = 0.80 + 0.56 * float(s.get("tension",0.0))
 
@@ -146,6 +184,10 @@ func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: f
 	var blend := maxf(load_fraction, smoothstep(0.15, 3.2, road_speed))
 	var running := player_active and float(s.fuel) > 0.0
 	var idle_gain := db_to_linear(-18.0 if cab else -23.0) * (1.0 - blend)
+	if not cab:
+		# The idling wrecker stays where Brandt parked it.
+		idle_gain *= (1.0 - smoothstep(52.0,110.0,truck_distance)) / (1.0 + truck_distance / 14.0)
+		if in_store: idle_gain *= .26
 	var pull_gain := db_to_linear(lerpf(-18.0, -5.0, load_fraction)) * blend
 	# Smooth linear amplitudes so the exhaust responds even on the first gas tap.
 	var response := 1.0 - exp(-8.0 * delta)

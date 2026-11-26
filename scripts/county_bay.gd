@@ -2,11 +2,14 @@ extends Node3D
 ## The underlift can approach from either open side. Two retracting chains meet
 ## at the keyed corner hasp, so the hold vehicle stays accessible from the yard.
 const Batch = preload("res://scripts/county_mesh.gd")
+const FURNACE := Vector3(-54.8,3.92,-39.68)
 const LATCH := Vector3(-42.35,1.2,-50.85)
 const MOUNTS := [Vector3(-59.4,1.28,-50.85),Vector3(-42.35,1.28,-38.8)]
 # Include a little room around the chains for the operator and the crossbar.
 const FLOOR := Rect2(MOUNTS[0].x - .3, LATCH.z - .3,
 	LATCH.x - MOUNTS[0].x + .6, MOUNTS[1].z - LATCH.z + .6)
+# Heat stays under the roof, inside the two chain lines and the metal walls.
+const HEATED_FLOOR := Rect2(MOUNTS[0].x,LATCH.z,LATCH.x-MOUNTS[0].x,MOUNTS[1].z-LATCH.z)
 var chains: Array[Node3D] = []
 var stops: Array[CollisionShape3D] = []
 var lock: Node3D
@@ -14,8 +17,19 @@ var tween: Tween
 var extension := 0.012
 var locked := false
 
+static func sheltered(point: Vector3) -> bool:
+	return point.y >= -.3 and point.y < 4.7 and HEATED_FLOOR.has_point(Vector2(point.x,point.z))
+
 func setup(materials: Dictionary, initial: bool) -> void:
 	var stand = Batch.new(self,materials)
+	stand.box(FURNACE,Vector3(1.75,.92,.86),"cream")
+	stand.box(FURNACE+Vector3(0,0,-.44),Vector3(1.38,.59,.06),"dark")
+	for i in 5:
+		stand.box(FURNACE+Vector3(0,.22-i*.105,-.50),Vector3(1.35,.038,.092),"post",false,Vector3(-.29,0,0))
+	for side: float in [-1.,1.]:
+		stand.box(FURNACE+Vector3(side*.71,.64,0),Vector3(.037,.39,.037),"post")
+	stand.add("cylinder",FURNACE+Vector3(.5,1.04,.17),Vector3(.23,1.23,.23),"silver")
+	stand.box(FURNACE+Vector3(.5,1.68,.17),Vector3(.40,.065,.40),"post")
 	stand.box(LATCH+Vector3(.13,-.04,-.10),Vector3(.23,.38,.16),"silver")
 	stand.box(LATCH+Vector3(.13,-.05,-.195),Vector3(.103,.06,.04),"black")
 	for mount:Vector3 in MOUNTS:

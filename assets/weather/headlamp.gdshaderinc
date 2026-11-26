@@ -3,13 +3,14 @@ global uniform vec3 headlamp_left;
 global uniform vec3 headlamp_right;
 global uniform vec3 headlamp_direction;
 global uniform float headlamp_power;
+global uniform float driving_lamps;
 
 float beam_scatter(vec3 offset) {
 	float ahead = dot(offset, headlamp_direction);
-	float radius = .15 + max(0.0, ahead) * .445; // tan(24 degrees)
+	float radius = .15 + max(0.0, ahead) * mix(.445,.577,driving_lamps);
 	float off_axis = length(offset - ahead * headlamp_direction);
 	return smoothstep(0.0, .6, ahead) * (1.0 - smoothstep(radius * .36, radius, off_axis))
-		* (1.0 - smoothstep(12.0, 50.0, ahead));
+		* (1.0 - smoothstep(12.0, mix(50.0,70.0,driving_lamps), ahead));
 }
 
 float headlamp_scatter(vec3 world_position) {

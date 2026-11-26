@@ -254,7 +254,7 @@ func begin(id: String, at: Vector3, forward: Vector3, side_point: Vector3, level
 		street_lamps.sort_custom(func(a,b):return a.position.x < b.position.x)
 	match id:
 		"the_lift","woods_car","empty_oncoming","set_down","plow_stopped":
-			actor = Car.county_plow(props,identity) if id=="plow_stopped" else _vehicle(props,int(identity.get("variant",0)),id=="the_lift",identity)
+			actor = Car.county_plow(props) if id=="plow_stopped" else _vehicle(props,int(identity.get("variant",0)),id=="the_lift",identity)
 			actor.position = roadside+Vector3.UP*20.0 if id=="set_down" else roadside
 			actor.rotation.y = identity.get("yaw",atan2(-forward.x,-forward.z))
 			if id=="empty_oncoming": actor.rotate_y(PI)

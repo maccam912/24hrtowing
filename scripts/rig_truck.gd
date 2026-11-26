@@ -41,6 +41,15 @@ var boom_tip: Node3D
 var panel_face: StandardMaterial3D
 var radio_faces: Array[Label3D] = []
 var headlamps: Array[SpotLight3D] = []
+var mirror_glass: Array[ShaderMaterial] = []
+var mirror_centers: Array[Node3D] = []
+var mirror_ice := [0.0,0.0]
+var heated_mirrors := false
+var lamp_kit: Node3D
+var search_head: Node3D
+var search_beam: SpotLight3D
+var search_on := false
+var electric_power := 1.0
 var work_light:=SpotLight3D.new()
 var odo_label: Label3D
 var heading_label: Label3D
@@ -154,6 +163,59 @@ func build() -> void:
 	_mirror(-1.0)
 	_mirror(1.0)
 
+func fit_lamps(fitted: bool) -> void:
+	if fitted and not lamp_kit:
+		lamp_kit = Kit.joint(self,Vector3.ZERO,"AuxiliaryLamps")
+		var kit := Kit.new(lamp_kit)
+		# The white driving lamps sit below the amber warning bar.
+		kit.box(Vector3(0,3.32,-1.43),Vector3(1.28,.13,.13),RUBBER)
+		for i in range(8):
+			kit.box(Vector3((i-3.5)*.15,3.32,-1.505),Vector3(.108,.067,.018),Color("#f8efd8"),Vector3.ZERO,"lamp")
+		kit.beam(Vector3(-.90,2.03,-1.63),Vector3(-1.13,2.28,-1.65),.06,.06,STEEL)
+		kit.finish()
+		search_head = Kit.joint(lamp_kit,Vector3(-1.13,2.31,-1.65),"PillarSpot")
+		var shell := Kit.new(search_head)
+		shell.tube(Vector3(0,0,.11),Vector3(0,0,-.10),.17,CHROME,16)
+		shell.tube(Vector3(0,0,-.10),Vector3(0,0,-.117),.147,CREAM,16)
+		shell.finish()
+		search_beam = SpotLight3D.new()
+		search_head.add_child(search_beam)
+		search_beam.position.z = -.13
+		search_beam.spot_range = 79.0
+		search_beam.spot_angle = 13.0
+		search_beam.spot_angle_attenuation = 1.25
+		search_beam.spot_attenuation = .38
+		search_beam.light_color = Color("#ffedc7")
+		search_beam.visible = search_on
+	if lamp_kit:
+		lamp_kit.visible = fitted
+	for light: SpotLight3D in headlamps:
+		light.spot_range = 76.0 if fitted else 57.0
+		light.spot_angle = 30.0 if fitted else 24.0
+	RenderingServer.global_shader_parameter_set("driving_lamps",1.0 if fitted else 0.0)
+	set_electrics(1.0-electric_power)
+
+func point_spot(active: bool, yaw: float, pitch: float) -> void:
+	search_on = active
+	if not search_beam:
+		return
+	search_beam.visible = search_on
+	if active:
+		search_head.rotation = Vector3(clampf(pitch,-.5,.5),clampf(yaw,-1.48,1.48),0)
+
+func weather_mirrors(dt: float, calm: float, speed: float, engine_running: bool) -> void:
+	var change := lerpf(.0016+minf(absf(speed),18)*.000085,-.016,calm)
+	if heated_mirrors and engine_running:
+		change = -.072
+	for i in mirror_glass.size():
+		var after := clampf(mirror_ice[i]+dt*change,0,1)
+		if after != mirror_ice[i]:
+			set_mirror_ice(i,after)
+
+func set_mirror_ice(side: int, amount: float) -> void:
+	mirror_ice[side] = clampf(amount,0,1)
+	mirror_glass[side].set_shader_parameter("frost",mirror_ice[side])
+
 func set_chains(fitted: bool) -> void:
 	if fitted and wheel_chains.is_empty():
 		for wheel in wheels:
@@ -246,8 +308,11 @@ func stow_boom() -> void:
 
 func set_electrics(amount: float) -> void:
 	var power := 1.0-clampf(amount,0,1)
+	electric_power = power
+	if search_beam:
+		search_beam.light_energy = 6.2*power
 	for light in headlamps:
-		light.light_energy=3.5*power
+		light.light_energy=(4.0 if lamp_kit and lamp_kit.visible else 3.5)*power
 	RenderingServer.global_shader_parameter_set("headlamp_power",power)
 	panel_face.albedo_color=Color.WHITE*lerpf(.06,1,power)
 	for face in radio_faces:
@@ -376,11 +441,11 @@ func _mirror(s:float) -> void:
 	camera.set_meta("mount",loc)
 	var quad:=QuadMesh.new()
 	quad.size=Vector2(.296,.503)
-	var mat:=StandardMaterial3D.new()
-	mat.shading_mode=BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_texture=viewport.get_texture()
-	mat.uv1_scale=Vector3(-1,1,1)
-	mat.uv1_offset=Vector3(1,0,0)
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://assets/rig/mirror_glass.gdshader")
+	mat.set_shader_parameter("rear_view",viewport.get_texture())
+	mirror_glass.append(mat)
+	mirror_centers.append(frame)
 	quad.material=mat
 	var screen:=MeshInstance3D.new()
 	screen.mesh=quad

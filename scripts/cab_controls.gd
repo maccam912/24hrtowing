@@ -51,6 +51,7 @@ static func paint(surface, id: String, bounds: Rect2, caption: String, down: boo
 		"slip": texture = SLIP
 		"interact": texture = LATCH if caption.ends_with("CAB") else GLOVE
 		"work": texture = PENDANT
+		"spot": _switch(surface,art.get_center(),25.0,caption == "SPOT ON",down)
 		"camera": _switch(surface, art.get_center(), 27.0, true, down)
 	if texture:
 		var source_size := texture.get_size()

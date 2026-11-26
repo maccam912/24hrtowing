@@ -52,3 +52,8 @@ headlamp_power={
 "type": "float",
 "value": 1.0
 }
+
+driving_lamps={
+"type": "float",
+"value": 0.0
+}
