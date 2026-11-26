@@ -50,6 +50,8 @@ var torch:=SpotLight3D.new()
 var car:Node3D
 var semi: Semi
 var tanker: Tanker
+const HighCenter := preload("res://scripts/high_center.gd")
+var berm: HighCenter
 const Redirect := preload("res://scripts/field_redirect.gd")
 var redirect: Redirect
 var axle_fault: WheelFault
@@ -768,6 +770,7 @@ func _update_chase() -> void:
 	eyes.look_at(focus,Vector3.UP)
 
 func _update_eyes() -> void:
+	if berm and berm.bundle: berm.bundle.visible = berm.collected and berm.placed!=3 and not berm.cleared and not in_cab
 	eyes.fov = 62.0 if in_cab and driving_view == "chase" else 76.0
 	if in_cab and driving_view == "chase":
 		_update_chase()
@@ -824,7 +827,7 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	var variant := int(ticket.get("variant",old_variant))
 	vehicle_identity = {"variant":variant,"driver_variant":int(ticket.get("driver_variant",old_variant)),
 		"plate":ticket.get("plate",""),"vin":ticket.get("vin",""),"heavy_recovery":ticket.get("heavy_recovery",false)}
-	for key in ["field_gate", "wheel_fault", "wheel_side", "sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
+	for key in ["field_berm", "field_gate", "wheel_fault", "wheel_side", "sheriff_order", "case_id", "cot_released", "rider", "recovery", "fold", "paint", "gallons", "seal", "two_drum_roll", "canopy_spreader", "mail", "running", "open_door", "untaped"]:
 		if ticket.has(key):
 			vehicle_identity[key] = ticket[key]
 	if ticket.has("checked_tape"):
@@ -854,7 +857,10 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 		"roof", "tree":
 			car.position.y += target.y if target.y > 0 else (4.75 if _recovery()=="roof" else 5.0)
 		"":
-			if vehicle_identity.has("wheel_fault"):
+			if vehicle_identity.has("field_berm"):
+				berm = HighCenter.new(car,int(vehicle_identity.field_berm),_ground)
+				berm.pack_truck(self)
+			elif vehicle_identity.has("wheel_fault"):
 				WheelFault.settle_on_shoulder(car,_ground)
 			elif kind == "hazard" and not vehicle_identity.get("running",false):
 				VehicleDrifts.place(car, _ground)
@@ -923,6 +929,8 @@ func send_cot_inside() -> bool:
 	return true
 
 func end_job() -> void:
+	if berm: berm.dispose()
+	berm = null
 	if redirect: redirect.remove_webbing()
 	redirect = null
 	if rollback_deck: rollback_deck.reset()
@@ -986,7 +994,9 @@ func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node
 	var stored:=Scene.car(self,model_kind,variant,ticket)
 	stored.position=Vector3(point.x,_ground(point),point.z)
 	stored.rotation.y=yaw
-	if ticket.has("wheel_fault"):
+	if ticket.has("field_berm"):
+		HighCenter.new(stored,int(ticket.field_berm),_ground)
+	elif ticket.has("wheel_fault"):
 		WheelFault.settle_on_shoulder(stored,_ground)
 	elif model_kind == "hazard":
 		VehicleDrifts.place(stored, _ground)
@@ -1144,6 +1154,9 @@ func action_id() -> String:
 	if kind=="passenger":
 		return "enter" if _at_door() else ""
 	var panel_range:=_in_range(_panel(),2.65)
+	if berm:
+		var field_action := berm.action(self)
+		if not field_action.is_empty(): return field_action
 	if redirect:
 		var task := redirect.action(self,panel_range)
 		if not task.is_empty(): return task
@@ -1222,6 +1235,7 @@ func _at_door() -> bool:
 
 func context_text() -> String:
 	var action:=action_id()
+	if berm and action.begins_with("crib_"): return berm.prompt(action)
 	if redirect and action.begins_with("field_"): return redirect.prompt(action)
 	if axle_fault and action.begins_with("axle_"): return axle_fault.prompt(action)
 	if action == "deck_unload": return "Lower the bed at %s" % dropoff.sign
@@ -1293,6 +1307,9 @@ func _hint() -> String:
 	if roof:
 		var roof_note := roof.hint(self)
 		if not roof_note.is_empty(): return roof_note
+	if berm:
+		var berm_note := berm.instructions(self)
+		if not berm_note.is_empty(): return berm_note
 	if redirect:
 		var field_note := redirect.hint(self)
 		if not field_note.is_empty(): return field_note
@@ -1351,6 +1368,9 @@ func _hint() -> String:
 
 func interact() -> void:
 	var a:=action_id()
+	if berm and a.begins_with("crib_"):
+		berm.handle(self,a)
+		return
 	if redirect and a.begins_with("field_"):
 		redirect.handle(self,a)
 		return
@@ -1474,6 +1494,7 @@ func interact() -> void:
 				free_line = _flat_distance(redirect.anchor(self,redirect.selected),_eyelet(line_end))+.45
 			sound_event.emit("hook")
 		"restow","unhook","ice_repack":
+			if berm: berm.blocked=false
 			if redirect:
 				redirect.remove_webbing()
 				redirect.easing=false
@@ -1565,6 +1586,9 @@ func _winch(operate:bool,dt:float) -> void:
 		_note(reserve_hint(),6.0)
 	else:
 		fuel -= dt * WINCH_FUEL_PER_SECOND
+	if berm and not berm.cleared:
+		berm.pull(self,dt)
+		return
 	if rollback_active and rollback_deck.hauls(self):
 		if paying: rollback_deck.pay(self,dt)
 		else: rollback_deck.reel(self,dt)
@@ -1922,6 +1946,7 @@ func _unpack(a:Variant,fallback:Vector3)->Vector3:
 func save_state() -> Dictionary:
 	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
+	if berm: d.berm = berm.save_state()
 	if redirect: d.field_block = {"selected":redirect.selected,"easing":redirect.easing,"used":redirect.route_used}
 	if axle_fault: d.axle_work = {"checked":axle_fault.checked,"skates":axle_fault.skates!=null,"dollies":dollies!=null}
 	d.special_work = special_work
@@ -2034,6 +2059,7 @@ func restore_state(d:Dictionary) -> void:
 			rollover.controls = drums.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
 			rollover.watch_load = drums.get("watch_load",true)
 		if roof: roof.restore(self,d.get("roof_spreader",{}))
+		if berm: berm.restore(self,d.get("berm",{}))
 		if redirect:
 			var route: Dictionary = d.get("field_block",{})
 			var selected := int(route.get("selected",-1))

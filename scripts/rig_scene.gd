@@ -98,7 +98,7 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wh
 	g.box(Vector3(0,base+.81,(cab_end+top_end)*.5),Vector3(width*1.72,.72,.036),GLASS,Vector3(rear_tilt,0,0))
 	g.box(Vector3(0,base+.47,-.98),Vector3(width*1.87,.08,.06),BLACK)
 	var tire_radius := .43 if pickup else .355
-	live_wheels = live_wheels or identity.has("wheel_fault")
+	live_wheels = live_wheels or identity.has("wheel_fault") or identity.has("field_berm")
 	if live_wheels:
 		var hubs := RoadWheels.new()
 		hubs.assemble(p,size,tire_radius)

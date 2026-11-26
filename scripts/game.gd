@@ -1436,6 +1436,7 @@ func _recovered(kind: String) -> void:
 		_prepare_offers()
 	else:
 		mode = "haul"
+		if rig.berm: job.handling = "Over the cribbing" if rig.berm.used_blocks else "Backed off the ridge"
 		if rig.axle_fault:
 			job.handling = rig.axle_fault.method(rig)
 			job.diagnosis = rig.axle_fault.finding() if rig.axle_fault.checked else "Shop inspection requested."
@@ -1694,6 +1695,7 @@ func _file_slip(slip: Dictionary) -> void:
 		fax_text += "\nCounty shop   /   REPAIR 03\n%s\n%s" % [slip.get("diagnosis","Shop inspection requested."),slip.handling]
 	elif slip.get("recovery") == "milk":
 		fax_text += "\nBrzezinski transfer   %d gal   /   Seal %s" % [int(slip.gallons),slip.seal]
+	if slip.has("field_berm"): fax_text += "\nHigh-centered   /   " + str(slip.handling)
 	if slip.has("field_gate"):
 		fax_text += "\nPasture gate   /   " + str(slip.pull)
 	if slip.has("clearance_bonus"):
