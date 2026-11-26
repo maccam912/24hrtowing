@@ -685,6 +685,7 @@ func _fit_equipment() -> void:
 	var extend_lot: bool = account.owns("west_lot")
 	var moved_fence: bool = county.west_lot_open != extend_lot
 	county.fit_yard(account.owns("yard_pump"),account.owns("coffee_maker"),extend_lot,account.owns("west_hold"))
+	ambience.set_brewer(county.yard_brewer)
 	_sync_west_bay()
 	if moved_fence:
 		_display_storage()
@@ -1389,6 +1390,7 @@ func _interact() -> void:
 			else:
 				rig.warmth = 1.0
 				rig.coffee_left = Rig.HOT_COFFEE_SECONDS
+				ambience.pour_coffee()
 				_message("BRANDT","Fresh cup for the road.")
 		"coffee":
 			_refresh()

@@ -18,9 +18,14 @@ func run() -> void:
 	rig = game.rig
 	var sources: Dictionary = game.ambience.sources
 	for id: String in sources:
+		if game.ambience.activity.has(id): continue
 		var loop: AudioStreamWAV = sources[id].stream
 		check(loop.loop_mode == AudioStreamWAV.LOOP_FORWARD and loop.get_length() > 7.9, "the " + id + " source loops from an offline sample")
 
+	walk_listen(game.FAX)
+	check(sources.office.volume_db > -20. and sources.brewer.volume_db < -70., "the fluorescent pair hums at the fax before the shop has a brewer")
+	walk_listen(game.county.Fittings.COFFEE)
+	check(sources.office.volume_db < -68., "the fixture falls quiet beyond the office window")
 	walk_listen(Vector3(92,0,421))
 	check(sources.dairy.volume_db > -11 and sources.dam.volume_db < -65, "the pump strokes carry to the Brzezinski driveway")
 	check(game.audio.engines.diesel.volume_db < -65, "walking across the county leaves the parked truck's idle behind")

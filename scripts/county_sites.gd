@@ -1,6 +1,7 @@
 extends RefCounted
 ## County architecture is built in site-local coordinates, then baked in culling cells.
 const SignMount = preload("res://scripts/sign_mount.gd")
+const OFFICE_TUBES := Vector3(-40.70,2.54,-37.91)
 const YardDrop = preload("res://scripts/yard_drop.gd")
 var world
 var draw
@@ -227,6 +228,9 @@ func yard() -> void:
 	b(-38,1.82,-35.45,8,3.64,4.4,"silver",true)
 	b(-38,3.77,-35.45,8.5,.26,4.85,"snow")
 	window(Vector3(-38.8,2.08,-37.72),2.5,1.30,PI)
+	b(OFFICE_TUBES.x,OFFICE_TUBES.y+.071,OFFICE_TUBES.z,1.14,.11,.26,"silver")
+	for z:float in [-.061,.018]:
+		b(OFFICE_TUBES.x,OFFICE_TUBES.y,OFFICE_TUBES.z+z,1.04,.045,.046,"fluoro")
 	b(-40.5,.81,-38.16,1.42,.18,.72,"wood")
 	for xx: float in [-41.05,-40.0]:
 		b(xx,.40,-38.1,.12,.80,.12,"dark")

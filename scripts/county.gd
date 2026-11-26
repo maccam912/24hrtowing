@@ -482,7 +482,7 @@ func _make_materials() -> void:
 	for item: Array in [
 		["flowage_ice","97acb8","windpack"],["snow","d7dfe6","windpack"],["pavement","b2bcc5","salt_asphalt"],
 		["siding","d0b9b3","barn_siding"],["silver","abb7c0","galvanized"],
-		["cream","c2bfab"],["dark","34383a"],["wood","665449"],["brick","794a40"],
+		["cream","c2bfab"],["dark","34383a"],["wood","665449"],["brick","794a40"],["coffee","27170e"],
 		["oxide","773e35"],["green","245d4c"],["post","87999c"],["black","1e262b"],
 		["slush","8a97a4"],["stripe","a99875"],["glass","3e4d54"],["river","425263"],
 		["lamp","ffac64","",0.82],["window","e6a46a","",0.43],["fluoro","dbe0db","",0.65],
