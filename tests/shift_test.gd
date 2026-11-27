@@ -112,7 +112,7 @@ func run() -> void:
 			game._action("interact")
 		game._action("interact")
 		check(rig.phase=="flared" and is_instance_valid(rig.flame),"flare at scene "+str(i))
-		var panel: Vector3 = rig._panel()
+		var panel: Vector3 = rig.panel_point()
 		var outside: Vector3 = rig.truck.global_basis.x*-1.1
 		stand(panel+outside,panel)
 		game._action("interact")
@@ -122,7 +122,7 @@ func run() -> void:
 			game._action("interact")
 			check(not rig.in_cab and rig.car.is_visible_in_tree() and rig.phase=="cable","carrying the hook keeps the truck chocked and the casualty at the scene")
 		var hook_end:=1 if i==3 else -1
-		var eye: Vector3 = rig._eyelet(hook_end)
+		var eye: Vector3 = rig.eyelet_point(hook_end)
 		stand(eye+rig.car.global_basis.z*hook_end*.9,eye)
 		game._action("interact")
 		check(rig.phase=="rigged","attached cable")
@@ -130,7 +130,7 @@ func run() -> void:
 			stand_at_cab_door(1.0)
 			game._action("interact")
 			check(not rig.in_cab and rig.car.is_visible_in_tree() and rig.phase=="rigged","the attached cable and car stay put at the cab door")
-			game._save()
+			game.save()
 			var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 			game._restore(snapshot)
 			check(rig.phase=="rigged" and not rig.in_cab,"resume with attached cable and unchanged view")
@@ -167,7 +167,7 @@ func run() -> void:
 		check(scene_flare.is_queued_for_deletion() and rig.flame == null and not rig.save_state().has("flare"), "finishing roadside work clears the flare before leaving")
 		if i < 2:
 			var legacy: Dictionary = rig.save_state()
-			legacy["flare"] = rig._v(scene_flare.position)
+			legacy["flare"] = rig.pack_point(scene_flare.position)
 			rig.restore_state(legacy)
 			check(rig.flame == null, "resuming a recovered job ignores a flare from an older save")
 		var casualty:Node3D=rig.car
@@ -192,7 +192,7 @@ func run() -> void:
 			game._refresh()
 			check("panel" in hint_text(), "parking in the marked bay reveals where to operate the lift")
 			game._action("interact")
-			panel = rig._panel()
+			panel = rig.panel_point()
 			if job.kind == "hold":
 				walk_to(panel-rig.truck.global_basis.x)
 				face(panel)
@@ -263,7 +263,7 @@ func run() -> void:
 		await tap_control("mark_sketch")
 		check(game.desk.page == "map" and game.survey.notes.has("sketch"),"copying Tou’s sketch marks the plat")
 		game.desk.dismiss()
-		game._save()
+		game.save()
 		var against_wall: Dictionary = game.saved_data.duplicate(true)
 		against_wall.bay_locked = true
 		against_wall.rig.truck = [-58.1,0,-45]
@@ -354,7 +354,7 @@ func park_tow(at: Vector3, yaw: float) -> void:
 func approach_evidence_bay() -> void:
 	park_tow(game.YardDrop.STORAGE.center, PI/2)
 	game._action("interact")
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	game._action("interact")
 	check(game.mode == "haul" and rig.loaded and "EVIDENCE HOLD" in game._prompt(), "the storage panel redirects the still-loaded survey pickup")
@@ -376,7 +376,7 @@ func secure_evidence_bay() -> void:
 	game._action("interact")
 	check(not game.bay_locked and "wrecker" in hint_text(), "a wrecker tail across the chain prevents locking")
 	# An earlier build could save the lock closed around this truck.
-	game._save()
+	game.save()
 	var trapped: Dictionary = game.saved_data.duplicate(true)
 	trapped.bay_locked = true
 	game._restore(trapped)
@@ -397,7 +397,7 @@ func secure_evidence_bay() -> void:
 	face(latch)
 	game._action("interact")
 	check(not game.bay_locked and "outside" in game.subtitle, "the operator cannot close the chains from inside")
-	game._save()
+	game.save()
 	trapped = game.saved_data.duplicate(true)
 	trapped.bay_locked = true
 	game._restore(trapped)
@@ -427,10 +427,10 @@ func face(point: Vector3) -> void:
 	var direction: Vector3 = point-rig.foot
 	rig.camera_yaw = atan2(-direction.x,-direction.z)
 	rig.camera_pitch = -.20
-	rig._update_eyes()
+	rig.update_eyes()
 
 func resume_shift() -> void:
-	game._save()
+	game.save()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	var touch_mode: bool = game.desk.is_touch_mode()
 	game.free()
@@ -483,7 +483,7 @@ func stand(position: Vector3, face: Vector3) -> void:
 	var direction: Vector3 = face-rig.foot
 	rig.camera_yaw = atan2(-direction.x,-direction.z)
 	rig.camera_pitch = -.20
-	rig._update_eyes()
+	rig.update_eyes()
 
 func stand_at_cab_door(side: float) -> void:
 	var door: Vector3 = rig.Truck.DOOR
@@ -497,7 +497,7 @@ func verify_tow() -> void:
 	var supported:Vector3=rig.car.to_global(Vector3(0,radius,rig.line_end*wheelbase))
 	var rolling:Vector3=rig.car.to_global(Vector3(0,radius,-rig.line_end*wheelbase))
 	check(supported.distance_to(rig.body.crossbar.to_global(Vector3.UP*rig.Truck.WheelLift.AXLE_HEIGHT))<.005,"strapped axle stays in the underlift")
-	check(absf(rolling.y-rig._ground(rolling)-radius)<.20,"the free tires stay on the ground")
+	check(absf(rolling.y-rig.ground_height(rolling)-radius)<.20,"the free tires stay on the ground")
 	check(rig.truck.to_local(rolling).z>5.5 and rig.car.is_visible_in_tree(),"the free axle trails behind the wrecker")
 	check(rig.eyes.is_position_in_frustum(rig.car.position+Vector3.UP),"the chase camera includes the attached vehicle")
 

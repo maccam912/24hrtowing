@@ -23,6 +23,6 @@ static func readable(rig) -> Node3D:
 	if rig.in_cab:
 		return null
 	for strip: Node3D in rig.get_tree().get_nodes_in_group("checked_mirrors"):
-		if strip.is_visible_in_tree() and rig._in_range(strip.global_position,1.85):
+		if strip.is_visible_in_tree() and rig.in_range(strip.global_position,1.85):
 			return strip
 	return null

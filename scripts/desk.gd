@@ -32,7 +32,7 @@ var fps := 30
 var _touch_mode := false
 var _touches: Dictionary = {}
 var _look := Vector2.ZERO
-var _stick := Vector2.ZERO
+var stick := Vector2.ZERO
 var _return_page := ""
 
 func _ready() -> void:
@@ -128,25 +128,25 @@ func open_fire_index(id: String) -> void:
 	surface.hit_boxes.clear()
 	surface.queue_redraw()
 
-func _pencil_bounds() -> Rect2:
+func pencil_bounds() -> Rect2:
 	if town_sheet: return Rect2(Surface.Documents.Pencil.Town.NW,Surface.Documents.Pencil.Town.SE-Surface.Documents.Pencil.Town.NW)
 	if east_sheet: return Rect2(Surface.Documents.Pencil.EAST_NW,Surface.Documents.Pencil.EAST_SE-Surface.Documents.Pencil.EAST_NW)
 	return Rect2(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B-Surface.Documents.ATLAS_A)
 
 func _clear_controls() -> void:
 	_touches.clear()
-	_stick = Vector2.ZERO
+	stick = Vector2.ZERO
 	_look = Vector2.ZERO
 
 func get_move() -> Vector2:
-	var direction := _stick
-	if _is_down("steer_l"):
+	var direction := stick
+	if is_down("steer_l"):
 		direction.x -= 1
-	if _is_down("steer_r"):
+	if is_down("steer_r"):
 		direction.x += 1
-	if _is_down("reverse"):
+	if is_down("reverse"):
 		direction.y += 1
-	elif _is_down("gas"):
+	elif is_down("gas"):
 		direction.y -= 1
 	return direction.limit_length(1.0) if not bool(state.get("in_cab", true)) else direction.clamp(Vector2(-1,-1), Vector2.ONE)
 
@@ -162,15 +162,15 @@ func parts_labels() -> Array:
 	return tabs
 
 func nozzle_held() -> bool:
-	return page in ["bulk_pump","reserve_transfer"] and (_is_down("nozzle") or Input.is_physical_key_pressed(KEY_SPACE))
+	return page in ["bulk_pump","reserve_transfer"] and (is_down("nozzle") or Input.is_physical_key_pressed(KEY_SPACE))
 
 func work_held() -> bool:
-	return _is_down("work")
+	return is_down("work")
 
 func brake_held() -> bool:
-	return _is_down("brake")
+	return is_down("brake")
 
-func _is_down(id: String) -> bool:
+func is_down(id: String) -> bool:
 	for contact in _touches.values():
 		if contact.id == id:
 			return true
@@ -214,7 +214,7 @@ func _input(event: InputEvent) -> void:
 				KEY_DOWN: direction = Vector2.DOWN
 			if direction != Vector2.ZERO:
 				var step := (20 if event.shift_pressed else 4) if town_sheet else (100 if event.shift_pressed else 22)
-				pencil_point = (pencil_point+direction*step).clamp(_pencil_bounds().position,_pencil_bounds().end)
+				pencil_point = (pencil_point+direction*step).clamp(pencil_bounds().position,pencil_bounds().end)
 				surface.queue_redraw()
 				get_viewport().set_input_as_handled()
 				return
@@ -245,7 +245,7 @@ func _press(index: int, point: Vector2) -> void:
 	var id: String = surface.hit_at(point)
 	if id == "brake":
 		# Choose once per press, so holding the pedal through a stop keeps braking.
-		if brake_held() or _is_down("reverse"):
+		if brake_held() or is_down("reverse"):
 			return
 		if state.get("truck_stopped", true):
 			id = "reverse"
@@ -258,7 +258,7 @@ func _press(index: int, point: Vector2) -> void:
 	if id == "horn": action.emit("horn")
 	_touches[index] = {"id": id, "origin": point}
 	if id == "stick":
-		_stick = surface.stick_input(point)
+		stick = surface.stick_input(point)
 	surface.queue_redraw()
 
 func _drag(index: int, point: Vector2, relative: Vector2) -> void:
@@ -273,7 +273,7 @@ func _drag(index: int, point: Vector2, relative: Vector2) -> void:
 	elif contact.id == "nozzle" and surface.hit_at(point) != "nozzle":
 		_touches.erase(index)
 	elif contact.id == "stick":
-		_stick = surface.stick_input(point)
+		stick = surface.stick_input(point)
 		surface.queue_redraw()
 
 func _release(index: int, point: Vector2, canceled := false) -> void:
@@ -282,7 +282,7 @@ func _release(index: int, point: Vector2, canceled := false) -> void:
 	var id: String = _touches[index].id
 	_touches.erase(index)
 	if id == "stick":
-		_stick = Vector2.ZERO
+		stick = Vector2.ZERO
 	elif not canceled and id == surface.hit_at(point) and id not in ["steer_l", "steer_r", "gas", "reverse", "brake", "horn", "work", "look"]:
 		if id == "pencil_sheet":
 			pencil_point = surface.docs.pencil_projection.affine_inverse() * point
@@ -382,7 +382,7 @@ func _activate(id: String) -> void:
 		"plat_pencil":
 			fire_leaf = -1
 			pencil_open = not pencil_open
-			pencil_point = pencil_point.clamp(_pencil_bounds().position,_pencil_bounds().end)
+			pencil_point = pencil_point.clamp(pencil_bounds().position,pencil_bounds().end)
 			surface.hover = "pencil_sheet" if pencil_open else ""
 			surface.hit_boxes.clear()
 			surface.queue_redraw()

@@ -107,9 +107,9 @@ func plow_call(game) -> bool:
 func _receive(game, line: Array) -> void:
 	var who: String = line[0]
 	var words: String = line[1]
-	history.push_front({"clock":game._clock(),"channel":channel,"who":who,"words":words})
+	history.push_front({"clock":game.clock(),"channel":channel,"who":who,"words":words})
 	history.resize(mini(history.size(),3))
-	game._message("SCANNER  /  " + who,words)
+	game.show_message("SCANNER  /  " + who,words)
 	game.audio.speak(who,words,true)
 	rx_left = game.sub_time
 	wait_seconds = 72.0 + posmod(int(game.dispatch_seed) + int(cursor.get(channel,0)) * 19,35)

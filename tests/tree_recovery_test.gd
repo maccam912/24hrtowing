@@ -1,12 +1,12 @@
 extends "res://tests/shift_test.gd"
 
 func stroke(direction: Vector2, frames: int) -> void:
-	game.desk._stick = direction
+	game.desk.stick = direction
 	for tick in frames: game._physics_process(DT)
-	game.desk._stick = Vector2.ZERO
+	game.desk.stick = Vector2.ZERO
 
 func use_panel() -> void:
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.6,panel)
 	game._refresh()
 	await tap_control("interact")
@@ -37,7 +37,7 @@ func run() -> void:
 	var ticket: Dictionary = game.job.duplicate(true)
 	var vin: String = ticket.vin
 	var initial: Vector3 = rig.car.position
-	check(absf(initial.y-rig._ground(initial)-2.44)<.02,"the tires rest eight feet up in the tamaracks")
+	check(absf(initial.y-rig.ground_height(initial)-2.44)<.02,"the tires rest eight feet up in the tamaracks")
 	rig.set_spawn(Vector3(site.x,0,site.z+13.),PI)
 	rig.in_cab = false
 	await use_panel()
@@ -63,7 +63,7 @@ func run() -> void:
 	stroke(Vector2.DOWN,60)
 	check(rig.car.position.y >= initial.y+.63,"lowering over the canopy holds the load above the limbs")
 	var suspended: Vector3 = rig.car.position
-	game._save()
+	game.save()
 	var old: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	old.rig.erase("tree_boom")
 	game._restore(old)
@@ -74,8 +74,8 @@ func run() -> void:
 	check(rig.tree_recovery.instruction(rig)=="Lower to the snow","the verge lies clear of the canopy")
 	stroke(Vector2.DOWN,400)
 	check(operator.distance_to(rig.foot) < .025,"holding LOWER at touchdown keeps the operator planted until the stick returns to neutral")
-	check(rig.special_work == 1 and not rig.tree_recovery.controls and absf(rig.car.position.y-rig._ground(rig.car.position)) < .08,"lowering sets four tires on the open verge")
-	var panel: Vector3 = rig._panel()
+	check(rig.special_work == 1 and not rig.tree_recovery.controls and absf(rig.car.position.y-rig.ground_height(rig.car.position)) < .08,"lowering sets four tires on the open verge")
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.65,panel)
 	for tick in 900:
 		if rig.phase=="at_lift": break

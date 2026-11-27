@@ -17,7 +17,7 @@ func run() -> void:
 		game.rig.foot = Vector3(ladder.x+1.2,0,ladder.z)
 		game.rig.camera_yaw = PI*.5
 		game.rig.camera_pitch = 0.0
-		game.rig._update_eyes()
+		game.rig.update_eyes()
 		game._refresh()
 		var center := Vector2(screen.size)*.5
 		touch(0,center,true)

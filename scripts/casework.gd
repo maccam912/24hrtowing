@@ -37,7 +37,7 @@ func _init(owner_game: Node, county_case: Campaign) -> void:
 
 func contact() -> Dictionary:
 	var id := campaign.chapter()
-	if game.mode == "available" and game._case_due() and Campaign.DETAILS.has(id):
+	if game.mode == "available" and game.case_due() and Campaign.DETAILS.has(id):
 		return {"id":"take_detail","label":Campaign.DETAILS[id].label}
 	if game.job.get("case_id","") == "ride" and campaign.evidence.has("passenger") and not campaign.released:
 		return {"id":"talk_tou","label":"Talk to Tou"}
@@ -116,29 +116,29 @@ func lead_instruction() -> String:
 		return "Your observations are in the notebook. Finish slip %04d, then radio in the report." % int(game.job.number)
 	if game.mode != "available":
 		return "Finish slip %04d, then call dispatch for %s." % [int(game.job.number),lead_label()]
-	if not game._case_lock().is_empty():
-		return game._case_lock()
+	if not game.case_lock().is_empty():
+		return game.case_lock()
 	return "Use the cab radio to take the county assignment for %s." % lead_label()
 
 func site() -> String:
 	if tower_height >= 0.0:
 		return tower_action()
-	if game.county.case_landmarks.has("car_ring") and game._facing(game.county.story_point("tower_ladder"),3.2):
+	if game.county.case_landmarks.has("car_ring") and game.is_facing(game.county.story_point("tower_ladder"),3.2):
 		return "tower_ladder"
 	var id: String = game.job.get("case_id","")
 	if id == "ride" and game.mode in ["return","invoice"] and not campaign.released:
-		if not game.bay_locked and game.rig.get_truck_position().distance_to(game.BAY) < 60 and game._facing(game.county.bay_latch_point(),3.0):
+		if not game.bay_locked and game.rig.get_truck_position().distance_to(game.BAY) < 60 and game.is_facing(game.county.bay_latch_point(),3.0):
 			return "release"
 	if not game.survey.tracked_lead.is_empty():
 		var stop := lead_site()
-		if stop in ["carrier_prints","last_cap"] and game._facing(game.county.story_point(stop),3.3):
+		if stop in ["carrier_prints","last_cap"] and game.is_facing(game.county.story_point(stop),3.3):
 			return stop
 	if game.mode != "fieldwork":
 		return ""
 	var item: String = {"mail":"carrier_prints","line":"last_cap","ride":"tou","angie":"angie"}.get(id,"")
 	if item.is_empty() or campaign.evidence.has("angie_consent" if item == "angie" else item):
 		return ""
-	return item if game._facing(game.county.story_point(item),3.3) else ""
+	return item if game.is_facing(game.county.story_point(item),3.3) else ""
 
 func tower_action() -> String:
 	if tower_height == 0.0:
@@ -167,7 +167,7 @@ func mount_tower(height: float = 0.0, raised: bool = false) -> void:
 	tower_height = clampf(height,0.0,Sites.TANK_PLATFORM)
 	glasses = raised and tower_height == Sites.TANK_PLATFORM
 	_place_climber()
-	game.rig._update_eyes()
+	game.rig.update_eyes()
 	apply_glasses()
 
 func climb(axis: float, dt: float) -> void:
@@ -176,12 +176,12 @@ func climb(axis: float, dt: float) -> void:
 	var next := clampf(tower_height-clampf(axis,-1.0,1.0)*dt*4.2,0.0,Sites.TANK_PLATFORM)
 	if next == 0.0 and axis > 0:
 		leave_tower()
-		game._save()
+		game.save()
 		return
 	if next == tower_height:
 		return
 	if next == Sites.TANK_PLATFORM:
-		game._message("BRANDT","Made the catwalk. Lindquist’s section is southeast, past the dairy silos.")
+		game.show_message("BRANDT","Made the catwalk. Lindquist’s section is southeast, past the dairy silos.")
 	tower_height = next
 	glasses = false
 	_place_climber()
@@ -201,7 +201,7 @@ func leave_tower() -> void:
 	_place_climber()
 	tower_height = -1.0
 	glasses = false
-	game.rig._update_eyes()
+	game.rig.update_eyes()
 	game.rig.get_camera().far = usual_far
 
 func tower_instruction() -> String:
@@ -215,43 +215,43 @@ func tower_instruction() -> String:
 func inspect(item: String) -> void:
 	if INSPECTIONS.has(item):
 		campaign.evidence[item] = game.rig.odo
-		game._finish_favor("mail" if item == "carrier_prints" else "line")
-		game._message("BRANDT",INSPECTIONS[item])
+		game.finish_favor("mail" if item == "carrier_prints" else "line")
+		game.show_message("BRANDT",INSPECTIONS[item])
 	elif item == "tower_ladder":
 		mount_tower()
 	elif item == "tower_off":
 		leave_tower()
 	elif item in ["tower_glass","tower_lower"]:
 		glasses = item == "tower_glass"
-		game.rig._update_eyes()
+		game.rig.update_eyes()
 		apply_glasses()
 	elif item == "tower_note" and ring_in_glass():
 		campaign.evidence["car_ring"] = game.rig.odo
-		game._finish_favor("commission")
-		game._message("BRANDT","There’s the Hoffmanns’ blue car. Every hood points at the trunk ahead of it.")
+		game.finish_favor("commission")
+		game.show_message("BRANDT","There’s the Hoffmanns’ blue car. Every hood points at the trunk ahead of it.")
 	elif item == "tou":
 		if game.rig.get_truck_position().distance_to(game.county.story_point("tou")) > 23.0:
-			game._speak("TOU","Bring the cab up here, would you? There’s a seat in there I could use.")
+			game.speak("TOU","Bring the cab up here, would you? There’s a seat in there I could use.")
 			return
 		campaign.evidence["passenger"] = game.rig.odo
-		game._record_visit()
+		game.record_visit()
 		game.mode = "return"
-		game._sync_survey_scene()
-		game._speak("TOU","Coffee’s still warm. Been forty minutes, maybe. I’d like a ride to my truck.")
+		game.sync_survey_scene()
+		game.speak("TOU","Coffee’s still warm. Been forty minutes, maybe. I’d like a ride to my truck.")
 	elif item == "release":
 		campaign.evidence["release"] = game.rig.odo
 		campaign.released = true
 		game.held = false
 		_start_departure()
-		game.filed_card += "\nRELEASE  %s  ·  J. Kowalski / T. Vang / Brandt" % game._clock()
-		game._sync_survey_scene()
-		game._speak("TOU","There’s my signature. Tell Kowalski she can keep the book. I’ll take Thirty-eight home.")
+		game.filed_card += "\nRELEASE  %s  ·  J. Kowalski / T. Vang / Brandt" % game.clock()
+		game.sync_survey_scene()
+		game.speak("TOU","There’s my signature. Tell Kowalski she can keep the book. I’ll take Thirty-eight home.")
 	elif item == "angie":
 		campaign.evidence["angie_consent"] = game.rig.odo
 		var met: bool = (game.slips + game.pending_slips).any(func(s): return s.get("vin","") == game.job.vin)
 		var intro := "You pulled this one out for me once." if met else "I’m Angie Kraemer. Blue sedan’s mine."
-		game._speak("ANGIE",intro + " Take it in, would you? I’m walking up to wait for them. I’m not scared of it. I’d just like to see.")
-		game._sync_survey_scene()
+		game.speak("ANGIE",intro + " Take it in, would you? I’m walking up to wait for them. I’m not scared of it. I’d just like to see.")
+		game.sync_survey_scene()
 
 func _start_departure() -> void:
 	for car in game.physical_cars:
@@ -285,13 +285,13 @@ func advance_departure(dt: float) -> void:
 		campaign.angie_walked += dt*1.32
 		if Sites.place_angie(game.county,walking,campaign.angie_walked):
 			campaign.evidence["angie_left"] = game.rig.odo
-			game._sync_survey_scene()
-			game._save()
+			game.sync_survey_scene()
+			game.save()
 	if not is_instance_valid(released_pickup):
 		return
 	var length := departure_path.get_baked_length()
 	var nose := departure_path.sample_baked(minf(length,departure_distance+3.5))
-	if game.rig._in_wrecker(nose) or (not game.rig.in_cab and nose.distance_to(game.rig.foot)<1.1):
+	if game.rig.in_wrecker(nose) or (not game.rig.in_cab and nose.distance_to(game.rig.foot)<1.1):
 		departure_speed = 0.0
 		return
 	departure_speed = move_toward(departure_speed,3.5 if departure_distance<42 else 10.0,dt*1.75)

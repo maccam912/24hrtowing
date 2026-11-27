@@ -18,10 +18,10 @@ func run() -> void:
 					at.y = road.ground_height(at.x,at.z)
 					var saved := base.duplicate(true)
 					saved.heading = bearing
-					saved.truck = rig._v(at)
+					saved.truck = rig.pack_point(at)
 					saved.erase("ride")
-					saved.car_rot = rig._v(Vector3(0,bearing+(PI if eye>0 else 0.),0.))
-					saved.car = rig._v(at+Vector3.BACK.rotated(Vector3.UP,bearing)*7.13)
+					saved.car_rot = rig.pack_point(Vector3(0,bearing+(PI if eye>0 else 0.),0.))
+					saved.car = rig.pack_point(at+Vector3.BACK.rotated(Vector3.UP,bearing)*7.13)
 					rig.restore_state(saved)
 					var dt := 1./fps
 					for tick in 5*fps:

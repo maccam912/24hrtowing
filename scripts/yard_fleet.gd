@@ -12,7 +12,7 @@ func receive(rig) -> void:
 	if not parked.is_empty():
 		return
 	var at := DELIVERY
-	if rig._flat_distance(at,rig.get_truck_position()) < 10.0:
+	if rig.flat_distance(at,rig.get_truck_position()) < 10.0:
 		at = ALTERNATE
 	parked = {"rollback":true,"at":[at.x,at.y,at.z],"heading":-PI/2,
 		"odo":SALE_MILES,"fuel":0.5,"wear":0.0,"reserve":0.0}
@@ -37,7 +37,7 @@ func switch_trucks(game) -> void:
 		"climate":rig.climate.save_state(),"ice":rig.body.mirror_ice.duplicate(),"spot_on":rig.spot_on}
 	clear_model()
 	rig.use_rollback(incoming.rollback)
-	game._fit_equipment()
+	game.fit_equipment()
 	rig.odo = incoming.odo
 	rig.fuel = incoming.fuel
 	rig.wear = incoming.wear

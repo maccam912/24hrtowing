@@ -64,20 +64,20 @@ func run() -> void:
 
 func attach_vehicle(kind: String, variant: int, eye: int) -> void:
 	rig.end_job()
-	rig._stop_motion()
+	rig.stop_motion()
 	rig.set_spawn(Vector3.ZERO)
 	var yaw := PI if eye > 0 else 0.
 	rig.start_job(kind,Vector3(0,0,14),yaw,{"variant":variant,"heavy_recovery":variant==4})
 	rig.snatch_block = true
 	stand_at(rig.car.position+Vector3.RIGHT*2)
 	operate("flare",rig.car.position+Vector3.UP)
-	stand_at(rig._panel())
-	operate("cable",rig._panel())
-	var hook: Vector3 = rig._eyelet(eye)
+	stand_at(rig.panel_point())
+	operate("cable",rig.panel_point())
+	var hook: Vector3 = rig.eyelet_point(eye)
 	stand_at(hook+rig.car.global_basis.z*eye*.58)
 	operate("attach",hook)
-	stand_at(rig._panel())
-	aim_at(rig._panel())
+	stand_at(rig.panel_point())
+	aim_at(rig.panel_point())
 	for tick in 3000:
 		if rig.phase != "rigged": break
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,rig.tension<.94,false,STEP)
@@ -85,8 +85,8 @@ func attach_vehicle(kind: String, variant: int, eye: int) -> void:
 	if kind=="hold":
 		stand_at(rig.car.position+rig.car.global_basis.x*1.55)
 		operate("dollies",rig.car.position)
-	stand_at(rig._panel())
-	operate("lift",rig._panel())
+	stand_at(rig.panel_point())
+	operate("lift",rig.panel_point())
 	require(rig.line_end==eye and rig.loaded,"side controls secure the chosen axle")
 	rig.in_cab = true
 	for tick in 150: rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,false,STEP)
@@ -136,9 +136,9 @@ func test_clearance_pole() -> void:
 	pole.position=target
 	await physics_frame
 	rig.loaded=false
-	require(not rig._truck_obstacle(step,turn),"the wrecker clears the inside post")
+	require(not rig.truck_obstacle(step,turn),"the wrecker clears the inside post")
 	rig.loaded=true
-	require(rig._truck_obstacle(step,turn),"the towed rear quarter catches that same post")
-	require(not rig._truck_obstacle(-step,-turn),"the operator can back away from the post")
+	require(rig.truck_obstacle(step,turn),"the towed rear quarter catches that same post")
+	require(not rig.truck_obstacle(-step,-turn),"the operator can back away from the post")
 	pole.queue_free()
 	await physics_frame

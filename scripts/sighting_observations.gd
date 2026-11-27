@@ -157,7 +157,7 @@ func _live_visible(game, director) -> bool:
 		if not rig.in_cab: return kind == "warm_air" and rig.warmth < .98
 		var windshield: Vector3 = rig.body.to_global(Vector3(0,2.69,-1.65))
 		return rig.driving_view == "cab" and _visible(game,PackedVector3Array([windshield]),3.)
-	if kind == "compass_turns" and absf(angle_difference(deg_to_rad(rig._heading_degrees()),deg_to_rad(rig._compass_degrees()))) < .15:
+	if kind == "compass_turns" and absf(angle_difference(deg_to_rad(rig.heading_degrees()),deg_to_rad(rig.compass_degrees()))) < .15:
 		return false
 	if kind == "missing_time" and not director.time_lost: return false
 	if scene.has_sensory_evidence(kind,rig.in_cab,rig.electrical_fade > .1): return true

@@ -14,9 +14,9 @@ func run() -> void:
 	rig = game.rig
 	rig.in_cab = false
 	rig.phase = "cable"
-	var eye: Vector3 = rig._eyelet(-1)
+	var eye: Vector3 = rig.eyelet_point(-1)
 	stand(eye+Vector3.FORWARD,eye)
-	rig._update_highlight()
+	rig.update_highlight()
 	check(not rig.highlight.visible and rig.action_id()=="attach","the real tow eye remains usable when suggestions are off")
 	game.desk.toggle_pause()
 	await tap_control("options")

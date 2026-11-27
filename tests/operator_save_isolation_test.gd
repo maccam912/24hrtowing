@@ -12,7 +12,7 @@ func run() -> void:
 		return
 	game._action("play")
 	game.rig.odo += 17.0
-	game._save()
+	game.save()
 	if not is_equal_approx(float(game.saved_data.rig.odo), game.rig.odo):
 		printerr("Scripted shift failed to keep its own in-memory ledger")
 		quit(1)

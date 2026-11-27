@@ -128,17 +128,17 @@ func outside_trailer(destination: Vector3, previous: Vector3) -> Vector3:
 
 func straighten(rig, dt: float) -> void:
 	var previous_yaw := trailer_yaw
-	var toward:Vector3 = rig._drum()-global_position
+	var toward:Vector3 = rig.drum_point()-global_position
 	toward.y = 0
 	# The tractor inches forward under the main line as the other drum
 	# draws the tandem back behind the fifth wheel.
 	var travel := minf(maxf(toward.length()-6.0,0),dt*.31)
 	position += toward.normalized()*travel
-	position.y = rig._ground(position)
+	position.y = rig.ground_height(position)
 	var aimed := atan2(-toward.x,-toward.z)
 	rotation.y = rotate_toward(rotation.y,aimed,travel*.055)
 	var yaw := rotate_toward(previous_yaw,rotation.y,dt*.097)
-	set_trailer_heading(yaw,rig._ground)
+	set_trailer_heading(yaw,rig.ground_height)
 	var angle := absf(angle_difference(yaw,rotation.y))
 	rig.tension = move_toward(rig.tension,.48+angle*.28,dt*.43)
 	rig.special_work = clampf(1.0-angle/absf(initial_bend),0,1)
@@ -147,7 +147,7 @@ func straighten(rig, dt: float) -> void:
 		rigging = "release"
 		rig.phase = "cable"
 		rig.working = false
-		rig._note("Trailer straight. Set the brake on the drum and unpin the check line at the tandem.",6.0)
+		rig.show_note("Trailer straight. Set the brake on the drum and unpin the check line at the tandem.",6.0)
 
 func snapshot() -> Dictionary:
 	return {"yaw":trailer_yaw,"rigging":rigging,"side":chain_side,"fold":initial_bend}
@@ -185,25 +185,25 @@ static func fit_auxiliary_drum(body: Node3D) -> Node3D:
 func cable_action(rig, at_panel: bool) -> String:
 	match rigging:
 		"tractor":
-			if rig._in_range(rig._eyelet(-1),2.45): return "freight_tractor"
+			if rig.in_range(rig.eyelet_point(-1),2.45): return "freight_tractor"
 			if at_panel: return "restow"
 		"fetch":
 			if at_panel: return "freight_second"
-			if rig._in_range(rig._eyelet(-1),1.8): return "unhook"
+			if rig.in_range(rig.eyelet_point(-1),1.8): return "unhook"
 		"axle":
-			if rig._in_range(axle_eye(nearest_axle(rig.foot)),2.45): return "freight_axle"
+			if rig.in_range(axle_eye(nearest_axle(rig.foot)),2.45): return "freight_axle"
 			if at_panel: return "freight_cancel_second"
 		"release":
-			if rig._in_range(axle_eye(chain_side),2.45): return "freight_unpin"
+			if rig.in_range(axle_eye(chain_side),2.45): return "freight_unpin"
 		"stow":
 			if at_panel: return "freight_stow"
-	return "enter" if rig._at_door() else ""
+	return "enter" if rig.at_door() else ""
 
 func handle_work(rig, action: String) -> void:
 	match action:
 		"freight_tractor":
 			rig.line_end = -1
-			rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(-1))+.45
+			rig.free_line = rig.flat_distance(rig.drum_point(),rig.eyelet_point(-1))+.45
 			if rig.special_work >= 1.0:
 				rigging = "straight"
 				rig.phase = "rigged"
@@ -223,7 +223,7 @@ func handle_work(rig, action: String) -> void:
 		"freight_stow":
 			rigging = "straight"
 			rig.phase = "rigged"
-			rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(-1))+.35
+			rig.free_line = rig.flat_distance(rig.drum_point(),rig.eyelet_point(-1))+.35
 			rig.sound_event.emit("ratchet")
 
 const PROMPTS := {
@@ -252,18 +252,18 @@ func instructions(phase: String) -> String:
 
 func draw_lines(rig) -> void:
 	var hand: Vector3 = rig.eyes.global_transform*Vector3(.25,-.32,-.46)
-	var end: Vector3 = hand if rigging=="tractor" else rig._eyelet(-1)
+	var end: Vector3 = hand if rigging=="tractor" else rig.eyelet_point(-1)
 	rig.pulley.global_position = end+Vector3.UP*.10
-	rig.pulley.rotation.y = atan2(end.x-rig._drum().x,end.z-rig._drum().z)
-	rig._cable_strand(rig._drum(),rig.pulley.global_position-rig.pulley.global_basis.x*.07)
-	rig._cable_strand(rig.body.to_global(Vector3(.40,1.3,4.1)),rig.pulley.global_position+rig.pulley.global_basis.x*.07)
+	rig.pulley.rotation.y = atan2(end.x-rig.drum_point().x,end.z-rig.drum_point().z)
+	rig.cable_strand(rig.drum_point(),rig.pulley.global_position-rig.pulley.global_basis.x*.07)
+	rig.cable_strand(rig.body.to_global(Vector3(.40,1.3,4.1)),rig.pulley.global_position+rig.pulley.global_basis.x*.07)
 	if rigging in ["axle","stow","both","release"]:
 		var check: Vector3 = hand if rigging in ["axle","stow"] else axle_eye(chain_side)
-		rig._cable_strand(rig.body.to_global(AUX_FAIRLEAD),check)
+		rig.cable_strand(rig.body.to_global(AUX_FAIRLEAD),check)
 
 func marking(rig) -> Vector3:
 	match rigging:
-		"tractor": return rig._eyelet(-1)
+		"tractor": return rig.eyelet_point(-1)
 		"axle": return axle_eye(nearest_axle(rig.foot))
 		"release": return axle_eye(chain_side)
 	return Vector3.INF

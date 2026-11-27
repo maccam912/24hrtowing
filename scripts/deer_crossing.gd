@@ -20,7 +20,7 @@ var ground: Callable
 var pelt := SphereMesh.new()
 
 static func has_room(game, center: Vector3, forward: Vector3, street: String) -> bool:
-	var roads = game._current_road_map()
+	var roads = game.current_road_map()
 	var across := forward.cross(Vector3.UP)
 	var space: PhysicsDirectSpaceState3D = game.rig.get_world_3d().direct_space_state
 	for offset: float in [-16.,0.,16.]:

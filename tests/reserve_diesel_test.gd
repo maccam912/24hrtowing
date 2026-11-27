@@ -18,7 +18,7 @@ func run() -> void:
 	check(game.desk.parts_labels().size()==3 and not game.account.owns("aux_tank") and not rig.aux_tank,"a stock truck has no transfer hardware or reserve controls before Act 2")
 	game.desk.dismiss()
 	game.campaign.stage = 1
-	game._save()
+	game.save()
 	var ledger:Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	ledger.rig.erase("reserve_fuel")
 	ledger.account.equipment.erase("aux_tank")
@@ -43,8 +43,8 @@ func run() -> void:
 	rig.set_spawn(rig.job_site+Vector3(0,0,18))
 	rig.in_cab = false
 	rig.phase = "rigged"
-	rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(-1))
-	rig._set_chocks()
+	rig.free_line = rig.flat_distance(rig.drum_point(),rig.eyelet_point(-1))
+	rig.set_chocks()
 	rig.fuel = 0.0
 	game._refresh()
 	check("curb-side" in game.state.hint_action and "curb-side" in rig.reserve_hint(),"the out-of-fuel guidance identifies the installed pump")
@@ -57,11 +57,11 @@ func run() -> void:
 	check(rig.reserve_fuel==balance,"the transfer switch stops on release")
 	resume_shift()
 	check(rig.aux_tank.visible and is_equal_approx(rig.reserve_fuel,.460) and is_equal_approx(rig.fuel,.040) and game.job.number==number and rig.phase=="rigged","restart restores both fills, hardware, rigging and the open contract")
-	var panel:Vector3 = rig._panel()
+	var panel:Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,DT)
 	check(rig.working and rig.fuel<.04,"the transferred diesel powers the PTO again")
-	var eye:Vector3 = rig._eyelet(rig.line_end)
+	var eye:Vector3 = rig.eyelet_point(rig.line_end)
 	stand(eye+rig.car.global_basis.z*rig.line_end*.9,eye)
 	game._action("interact")
 	check(not rig.is_chocked(),"the powered rig can be disconnected before driving back to town")
@@ -84,7 +84,7 @@ func run() -> void:
 	check(is_equal_approx(rig.fuel,.50) and is_equal_approx(rig.reserve_fuel,.125) and is_equal_approx(game.nozzle_sale,6.) and game.account.cash==0.,"cash-limited main fill stops the same meter without consuming the reserve")
 	game.desk.dismiss()
 	game.account.equipment.yard_pump = true
-	game._fit_equipment()
+	game.fit_equipment()
 	var hose:Vector3 = game.county.Fittings.NOZZLE
 	stand(hose+Vector3.BACK*1.7,hose)
 	game._refresh()

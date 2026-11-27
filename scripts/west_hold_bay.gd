@@ -128,7 +128,7 @@ func sync(game) -> void:
 			vehicle = null
 		displayed_order=id
 		if not id.is_empty():
-			var parked: Vector3 = game.rig._unpack(row.get("parked"),CENTER)
+			var parked: Vector3 = game.rig.unpack_point(row.get("parked"),CENTER)
 			vehicle = game.rig.Scene.car(self,"hazard",int(row.variant),row)
 			vehicle.position = parked
 			vehicle.position.y = county_world.ground_height(parked.x,parked.z)

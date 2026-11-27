@@ -56,17 +56,17 @@ func run() -> void:
 	game._physics_process(1.)
 	check(elapsed > 0 and game.job.clearance_seconds == elapsed,"reading the slip stops the scene clock")
 	game.desk.dismiss()
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	game._action("interact")
 	var end := 1 if roadward.dot(rig.car.global_basis.z)>0 else -1
-	var eye: Vector3 = rig._eyelet(end)
+	var eye: Vector3 = rig.eyelet_point(end)
 	stand(eye+rig.car.global_basis.z*end,eye)
 	game._action("interact")
 	stand(panel-rig.truck.global_basis.x,panel)
 	resume_shift()
 	check(rig.phase == "rigged" and game.job.clearance_seconds == elapsed,"a saved line keeps the county's elapsed time")
-	game._save()
+	game.save()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	for late in [false,true]:
 		if late:

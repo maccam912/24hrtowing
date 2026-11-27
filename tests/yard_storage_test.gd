@@ -42,7 +42,7 @@ func run() -> void:
 	await tap_control("interact")
 	check(game.desk.page == "storage_tag" and game.state.storage_tag.get("plate") == "KTR 518" and game.state.storage_tag.get("stall") == "WEST  W-02","physical windshield tag matches the filed carbon and the numbered stall")
 	game.desk.dismiss()
-	game._turn_storage_north()
+	game.turn_storage_north()
 	resume_shift()
 	parked = game.physical_cars[6]
 	check(game.county.west_lot_open and game.physical_cars.size() == 7 and is_zero_approx(parked.rotation.y) and game._storage_tag(6).get("vin") == "STAMPED106","reload keeps the extension, original identity and changed parked heading")

@@ -71,7 +71,7 @@ func run() -> void:
 	await tap_control("scanner_garage")
 	listen_now()
 	check(game.scanner.channel == "garage" and game.scanner.history.size() == 3 and game.scanner.history.has(first),"three incoming calls retained across channels")
-	game._save()
+	game.save()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	game._restore(snapshot)
 	check(game.scanner.channel == "garage" and game.scanner.history.size() == 3 and game.scanner.reported.has("pacing_lights"),"new shifts restore crystals, tuning, history and previously heard sighting traffic")
@@ -88,7 +88,7 @@ func run() -> void:
 	game._restore(snapshot)
 	check(game.scanner.channel == "highway" and game.scanner.history.is_empty() and game._scanner_available(),"an older signed shift can buy the upgrade")
 	var words := "White squad on County FF by the west-side dairy barn, west shoulder. Deputy Ruiz needs a pull to get back on patrol. County adds $24 if you clear it within two minutes of your first flare. Regular rate either way."
-	game._speak("DISPATCH",words)
+	game.speak("DISPATCH",words)
 	game._refresh()
 	check(game.sub_time > 12. and game.state.subtitle.ends_with("shoulder.") and words in game.calls[-1],"the first caption gives the location while the radio keeps the complete call")
 	check(" ".join(game.caption.pages) == words,"separate captions keep every word and punctuation mark in order")

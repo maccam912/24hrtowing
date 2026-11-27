@@ -45,10 +45,10 @@ func run() -> void:
 	game.set_physics_process(false)
 	game._action("play")
 	game.shift_seconds = 225 * 60.0
-	check(game._clock() == "06:59", "the dash clock reads the last minute before dawn")
+	check(game.clock() == "06:59", "the dash clock reads the last minute before dawn")
 	game.shift_seconds += 40 * 60.0
 	game._refresh()
-	check(game._clock() == "17:39" and game.state.night_time == "17:39", "missing time past dawn lands in the evening")
+	check(game.clock() == "17:39" and game.state.night_time == "17:39", "missing time past dawn lands in the evening")
 	game.queue_free()
 	await process_frame
 	if failed:

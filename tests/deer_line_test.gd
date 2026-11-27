@@ -62,7 +62,7 @@ func run() -> void:
 	check(game._site_action()=="inspect_sighting","on-foot USE can inspect the far bank's surviving hoofprints")
 	game._action("interact")
 	rig.in_cab=true
-	rig._update_eyes()
+	rig.update_eyes()
 	await file_report("Straight line of hoofprints")
 	check("snow cover" in game.subtitle and game.job.number==ticket,"dispatch logs the tracks without interrupting the tow")
 	check(not Deer.has_room(game,Vector3(0,0,0),Vector3.FORWARD,"County K"),"the herd will not walk across an intersecting traffic lane")

@@ -13,7 +13,7 @@ func check(ok: bool, message: String) -> void:
 		failed = true
 
 func old_save() -> Dictionary:
-	game._save()
+	game.save()
 	var data: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	data.version = 1
 	data.paid = game.account.cash
@@ -117,7 +117,7 @@ func run() -> void:
 	deferred.ticket = Dispatch.pack(ticket)
 	load_shift(deferred)
 	check(game.job.id == "bridge" and not game.account.owns("snatch_block"), "migration continues the active ordinary tow on its own terms")
-	game._save()
+	game.save()
 	load_shift(JSON.parse_string(JSON.stringify(game.saved_data)))
 	game._recovered("hazard")
 	game._dropped()
@@ -141,7 +141,7 @@ func run() -> void:
 	check(game.held and not game.county.survey_pickup.visible, "resuming a detail preserves the existing hold")
 	check(game.job.number == 1042 and game.job.get("recovery") == "ice" and game.rig.car != null, "the active old bridge detail becomes the numbered flowage recovery")
 	check(game.rig.truck.position.z == 400 and game.rig.job_site == game.job.point, "legacy rig and new casualty occupy the fixed grid")
-	game._save()
+	game.save()
 	load_shift(JSON.parse_string(JSON.stringify(game.saved_data)))
 	check(game.rig.truck.position.z == 400 and game.rig.job_site == game.job.point and game.rig.phase == "scene", "a second load preserves the migrated scene")
 	game.free()

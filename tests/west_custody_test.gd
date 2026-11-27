@@ -66,14 +66,14 @@ func run() -> void:
 	resume_shift()
 	check(game.job.sheriff_order==ticket.sheriff_order and game.job.has("pickup_signature"),"a signed scene resumes without taking a second signature")
 	interact_at(rig.car.position,"flare",rig.car.global_basis.x*2.1)
-	interact_at(rig._panel(),"cable",-rig.truck.global_basis.x)
-	interact_at(rig._eyelet(1),"attach",rig.car.global_basis.z*.75)
-	point_at(rig._panel(),-rig.truck.global_basis.x)
+	interact_at(rig.panel_point(),"cable",-rig.truck.global_basis.x)
+	interact_at(rig.eyelet_point(1),"attach",rig.car.global_basis.z*.75)
+	point_at(rig.panel_point(),-rig.truck.global_basis.x)
 	for tick in 3200:
 		if rig.phase!="rigged": break
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,rig.tension<.94,false,DT)
 		game.seconds_worked+=DT
-	interact_at(rig._panel(),"lift",-rig.truck.global_basis.x)
+	interact_at(rig.panel_point(),"lift",-rig.truck.global_basis.x)
 	check(game.mode=="haul" and rig.dropoff.sign=="WEST HOLD 2","normal cable and side panel load the sheriff car")
 	rig.in_cab=true
 	park_tow(game.BAY,-PI/2)
@@ -88,7 +88,7 @@ func run() -> void:
 	check(rig.at_dropoff() and Bay.fits(rig.car),"the loaded car backs through the actual west gate and all four corners fit")
 	rig.odo+=1.3
 	var parked: Vector3 = rig.car.global_position
-	interact_at(rig._panel(),"drop",-rig.truck.global_basis.x)
+	interact_at(rig.panel_point(),"drop",-rig.truck.global_basis.x)
 	check(game.mode=="invoice" and game.county.west_bay.vehicle.get_meta("vin")==ticket.vin and game.stored.is_empty(),"the exact sheriff car is retained in its own bay")
 	check(Vector2(parked.x,parked.z).distance_to(Vector2(game.county.west_bay.vehicle.position.x,game.county.west_bay.vehicle.position.z))<.03,"the car stays where the operator set it down")
 	point_at(game.FAX)
@@ -157,18 +157,18 @@ func do_ordinary_service() -> void:
 	point_at(rig.car.position,rig.car.global_basis.x*2.2)
 	if game._site_action()=="driver": game._action("interact")
 	game._action("interact")
-	interact_at(rig._panel(),"cable",-rig.truck.global_basis.x)
-	interact_at(rig._eyelet(-1),"attach",-rig.car.global_basis.z*.7)
-	point_at(rig._panel(),-rig.truck.global_basis.x)
+	interact_at(rig.panel_point(),"cable",-rig.truck.global_basis.x)
+	interact_at(rig.eyelet_point(-1),"attach",-rig.car.global_basis.z*.7)
+	point_at(rig.panel_point(),-rig.truck.global_basis.x)
 	for tick in 3200:
 		if rig.phase!="rigged": break
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,rig.tension<.94,false,DT)
 		game.seconds_worked+=DT
 	if rig.phase=="at_lift":
-		interact_at(rig._panel(),"lift",-rig.truck.global_basis.x)
+		interact_at(rig.panel_point(),"lift",-rig.truck.global_basis.x)
 		rig.in_cab=true
 		park_tow(game.YardDrop.STORAGE.center+Vector3(4,0,0),PI/2)
-		interact_at(rig._panel(),"drop",-rig.truck.global_basis.x)
+		interact_at(rig.panel_point(),"drop",-rig.truck.global_basis.x)
 	check(game.mode=="invoice" or not game.pending_slips.is_empty(),"subsequent ordinary service produces a real payable slip")
 	rig.set_spawn(game.SPAWN,-PI/2)
 	point_at(game.FAX)

@@ -25,7 +25,7 @@ func start_shift(snapshot := {}) -> void:
 	game.desk._activate("play")
 
 func snapshot() -> Dictionary:
-	game._save()
+	game.save()
 	return JSON.parse_string(JSON.stringify(game.saved_data))
 
 func key_press(keycode: Key) -> void:

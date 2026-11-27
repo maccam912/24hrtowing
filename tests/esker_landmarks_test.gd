@@ -44,11 +44,11 @@ func run() -> void:
 	rig.in_cab = false
 	stand(site+Vector3.BACK*2.4,site)
 	game._action("interact")
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	game._action("interact")
 	var end := 1 if outward.dot(rig.car.global_basis.z)>0 else -1
-	var eye: Vector3 = rig._eyelet(end)
+	var eye: Vector3 = rig.eyelet_point(end)
 	stand(eye+rig.car.global_basis.z*end,eye)
 	game._action("interact")
 	stand(panel-rig.truck.global_basis.x,panel)

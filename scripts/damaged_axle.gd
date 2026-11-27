@@ -40,7 +40,7 @@ func roll_free_wheels(rig) -> void:
 		wheels.roll_on_ground(i,held)
 
 func at_wheel(rig) -> bool:
-	return rig._in_range(wheel_position(rig),1.75) and rig.car.to_local(rig.foot).x*side > .58
+	return rig.in_range(wheel_position(rig),1.75) and rig.car.to_local(rig.foot).x*side > .58
 
 func action(rig, panel: bool) -> String:
 	if rig.phase in ["flared","cable","rigged","at_lift"] and not checked and at_wheel(rig):
@@ -89,17 +89,17 @@ func handle(rig, id:String) -> void:
 	match id:
 		"axle_inspect":
 			checked = true
-			rig._note(finding()+(" Put the skates under this axle." if rig.rollback_active else " Lift that end, or dolly it if it trails."),8.)
+			rig.show_note(finding()+(" Put the skates under this axle." if rig.rollback_active else " Lift that end, or dolly it if it trails."),8.)
 		"axle_skate":
 			fit_skates(rig)
 			rig.sound_event.emit("ratchet")
-			rig._note("Skates seated. The locked wheels can slide up the runners.",5.)
+			rig.show_note("Skates seated. The locked wheels can slide up the runners.",5.)
 		"axle_dollies":
-			rig._fit_dollies()
+			rig.fit_dollies()
 			rig.phase = "dollies"
 			rig.sound_event.emit("ratchet")
-			rig._note("Both tires clear of the ground. The side panel can lift the other axle.",5.)
-		_: rig._note(prompt(id),4.)
+			rig.show_note("Both tires clear of the ground. The side panel can lift the other axle.",5.)
+		_: rig.show_note(prompt(id),4.)
 
 static func settle_on_shoulder(car: Node3D, ground: Callable) -> void:
 	var wheels = car.get_node("RoadWheels")
@@ -139,7 +139,7 @@ static func mark_car(wheels, ticket: Dictionary) -> void:
 
 func drag_mark(rig) -> void:
 	var hub := wheel_position(rig)
-	var at := Vector3(hub.x,rig._ground(hub)+.043,hub.z)
+	var at := Vector3(hub.x,rig.ground_height(hub)+.043,hub.z)
 	var mark := Kit.joint(rig.car,Vector3.ZERO,"LockedWheelTrack")
 	mark.top_level=true
 	mark.global_position=at
@@ -147,7 +147,7 @@ func drag_mark(rig) -> void:
 	var k:=Kit.new(mark)
 	for i in 12:
 		var z:=.35+i*.24
-		var h:float = rig._ground(mark.to_global(Vector3(0,0,z)))-at.y+.048
+		var h:float = rig.ground_height(mark.to_global(Vector3(0,0,z)))-at.y+.048
 		k.box(Vector3(sin(i*.44)*.028,h,z),Vector3(.19+.025*cos(i*.54),.022,.27),Color("#676c72"))
 		k.box(Vector3(side*.13,h+.014,z),Vector3(.049,.042,.25),Color("#b0bac2"))
 	k.finish()

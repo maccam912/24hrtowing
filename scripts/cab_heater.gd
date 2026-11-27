@@ -31,7 +31,7 @@ func advance(rig, dt: float) -> void:
 		warned = false
 	elif rig.warmth < .16 and not rig.in_cab and not warned and rig.info_timer <= 0:
 		warned = true
-		rig._note("Fingers are getting stiff. Could use the cab heater.",6.)
+		rig.show_note("Fingers are getting stiff. Could use the cab heater.",6.)
 
 func save_state() -> Dictionary:
 	return {"blower":blower,"cracked":cracked,"air":air}

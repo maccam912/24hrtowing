@@ -59,7 +59,7 @@ static func furnish(site) -> void:
 
 func properly_parked(rig) -> bool:
 	var p: Vector3 = rig.truck.position
-	return TRUCK_PAD.has_point(Vector2(p.x,p.z)) and rig.truck.global_basis.z.dot(Vector3.RIGHT)>.82 and rig._flat_distance(rig._drum(),rig.job_site)<15.
+	return TRUCK_PAD.has_point(Vector2(p.x,p.z)) and rig.truck.global_basis.z.dot(Vector3.RIGHT)>.82 and rig.flat_distance(rig.drum_point(),rig.job_site)<15.
 
 func install(rig) -> void:
 	installed = true
@@ -96,14 +96,14 @@ func clear() -> void:
 	chains.clear()
 
 func ladder_base(rig) -> Vector3:
-	return Vector3(LADDER.x,rig._ground(LADDER),LADDER.z)
+	return Vector3(LADDER.x,rig.ground_height(LADDER),LADDER.z)
 
 func pin(rig, side: float) -> Vector3:
 	return rig.car.to_global(Vector3(side*1.08,.86,0))
 
 func open_side(rig) -> int:
 	for i in 2:
-		if not slings & (1 << i) and rig._in_range(pin(rig,-1. if i==0 else 1.),1.70): return 1 << i
+		if not slings & (1 << i) and rig.in_range(pin(rig,-1. if i==0 else 1.),1.70): return 1 << i
 	return 0
 
 func action(rig, panel: bool) -> String:
@@ -113,11 +113,11 @@ func action(rig, panel: bool) -> String:
 		return "roof_off" if ladder <= 0. else ""
 	if on_roof:
 		if open_side(rig): return "roof_shackle"
-		if rig._flat_distance(rig.foot,LADDER)<1.35: return "roof_down"
+		if rig.flat_distance(rig.foot,LADDER)<1.35: return "roof_down"
 		return ""
 	if rig.phase=="flared" and panel: return "roof_setup" if properly_parked(rig) else "roof_park"
 	if rig.phase in ["cable","rigged"] and rig.special_work < 1.:
-		if rig._in_range(ladder_base(rig)+Vector3.UP*1.35,1.95): return "roof_ladder"
+		if rig.in_range(ladder_base(rig)+Vector3.UP*1.35,1.95): return "roof_ladder"
 		if panel:
 			if slings == 0: return "roof_repack"
 			return "roof_boom" if slings == 3 else "roof_wait"
@@ -156,10 +156,10 @@ func handle(rig, id: String) -> void:
 	match id:
 		"roof_setup":
 			rig.phase = "cable"
-			rig._set_chocks()
+			rig.set_chocks()
 			install(rig)
 			rig.sound_event.emit("lift")
-			rig._note("Spreader overhead. Climb the service ladder on the west edge of the canopy.",5.)
+			rig.show_note("Spreader overhead. Climb the service ladder on the west edge of the canopy.",5.)
 		"roof_repack":
 			clear()
 			installed = false
@@ -185,12 +185,12 @@ func handle(rig, id: String) -> void:
 			rig.sound_event.emit("ratchet")
 			if slings == 3:
 				rig.phase = "rigged"
-				rig.line_end = -1 if rig._flat_distance(rig._eyelet(-1),rig._drum())<rig._flat_distance(rig._eyelet(1),rig._drum()) else 1
-				rig._note("Both wheel bridles pinned. Climb down to the hoist controls.",5.)
+				rig.line_end = -1 if rig.flat_distance(rig.eyelet_point(-1),rig.drum_point())<rig.flat_distance(rig.eyelet_point(1),rig.drum_point()) else 1
+				rig.show_note("Both wheel bridles pinned. Climb down to the hoist controls.",5.)
 		"roof_boom": take_controls(rig)
 		"roof_leave": release()
-		_: rig._note(PROMPTS.get(id,""),4.)
-	rig._update_eyes()
+		_: rig.show_note(PROMPTS.get(id,""),4.)
+	rig.update_eyes()
 
 func hint(rig) -> String:
 	if rig.special_work >= 1.: return "The sedan is on the loading apron. Winch it to the wheel-lift." if rig.phase=="rigged" else ""
@@ -210,12 +210,12 @@ func instruction(rig) -> String:
 	return "Slew left over the loading apron"
 
 func stroke(rig, move: Vector2, dt: float) -> void:
-	var ground:float = rig._ground(SITE)
+	var ground:float = rig.ground_height(SITE)
 	var perch := ground+TOP
 	var p: Vector3 = rig.car.position
 	var drive := Vector2.ZERO if move.length()<.15 else move
 	var used := minf(dt,float(rig.fuel)/rig.WINCH_FUEL_PER_SECOND)
-	var floor_y := float(rig._ground(LANDING)) if sweep>=1. else (perch if sweep<=.001 else minf(p.y,perch+CLEARANCE))
+	var floor_y := float(rig.ground_height(LANDING)) if sweep>=1. else (perch if sweep<=.001 else minf(p.y,perch+CLEARANCE))
 	var height := clampf(p.y-drive.y*used*.96,floor_y,perch+1.55)
 	var delta_sweep := -drive.x*used*.25
 	if height >= perch+CLEARANCE-.01: sweep = clampf(sweep+delta_sweep,0.,1.)
@@ -238,19 +238,19 @@ func stroke(rig, move: Vector2, dt: float) -> void:
 		rig.special_work = 1.
 		release()
 		rig.working = false
-		rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(rig.line_end))+.30
+		rig.free_line = rig.flat_distance(rig.drum_point(),rig.eyelet_point(rig.line_end))+.30
 		clear()
 		rig.body.stow_boom()
 		rig.sound_event.emit("ratchet")
-		rig._note("On the apron. Winch the sedan to the wheel-lift.",5.)
+		rig.show_note("On the apron. Winch the sedan to the wheel-lift.",5.)
 	elif rig.fuel <= 0.:
 		release()
 		rig.working = false
-		rig._note(rig.reserve_hint(),6.)
+		rig.show_note(rig.reserve_hint(),6.)
 
 func lines(rig) -> void:
 	rig.body.aim_boom(rig.car.to_global(Vector3.UP*4.05))
-	rig._cable_strand(rig.body.boom_tip.global_position,rig.car.to_global(Vector3.UP*2.8))
+	rig.cable_strand(rig.body.boom_tip.global_position,rig.car.to_global(Vector3.UP*2.8))
 
 func save_state() -> Dictionary:
 	return {"ladder":ladder,"top":on_roof,"slings":slings,"sweep":sweep,"controls":controls,"watch":watch_load,"installed":installed}

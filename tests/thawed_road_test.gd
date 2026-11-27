@@ -38,17 +38,17 @@ func run() -> void:
 	check(rig.climate.air>.22,"heat from the wet lane reaches the cab with the blower off")
 	var dry := stop_distance(middle)
 	game.completed += 2
-	weather._snow_over(game.completed)
+	weather.snow_over(game.completed)
 	check(is_equal_approx(strip.freeze,.82) and not strip.vapor.visible,"the same lane refreezes and stops steaming across later jobs")
 	var ice := stop_distance(middle)
 	check(ice>dry*1.38,"the glazed surface needs a longer stop: %.2f wet / %.2f ice" % [dry,ice])
 	rig.tire_chains = true
 	var chains := stop_distance(middle)
 	check(chains<ice*.83,"chains bite through the glaze: %.2f with chains" % chains)
-	game._save()
+	game.save()
 	game._restore(JSON.parse_string(JSON.stringify(game.saved_data)))
 	check(is_equal_approx(game.county.thawed_roads.dry_road.freeze,.82),"the ice and its age survive a reload before another driving frame")
-	weather._snow_over(game.completed+2)
+	weather.snow_over(game.completed+2)
 	await process_frame
 	check(not game.county.thawed_roads.has("dry_road") and is_zero_approx(game.county.materials.road.get_shader_parameter("dry_road_half")),"falling snow covers the patch and restores the ordinary road")
 	rig.set_spawn(Vector3(400,0,253),0.)

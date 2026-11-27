@@ -27,7 +27,7 @@ func check_haul_and_billing() -> void:
 	rig.set_spawn(tow.point)
 	rig.in_cab = false
 	rig.phase = "at_lift"
-	stand(rig._panel()-rig.truck.global_basis.x,rig._panel())
+	stand(rig.panel_point()-rig.truck.global_basis.x,rig.panel_point())
 	game._action("interact")
 	check(game.mode == "haul" and rig.loaded, "wrecker has an active loaded contract")
 	rig.odo += 1.5
@@ -74,7 +74,7 @@ func check_custody() -> void:
 	game.survey.hold_order = "offered"
 	game.campaign.ordinary_since = game.Campaign.GAPS[0]
 	game.account.equipment.snatch_block = true
-	game._fit_equipment()
+	game.fit_equipment()
 	use_contact("take_case")
 	inspect_at("sign",rig.get_witness_position())
 	game.desk.dismiss()

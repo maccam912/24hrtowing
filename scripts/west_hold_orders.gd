@@ -71,14 +71,14 @@ func obstruction(game) -> String:
 
 func site_action(game) -> String:
 	if not is_instance_valid(game.county.west_bay): return ""
-	if game.mode == "fieldwork" and game.job.has("sheriff_order") and game.rig.phase=="scene" and game._facing(game.rig.get_witness_position(),3.1):
+	if game.mode == "fieldwork" and game.job.has("sheriff_order") and game.rig.phase=="scene" and game.is_facing(game.rig.get_witness_position(),3.1):
 		return "west_pickup_card"
 	if game.rig.action_id() in ["drop","enter"]: return ""
-	if not current.is_empty() and game._facing(WestBay.LATCH,2.25):
+	if not current.is_empty() and game.is_facing(WestBay.LATCH,2.25):
 		return "west_chain"
-	if can_release(game.completed) and game._facing(WestBay.COUNTERSIGN+Vector3.UP,2.4):
+	if can_release(game.completed) and game.is_facing(WestBay.COUNTERSIGN+Vector3.UP,2.4):
 		return "west_release_card"
-	if game._facing(WestBay.BOOK,2.22):
+	if game.is_facing(WestBay.BOOK,2.22):
 		return "west_order_book"
 	return ""
 

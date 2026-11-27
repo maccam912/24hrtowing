@@ -20,7 +20,7 @@ func run() -> void:
 	check(not game.account.owns("rollback"),"a new operator cannot buy the carrier before twelve filed slips")
 	game.completed = 12
 	game.account.equipment.aux_tank = true
-	game._fit_equipment()
+	game.fit_equipment()
 	game._refresh()
 	await tap_control("interact")
 	await tap_control("parts_prev")
@@ -57,7 +57,7 @@ func run() -> void:
 	rig.fuel = .28
 	rig.odo += 3.1
 	rig.climate.blower = 2
-	game._save()
+	game.save()
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	game._restore(saved)
 	check(rig.rollback_active and game.fleet.model.position.is_equal_approx(home) and not game.fleet.parked.rollback,"a restart restores both distinct vehicles")

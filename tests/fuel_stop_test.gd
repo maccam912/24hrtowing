@@ -108,13 +108,13 @@ func test_dry_rigging() -> void:
 	# Stage the three jobs at their chocked cable step. The roll uses both slings.
 	var truck_at := Vector3(0,0,160)
 	game.account.equipment["snatch_block"] = true
-	game._fit_equipment()
+	game.fit_equipment()
 	for id: String in ["shoulder_car","roof_car","field_car"]:
 		rig.set_spawn(truck_at)
 		var site := truck_at + Vector3(-2,4.75 if id == "roof_car" else 0.0,14)
 		game._accept(game.Dispatch.impossible(8,id,site,id,"County K","east shoulder","Follow County K."))
 		rig.phase = "cable"
-		rig._set_chocks()
+		rig.set_chocks()
 		rig.fuel = 0.0
 		rig.in_cab = false
 		stand_at_cab_door(-1.0)
@@ -133,11 +133,11 @@ func test_dry_rigging() -> void:
 		check(not rig.in_cab, "fuelled chocked rig still requires stowing before cab entry: "+id)
 		if id != "shoulder_car":
 			continue
-		var eye: Vector3 = rig._eyelet(-1)
+		var eye: Vector3 = rig.eyelet_point(-1)
 		stand(eye+Vector3.FORWARD*.75,eye)
 		game._action("interact")
 		check(rig.phase == "rigged","operator resumes with the delivered can and attaches the staged hook")
-		var panel: Vector3 = rig._panel()
+		var panel: Vector3 = rig.panel_point()
 		stand(panel-rig.truck.global_basis.x,panel)
 		rig.fuel = rig.WINCH_FUEL_PER_SECOND*.95
 		for tick in 180:

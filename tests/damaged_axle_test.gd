@@ -16,7 +16,7 @@ func act(expected: String, at: Vector3, offset: Vector3) -> void:
 	game._action("interact")
 
 func lever(id: String) -> void:
-	act(id,rig._panel(),-rig.truck.global_basis.x)
+	act(id,rig.panel_point(),-rig.truck.global_basis.x)
 
 func work(count: int, operate := false) -> void:
 	for i in count: rig.set_controls(Vector2.ZERO,Vector2.ZERO,operate and rig.tension<.95,false,DT)
@@ -83,7 +83,7 @@ func recover(on_carrier: bool, lift_bad_end: bool, seed_value: int) -> void:
 	var end: int = rig.axle_fault.end if lift_bad_end else -rig.axle_fault.end
 	if on_carrier: end = -1
 	for hub: Node3D in rig.road_wheels.hubs:
-		check(absf(hub.global_position.y-rig.road_wheels.radius-rig._ground(hub.global_position))<.065,"four tires rest on the actual shoulder")
+		check(absf(hub.global_position.y-rig.road_wheels.radius-rig.ground_height(hub.global_position))<.065,"four tires rest on the actual shoulder")
 	var target: Vector3 = rig.car.position
 	var direction: Vector3 = rig.car.global_basis.z*end
 	var yaw: float = ticket.angle+(PI if end==1 else 0.)
@@ -100,7 +100,7 @@ func recover(on_carrier: bool, lift_bad_end: bool, seed_value: int) -> void:
 		lever("deck_out")
 		work(130)
 	else: lever("cable")
-	var eye: Vector3 = rig._eyelet(end)
+	var eye: Vector3 = rig.eyelet_point(end)
 	act("attach",eye,rig.car.global_basis.z*end*.74)
 	check(rig.line_end==end,"operator can select the nearest front or rear eye")
 	if on_carrier:
@@ -111,7 +111,7 @@ func recover(on_carrier: bool, lift_bad_end: bool, seed_value: int) -> void:
 		bad_wheel("axle_skate")
 		resume_shift()
 		check(is_instance_valid(rig.axle_fault.skates) and rig.axle_fault.checked,"loading skates and the diagnosed corner survive interrupted rigging")
-	point(rig._panel(),-rig.truck.global_basis.x)
+	point(rig.panel_point(),-rig.truck.global_basis.x)
 	work(200,true)
 	var locked_index: int = (2 if rig.axle_fault.side>0 else 0)+(1 if rig.axle_fault.end>0 else 0)
 	check(absf(rig.road_wheels.hubs[locked_index].rotation.x)<.001 and absf(rig.road_wheels.hubs[locked_index^1].rotation.x)>.02,"the stuck tire drags while the sound axle rolls under cable tension")

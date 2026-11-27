@@ -35,7 +35,7 @@ func run() -> void:
 	game.completed = first_history.size()
 	game.rotation_offer = {}
 	game.account.equipment["snatch_block"] = true
-	game._fit_equipment()
+	game.fit_equipment()
 	game._prepare_offers()
 	game._action("radio")
 	game.desk._activate("respond")
@@ -52,20 +52,20 @@ func run() -> void:
 	check(game.speaker == "DUANE" and game.talked, "Duane answers from the ditch")
 	stand(vehicle.position-vehicle.global_basis.x*2.2,vehicle.position)
 	game._action("interact")
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	game._action("interact")
-	var nose: Vector3 = rig._eyelet(-1)
+	var nose: Vector3 = rig.eyelet_point(-1)
 	stand(nose-rear*1.5,nose)
 	check(rig.action_id() == "plow_blade","the moldboard has no cable point")
 	game._action("interact")
 	check(rig.phase == "cable", "the hook stays in hand at the blade")
-	var eye: Vector3 = rig._eyelet(1)
+	var eye: Vector3 = rig.eyelet_point(1)
 	stand(eye+rear,eye)
 	game._action("interact")
 	resume_shift()
 	check(rig.phase == "rigged" and rig.line_end == 1 and rig.car.has_node("Blade") and rig.duane_on_scene(),"resuming a hooked plow keeps the rear block and driver")
-	panel = rig._panel()
+	panel = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	for tick in 2700:
 		if rig.phase != "rigged": break

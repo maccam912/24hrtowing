@@ -37,22 +37,22 @@ func _running_lamps() -> void:
 		rig.car_lamps = lamps
 
 func save_state() -> Dictionary:
-	var state := {"site":rig._v(job_site),"site_yaw":job_yaw,"identity":identity.duplicate(),
-		"car":rig._v(car.position),"car_rot":rig._v(car.rotation),"departed":departure_time,
+	var state := {"site":rig.pack_point(job_site),"site_yaw":job_yaw,"identity":identity.duplicate(),
+		"car":rig.pack_point(car.position),"car_rot":rig.pack_point(car.rotation),"departed":departure_time,
 		"ems_leg":ems_leg,"backing_distance":backing_distance,"driver_boarded":not witness.visible,
-		"witness":rig._v(witness.position),"witness_yaw":witness.rotation.y}
+		"witness":rig.pack_point(witness.position),"witness_yaw":witness.rotation.y}
 	if identity.get("west_release",false): state.west_bay_cleared = west_bay_cleared
 	return state
 
 func restore_state(data: Dictionary) -> void:
-	car.position = rig._unpack(data.get("car"), job_site)
-	car.rotation = rig._unpack(data.get("car_rot"), Vector3.UP * job_yaw)
+	car.position = rig.unpack_point(data.get("car"), job_site)
+	car.rotation = rig.unpack_point(data.get("car_rot"), Vector3.UP * job_yaw)
 	ems_leg = clampi(data.get("ems_leg",0),0,Scene.Ambulance.RETURN_LANE.size())
 	departure_time = data.get("departed",0)
 	backing_distance = data.get("backing_distance",0)
 	west_bay_cleared = data.get("west_bay_cleared",false)
 	witness.visible = not data.get("driver_boarded",departure_time>7.0)
-	witness.position = rig._unpack(data.get("witness"),witness.position)
+	witness.position = rig.unpack_point(data.get("witness"),witness.position)
 	witness.rotation.y = data.get("witness_yaw",witness.rotation.y)
 	if not data.has("driver_boarded"):
 		departure_time = maxf(0.0,departure_time-6.5) if not witness.visible else 0.0
@@ -101,7 +101,7 @@ func _departure_lane() -> void:
 func advance(dt: float) -> bool:
 	# Once the operator heads for another call, retire an out-of-sight customer
 	# even if the car stopped at the end of a short road.
-	if car != rig.car and rig._flat_distance(car.position,rig.get_player_position()) > 165.0:
+	if car != rig.car and rig.flat_distance(car.position,rig.get_player_position()) > 165.0:
 		return true
 	if witness.visible:
 		var door:=car.to_global(car.get_meta("driver_door",Vector3(-1.10,0,-.25)))
@@ -111,7 +111,7 @@ func advance(dt: float) -> bool:
 			Scene.walk_person(witness)
 			witness.rotation.y=lerp_angle(witness.rotation.y,atan2(-stride.x,-stride.z),1.0-exp(-7.0*dt))
 			witness.position+=stride.limit_length(dt*1.65)
-			witness.position.y=rig._ground(witness.position)
+			witness.position.y=rig.ground_height(witness.position)
 			flash_time = fmod(flash_time + dt, 1.0)
 			lamps.visible = flash_time < 0.5
 			return false
@@ -129,7 +129,7 @@ func advance(dt: float) -> bool:
 	var ambulance: bool = identity.get("variant") == Scene.Ambulance.VARIANT
 	if ambulance:
 		if ems_leg == Scene.Ambulance.RETURN_LANE.size(): return false
-		if rig._flat_distance(car.position,departure_lane_end) < 1.65:
+		if rig.flat_distance(car.position,departure_lane_end) < 1.65:
 			ems_leg += 1
 			_departure_lane()
 			return false
@@ -144,7 +144,7 @@ func advance(dt: float) -> bool:
 	var truck_ahead:=to_truck.dot(lane_forward)
 	if yard_release and truck_ahead>0. and truck_ahead<12.:
 		for side:float in [-1.,0.,1.]:
-			if rig._in_wrecker(car.position+lane_forward*3.3+lane_right*side):
+			if rig.in_wrecker(car.position+lane_forward*3.3+lane_right*side):
 				return false
 	if not yard_release and truck_ahead> -8.0 and truck_ahead<13.0:
 		var required_width := 2.08 if identity.get("variant",-1) == Scene.Snowplow.VARIANT else 1.35
@@ -169,18 +169,18 @@ func advance(dt: float) -> bool:
 		# make enough room to swing around its bed before trying forward again.
 		var overhang := 4.40 if identity.get("variant",-1) == Scene.Snowplow.VARIANT else 2.2
 		if ambulance: overhang = Scene.Ambulance.SIZE.z
-		if backing_distance<=0 and rig._in_wrecker(car.position+step.normalized()*overhang+step):
+		if backing_distance<=0 and rig.in_wrecker(car.position+step.normalized()*overhang+step):
 			backing_distance=3.2
 		if backing_distance>0:
 			distance=minf(backing_distance,dt*2.6)
 			yaw=rotate_toward(car.rotation.y,yaw_target,distance*.38)
 			step=Vector3.BACK.rotated(Vector3.UP,yaw)*distance
 			backing_distance=maxf(0.0,backing_distance-distance)
-		if not rig._in_wrecker(car.position+step.normalized()*overhang+step):
+		if not rig.in_wrecker(car.position+step.normalized()*overhang+step):
 			car.rotation.y=yaw
 			car.position+=step
-			car.position.y=rig._ground(car.position)
+			car.position.y=rig.ground_height(car.position)
 	# Beyond even a lull in the blizzard. A player following the car can
 	# keep it in sight all the way to the end of the road.
-	return (rig._flat_distance(car.position,rig.get_player_position()) > 165.0
-		and (car != rig.car or rig._flat_distance(car.position,job_site) > 120.0))
+	return (rig.flat_distance(car.position,rig.get_player_position()) > 165.0
+		and (car != rig.car or rig.flat_distance(car.position,job_site) > 120.0))

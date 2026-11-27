@@ -25,7 +25,7 @@ func run() -> void:
 	game.completed = qualifying_history.size()
 	game.rotation_offer = {}
 	game.account.equipment.snatch_block = true
-	game._fit_equipment()
+	game.fit_equipment()
 	game._prepare_offers()
 	game._action("radio")
 	game.desk._activate("respond")
@@ -51,10 +51,10 @@ func run() -> void:
 	operate_at("milk_manifest")
 	check(rig.tanker.checked and ticket.seal in rig.info and str(ticket.gallons) in rig.info,"operator copies the real seal and load from the cabinet")
 	work_at_panel("cable")
-	var eye:Vector3 = rig._eyelet(-1)
+	var eye:Vector3 = rig.eyelet_point(-1)
 	stand(eye-rig.car.global_basis.z,eye)
 	operate_at("attach")
-	var panel:Vector3 = rig._panel()
+	var panel:Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	var peak := 0.
 	for i in 310:
@@ -81,7 +81,7 @@ func run() -> void:
 		game.free()
 		quit(1)
 		return
-	game._save()
+	game.save()
 	var field_save:Dictionary = game.saved_data.duplicate(true)
 	rig.set_spawn(rig.RiverLanes.CENTER)
 	rig.car.position = rig.RiverLanes.CENTER
@@ -111,7 +111,7 @@ func run() -> void:
 		return
 	game._refresh()
 	game._action("interact")
-	var end_panel:Vector3 = rig._panel()
+	var end_panel:Vector3 = rig.panel_point()
 	stand(end_panel-rig.truck.global_basis.x,end_panel)
 	check(rig.action_id() == "milk_settle","a freshly stopped fluid load must settle before unstrapping")
 	game._action("interact")

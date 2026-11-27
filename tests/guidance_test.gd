@@ -119,8 +119,8 @@ func run() -> void:
 
 	game.rig.in_cab = false
 	game.rig.foot = game.FAX + Vector3.BACK
-	game.rig._update_eyes()
-	game.rig._note("Cable slipped", 2.0)
+	game.rig.update_eyes()
+	game.rig.show_note("Cable slipped", 2.0)
 	game._refresh()
 	await redraw()
 	var nearby := str(game.state.prompt)

@@ -103,7 +103,7 @@ func _slip(c, p: Rect2, s: Dictionary) -> void:
 	if not detail.is_empty():
 		job_kind = detail.title
 	var road := str(active_job.get("location","Awaiting county dispatch"))
-	c._sheet(p,TISSUE)
+	c.sheet(p,TISSUE)
 	c.draw_rect(Rect2(p.end.x-11,p.position.y+6,6,p.size.y-6),Color("#b0b7a2"))
 	_header(c,p,"BRANDT TOWING & RECOVERY   /   ESKER, WI","Tow service record","INVOICE  "+num,c.MONO)
 	var x := p.position.x+32
@@ -195,7 +195,7 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	c.draw_rect(p.grow(-9),Color("#26322f"),false,2)
 	for dx in [15,p.size.x-15]:
 		for dy in [16,p.size.y-16]:
-			c._bolt(p.position+Vector2(dx,dy))
+			c.bolt(p.position+Vector2(dx,dy))
 	var x := p.position.x+34
 	var y := p.position.y+35
 	var w := p.size.x-68
@@ -333,7 +333,7 @@ func _west_custody(c, p: Rect2, s: Dictionary) -> void:
 	var w := p.size.x-64
 	var y := p.position.y+106
 	var button := Rect2(x,p.end.y-98,w,78)
-	c._sheet(p,ORIGINAL)
+	c.sheet(p,ORIGINAL)
 	_header(c,p,"TAMARACK COUNTY SHERIFF   /   BRANDT YARD","West hold orders",status,c.print_face)
 	if row.has("sheriff_order"):
 		_entry(c,Rect2(x,y,w*.49,42),"SHERIFF ORDER",row.sheriff_order)
@@ -384,7 +384,7 @@ func _west_custody(c, p: Rect2, s: Dictionary) -> void:
 
 func _visit_call(c, p: Rect2, s: Dictionary) -> void:
 	var call: Dictionary = s.get("visit_offer",{})
-	c._sheet(p,ORIGINAL)
+	c.sheet(p,ORIGINAL)
 	_header(c,p,"TAMARACK COUNTY  /  DISPATCH","Field visit","",c.print_face)
 	var x := p.position.x+32
 	var y := p.position.y+115
@@ -491,7 +491,7 @@ func _sighting_choices(c, p: Rect2, reports: Array, button_height: int) -> void:
 			c.button("next_sightings",nav,"Next",true)
 
 func _passenger(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,TISSUE)
+	c.sheet(p,TISSUE)
 	_header(c,p,"ALDER CUT  /  RETURN TO ESKER","The ride home","T. VANG",c.MONO)
 	var width := (p.size.x-84)*.5
 	var asked: Array = s.get("tou_asked",[])
@@ -503,7 +503,7 @@ func _passenger(c, p: Rect2, s: Dictionary) -> void:
 		c.button("tou_%d" % i,Rect2(at,Vector2(width,80)),label,i not in asked)
 
 func _fax(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,Color("#e4e4d8"))
+	c.sheet(p,Color("#e4e4d8"))
 	var x := p.position.x+33
 	var width := p.size.x-66
 	var archive: Array = s.get("faxes",[])
@@ -554,7 +554,7 @@ func _fax(c, p: Rect2, s: Dictionary) -> void:
 		c.text(Vector2(caption_x,p.end.y-28),caption,c.MONO,14,FADED)
 
 func _custody(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,Color("#d8ccab"))
+	c.sheet(p,Color("#d8ccab"))
 	_header(c,p,"TAMARACK COUNTY SHERIFF'S OFFICE","Evidence custody card","VEHICLE HOLD",c.MONO)
 	var x := p.position.x+33
 	var y := p.position.y+136
@@ -571,7 +571,7 @@ func _custody(c, p: Rect2, s: Dictionary) -> void:
 			c.fitted(Rect2(x+200,p.end.y-83,p.size.x-275,64),"Call me from the truck.  — J.K.",c.HAND,25,FORM_BLUE,HORIZONTAL_ALIGNMENT_RIGHT)
 
 func _field(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,Color("#d3d7b9"))
+	c.sheet(p,Color("#d3d7b9"))
 	c.draw_rect(Rect2(p.position,Vector2(17,p.size.y)),Color("#6b7663"))
 	var x := p.position.x+39
 	var y := p.position.y+37
@@ -613,7 +613,7 @@ func _field(c, p: Rect2, s: Dictionary) -> void:
 		c.button("mark_sketch",Rect2(p.end.x-292,p.end.y-90,260,80),"Copy sketch to plat")
 
 func _atlas(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,ORIGINAL)
+	c.sheet(p,ORIGINAL)
 	for i in range(12):
 		var hole := Vector2(p.position.x+11,p.position.y+35+i*37)
 		c.draw_circle(hole,3.2,Color("#64716b"))
@@ -715,7 +715,7 @@ func _map(c, box: Rect2, s: Dictionary, detailed: bool) -> void:
 	var project := func(v: Vector2) -> Vector2: return transform*v
 	if detailed and c.desk.pencil_open:
 		pencil_projection = transform
-		var bounds: Rect2 = c.desk._pencil_bounds()
+		var bounds: Rect2 = c.desk.pencil_bounds()
 		c.hit("pencil_sheet",Rect2(transform*bounds.position,bounds.size*scale_factor))
 	if c.desk.town_sheet:
 		Pencil.Town.draw_sheet(c,box,transform,detailed)
@@ -844,7 +844,7 @@ func _pencil_symbol(c, at: Vector2, kind: String, scale_factor: float) -> void:
 
 func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 	var job: Dictionary = s.get("job",{})
-	c._sheet(p,ORIGINAL if page=="map" else TISSUE)
+	c.sheet(p,ORIGINAL if page=="map" else TISSUE)
 	var heading := "TAMARACK COUNTY   /   PLAT 03" if page=="map" else "BRANDT   /   TOW SERVICE RECORD"
 	if c.MONO.get_string_size(heading,HORIZONTAL_ALIGNMENT_LEFT,-1,11).x > p.size.x-24:
 		heading = "TAMARACK / PLAT 03" if page=="map" else "BRANDT / TOW SLIP"
@@ -861,7 +861,7 @@ func glance(c, p: Rect2, page: String, s: Dictionary) -> void:
 		c.multiline(Vector2(x,p.position.y+97),note,c.HAND,19,FORM_BLUE,p.size.x-24,2)
 
 func _coffee(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,ORIGINAL)
+	c.sheet(p,ORIGINAL)
 	_header(c,p,"ESKER FUEL & FOOD   /   NIGHT COUNTER","Counter check","CUSTOMER COPY",c.print_face)
 	var x := p.position.x+34
 	var w := p.size.x-68
@@ -912,7 +912,7 @@ func _mirror_tape(c, p: Rect2, mark: Dictionary) -> void:
 	c.fitted(Rect2(x,y+178,w,54),road if not road.is_empty() else "—",c.HAND,36,ink,HORIZONTAL_ALIGNMENT_LEFT)
 
 func _impound_register(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,ORIGINAL)
+	c.sheet(p,ORIGINAL)
 	var x := p.position.x+35
 	var width := p.size.x-70
 	_header(c,p,"BRANDT TOWING & RECOVERY","Impound register","YARD COPY",c.MONO)
@@ -942,7 +942,7 @@ func _impound_register(c, p: Rect2, s: Dictionary) -> void:
 	c.fitted(Rect2(x+width*.3,foot.position.y,width*.4,80),"SHEET  %d / %d" % [leaf+1,pages],c.MONO,17,FADED)
 
 func _storage_tag(c, p: Rect2, record: Dictionary, register_copy: bool) -> void:
-	c._sheet(p,TISSUE)
+	c.sheet(p,TISSUE)
 	_header(c,p,"BRANDT TOWING & RECOVERY","Impound tag",str(record.get("stall","STORAGE")),c.MONO)
 	var x := p.position.x+35
 	var width := p.size.x-70
@@ -1014,7 +1014,7 @@ func _bulk_pump(c, p: Rect2, s: Dictionary, transfer := false) -> void:
 		c.fitted(handle,"NO FLOW",c.MONO,22,c.CREAM)
 
 func _parts(c, p: Rect2, s: Dictionary) -> void:
-	c._sheet(p,Color("#d9d9c5"))
+	c.sheet(p,Color("#d9d9c5"))
 	var at_office := bool(s.get("at_office",false))
 	var at_pump := bool(s.get("at_pump",false))
 	var scanner_available := bool(s.get("scanner_available",false) or s.get("scanner_fitted",false))
@@ -1187,7 +1187,7 @@ func _equipment_card(c, r: Rect2, id: String, title: String, description: String
 	_shop_card(c,r,id,title,"$%.2f" % price,description,order if status.is_empty() else status,status.is_empty())
 
 func _shop_card(c, r: Rect2, id: String, title: String, price: String, description: String, status: String, enabled: bool) -> void:
-	var focus: bool = enabled and (c.hover == id or c.desk._is_down(id))
+	var focus: bool = enabled and (c.hover == id or c.desk.is_down(id))
 	c.draw_rect(r,Color("#e9e5ce") if focus else Color("#e1dfc9"))
 	var ink: Color = c.OXBLOOD if enabled else FADED
 	c.draw_rect(r,ink if focus else LINE,false,2 if focus else 1)
@@ -1245,7 +1245,7 @@ func _shop_card(c, r: Rect2, id: String, title: String, price: String, descripti
 	c.draw_rect(strip,ink if enabled else Color("#d4d5c0"))
 	c.fitted(strip.grow_individual(-inset,0,-30,0),status,c.scaled,17,c.CREAM if enabled else GREEN,HORIZONTAL_ALIGNMENT_LEFT)
 	if enabled:
-		c._arrow(Vector2(strip.end.x-16,strip.get_center().y),8,c.CREAM,true)
+		c.arrow(Vector2(strip.end.x-16,strip.get_center().y),8,c.CREAM,true)
 		c.hit(id,r)
 
 func _diesel_illustration(c, r: Rect2) -> void:

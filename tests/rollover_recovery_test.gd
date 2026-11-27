@@ -6,7 +6,7 @@ func touch_at(at: Vector3, facing: Vector3) -> void:
 	await tap_control("interact")
 
 func land_and_file() -> void:
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.75,panel)
 	for i in 3000:
 		if rig.phase == "at_lift": break
@@ -31,8 +31,8 @@ func operate_both(id: String, at: Vector3) -> void:
 	rig.in_cab = false
 	await touch_at(rig.car.position+Vector3.LEFT*2.,rig.car.position)
 	await use_panel()
-	var near: Vector3 = rig._side_eye(-1.)
-	var far: Vector3 = rig._side_eye(1.)
+	var near: Vector3 = rig.side_eye(-1.)
+	var far: Vector3 = rig.side_eye(1.)
 	await touch_at(near+Vector3.LEFT*.85,near)
 	stand(far+Vector3.RIGHT*.85,far)
 	check(rig.action_id().is_empty(),"the second hook is still on its own truck drum")
@@ -57,7 +57,7 @@ func operate_both(id: String, at: Vector3) -> void:
 	check(rig.special_work == 1. and rig.rollover != null and not rig.rollover.controls and absf(rig.car.rotation.x)+absf(rig.car.rotation.z)<.01,"easing the check line sets this car back on four tires")
 	await use_panel()
 	check(rig.phase == "rigged" and not rig.rollover.check_cleared,"an attached check line holds the wheel-lift tow at the panel")
-	far = rig._side_eye(1.)
+	far = rig.side_eye(1.)
 	await touch_at(far+Vector3.RIGHT*.85,far)
 	check(rig.rollover.check_cleared,"the check hook comes out on the far side")
 	await land_and_file()
@@ -90,7 +90,7 @@ func run() -> void:
 	rig.in_cab=false
 	await touch_at(field+Vector3.LEFT*2.,rig.car.position)
 	await use_panel()
-	var eye: Vector3 = rig._eyelet(rig._nearest_eyelet())
+	var eye: Vector3 = rig.eyelet_point(rig.nearest_eyelet())
 	await touch_at(eye+Vector3(.8,0,.5),eye)
 	await land_and_file()
 	check(game.slips.back().recovery=="level_field" and game.slips.back().heavy_fee == 0 and game.account.earned > 0 and not rig.second_winch,"the stock equipment earns a normal call-out, hook and storage fee")
@@ -110,9 +110,9 @@ func run() -> void:
 	rig.second_winch=false
 	await touch_at(held+Vector3.LEFT*2.,rig.car.position)
 	await use_panel()
-	var first: Vector3 = rig._side_eye(-1.)
+	var first: Vector3 = rig.side_eye(-1.)
 	await touch_at(first+Vector3.LEFT*.85,first)
-	var second: Vector3 = rig._side_eye(1.)
+	var second: Vector3 = rig.side_eye(1.)
 	await touch_at(second+Vector3.RIGHT*.85,second)
 	resume_shift()
 	check(rig.rollover==null and rig.phase=="rigged" and not rig.second_winch,"an already accepted older two-line order keeps its original rigging after restore")

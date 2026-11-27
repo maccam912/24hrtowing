@@ -21,9 +21,9 @@ func run() -> void:
 		await walk_past_door(counter+Vector3.FORWARD*.85)
 		check(game.county.inside_fuel_store(rig.foot),"walk in from either diesel pump")
 		face(counter)
-		check(game._facing(counter,2.5),"the posted coffee counter is within reach")
+		check(game.is_facing(counter,2.5),"the posted coffee counter is within reach")
 		var eye: Vector3 = rig.get_camera().global_position
-		check(rig._ray(eye,clerk.global_position+Vector3.UP*1.60).is_empty(),"cashier visible above the service counter")
+		check(rig.cast_ray(eye,clerk.global_position+Vector3.UP*1.60).is_empty(),"cashier visible above the service counter")
 		# The collision at waist height keeps the clerk's side of the register private.
 		for step in 45:
 			rig._walk(Vector2.DOWN.rotated(rig.camera_yaw),DT)

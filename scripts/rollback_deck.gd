@@ -116,7 +116,7 @@ func hauls(rig) -> bool:
 
 func position_bed(rig) -> void:
 	var toe: Vector3 = rig.body.to_global(Vector3(0,0,DEPLOYED_Z+HALF_LENGTH))
-	toe.y = rig._ground(toe)+.035
+	toe.y = rig.ground_height(toe)+.035
 	var low: float = rig.body.to_local(toe).y
 	var angle := clampf(atan2(HOME.y-low,6.04),.09,.38)
 	var lowered := Vector3(0,low+sin(angle)*HALF_LENGTH,DEPLOYED_Z)
@@ -134,7 +134,7 @@ func lined_up(rig) -> bool:
 
 func bay_point(rig) -> Vector3:
 	var point: Vector3 = rig.truck.to_global(Vector3(0,0,DEPLOYED_Z+HALF_LENGTH+2.64))
-	point.y = rig._ground(point)
+	point.y = rig.ground_height(point)
 	return point
 
 func fits_bay(rig) -> bool:
@@ -163,7 +163,7 @@ func action(rig, panel: bool) -> String:
 		"cable":
 			if panel: return "deck_stow"
 		"rigged":
-			if not panel and projected(rig.car.position).z < HALF_LENGTH+2.12 and rig._in_range(rig._eyelet(rig.line_end),1.8): return "deck_support"
+			if not panel and projected(rig.car.position).z < HALF_LENGTH+2.12 and rig.in_range(rig.eyelet_point(rig.line_end),1.8): return "deck_support"
 		"at_lift":
 			var here := side_here(rig)
 			if unloading:
@@ -192,15 +192,15 @@ func instruction(rig) -> String:
 
 func handle(rig, id: String) -> void:
 	if id in ["deck_out","deck_home","deck_unload","deck_pay","deck_stow"] and rig.fuel <= 0.:
-		rig._note(rig.reserve_hint(),5.)
+		rig.show_note(rig.reserve_hint(),5.)
 		return
 	match id:
 		"deck_out":
-			rig._set_chocks()
+			rig.set_chocks()
 			motion = "extend"
 		"deck_home": motion = "load"
 		"deck_unload":
-			rig._set_chocks()
+			rig.set_chocks()
 			unloading = true
 			motion = "tip"
 		"deck_stow": motion = "stow"
@@ -212,7 +212,7 @@ func handle(rig, id: String) -> void:
 			position_bed(rig)
 			return
 		_:
-			rig._note(PROMPTS.get(id,""),3.)
+			rig.show_note(PROMPTS.get(id,""),3.)
 			return
 	rig.sound_event.emit("lift")
 
@@ -226,7 +226,7 @@ func pay(rig, dt: float) -> void:
 	rig.tension = move_toward(rig.tension,.34,dt)
 	if tail_at >= HALF_LENGTH+2.64:
 		motion = "return"
-		rig.car.position.y = rig._ground(rig.car.position)
+		rig.car.position.y = rig.ground_height(rig.car.position)
 		rig.car.rotation = Vector3(0,rig.car.rotation.y,0)
 
 func animate_bed(rig, dt: float) -> void:
@@ -242,7 +242,7 @@ func animate_bed(rig, dt: float) -> void:
 	match finished:
 		"extend":
 			rig.phase = "cable"
-			rig._note("Bed down. Take the hook to the nearest tow eye.",4.)
+			rig.show_note("Bed down. Take the hook to the nearest tow eye.",4.)
 		"stow":
 			rig.phase = "flared"
 			unchock(rig)
@@ -250,8 +250,8 @@ func animate_bed(rig, dt: float) -> void:
 			rig.phase = "loaded"
 			rig.loaded = true
 			unchock(rig)
-			rig._set_car_lamps("tow")
-			rig._finish_recovery()
+			rig.set_car_lamps("tow")
+			rig.finish_recovery()
 		"tip":
 			rig.phase = "at_lift"
 			rig.loaded = false
@@ -271,7 +271,7 @@ func projected(point: Vector3) -> Vector3:
 
 func height_at(rig, point: Vector3) -> float:
 	var at := projected(point)
-	var ground: float = rig._ground(point)
+	var ground: float = rig.ground_height(point)
 	if at.z > HALF_LENGTH+.05 or absf(at.x)>1.35: return ground
 	return maxf(ground,bed.to_global(Vector3(at.x,.018,at.z)).y)
 
@@ -303,7 +303,7 @@ func reel(rig, dt: float) -> void:
 	var next_yaw := lerp_angle(rig.car.rotation.y,yaw,1.-exp(-dt*(1.5+4.*blend)))
 	set_load(rig,at.x,at.z)
 	rig.car.rotation.y = next_yaw
-	rig.free_line = rig._drum().distance_to(rig._eyelet(rig.line_end))
+	rig.free_line = rig.drum_point().distance_to(rig.eyelet_point(rig.line_end))
 	rig.tension = move_toward(rig.tension,.47+.14*blend,dt*.9)
 	if diff.length() <= .10:
 		track(rig)
@@ -311,7 +311,7 @@ func reel(rig, dt: float) -> void:
 		rig.working = false
 		rig.tension = 0.
 		rig.sound_event.emit("ratchet")
-		rig._note("At the headboard. Ratchet both pairs of wheel straps.",4.)
+		rig.show_note("At the headboard. Ratchet both pairs of wheel straps.",4.)
 
 func save_state() -> Dictionary:
 	return {"extension":extension,"motion":motion,"sides":sides,"unloading":unloading,"tail_at":tail_at}

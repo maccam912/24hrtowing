@@ -69,6 +69,6 @@ static func readable(rig, county) -> String:
 					if lit_by(lamp,plate,15.0):
 						visible = true
 						break
-		if visible and rig._ray(eye.global_position,plate).is_empty():
+		if visible and rig.cast_ray(eye.global_position,plate).is_empty():
 			return id
 	return ""

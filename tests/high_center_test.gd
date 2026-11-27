@@ -9,7 +9,7 @@ func setup_at(end: int, sideways := false) -> void:
 	rig.set_spawn(rig.job_site+axis*17.5,yaw)
 
 func attach(end: int) -> void:
-	var eye: Vector3 = rig._eyelet(end)
+	var eye: Vector3 = rig.eyelet_point(end)
 	act("attach",eye,rig.car.global_basis.z*end*.84)
 
 func crib_at(i: int) -> void:
@@ -47,8 +47,8 @@ func run_call(seed_value: int, use_cribs: bool, carrier: bool) -> void:
 	var low_index:=0 if high>0 else 1
 	var high_wheel: Vector3=berm.wheel_point(0)
 	var low_wheel: Vector3=rig.road_wheels.hubs[low_index].global_position
-	check(high_wheel.y-rig.road_wheels.radius-rig._ground(high_wheel)>.23,"suspended axle has visible daylight below its tire")
-	check(absf(low_wheel.y-rig.road_wheels.radius-rig._ground(low_wheel))<.12,"the grounded axle actually carries its share")
+	check(high_wheel.y-rig.road_wheels.radius-rig.ground_height(high_wheel)>.23,"suspended axle has visible daylight below its tire")
+	check(absf(low_wheel.y-rig.road_wheels.radius-rig.ground_height(low_wheel))<.12,"the grounded axle actually carries its share")
 	setup_at(high)
 	rig.in_cab=false
 	act("flare",rig.car.position,rig.car.global_basis.x*2.45)
@@ -60,11 +60,11 @@ func run_call(seed_value: int, use_cribs: bool, carrier: bool) -> void:
 		work(140)
 	else: lever("cable")
 	attach(high)
-	point(rig._panel(),-rig.truck.global_basis.x)
+	point(rig.panel_point(),-rig.truck.global_basis.x)
 	if not use_cribs:
 		work(140,true)
 		check(berm.blocked,"a retry begins from a real stalled pull")
-		var hooked: Vector3 = rig._eyelet(high)
+		var hooked: Vector3 = rig.eyelet_point(high)
 		act("unhook",hooked,rig.car.global_basis.z*high*.73)
 		check(not rig.is_chocked() and rig.phase=="flared","unhooking releases the line and shoring can be skipped")
 		stand_at_cab_door(-1)
@@ -74,7 +74,7 @@ func run_call(seed_value: int, use_cribs: bool, carrier: bool) -> void:
 		rig.in_cab=false
 		lever("cable")
 		attach(-high)
-		point(rig._panel(),-rig.truck.global_basis.x)
+		point(rig.panel_point(),-rig.truck.global_basis.x)
 	if use_cribs:
 		var before: Vector3=rig.car.position
 		work(180,true)
@@ -87,14 +87,14 @@ func run_call(seed_value: int, use_cribs: bool, carrier: bool) -> void:
 		check(berm.placed==1 and berm.wedges[0].visible and not berm.wedges[1].visible and berm.collected,"one wooden pack stays under its own wheel across restart")
 		crib_at(1)
 		check(berm.placed==3 and not berm.blocked and not berm.bundle.visible,"the second tire is supported")
-		point(rig._panel(),-rig.truck.global_basis.x)
+		point(rig.panel_point(),-rig.truck.global_basis.x)
 		work(100,true)
 		var partial:Vector3=rig.car.position
 		check(partial.distance_to(before)>.30 and not berm.cleared,"operator can stop partway across the physical packs")
 		resume_shift()
 		berm=rig.berm
 		check(rig.car.position.distance_to(partial)<.01 and berm.wedges[1].visible,"the car and both blocks resume at their own world positions")
-		point(rig._panel(),-rig.truck.global_basis.x)
+		point(rig.panel_point(),-rig.truck.global_basis.x)
 	work(2200,true)
 	check(berm.cleared and berm.used_blocks==use_cribs and rig.phase=="at_lift","the wheels settle off the ridge and normal loading takes over")
 	if carrier:

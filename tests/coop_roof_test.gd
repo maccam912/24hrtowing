@@ -14,7 +14,7 @@ func face(point: Vector3) -> void:
 	var next: Vector3 = point-rig.eyes.global_position
 	rig.camera_yaw = atan2(-next.x,-next.z)
 	rig.camera_pitch = atan2(next.y,Vector2(next.x,next.z).length())
-	rig._update_eyes()
+	rig.update_eyes()
 	game._refresh()
 
 func touch(expected: String, target: Vector3) -> void:
@@ -72,7 +72,7 @@ func run() -> void:
 	await touch("roof_down",Roof.LADDER+Vector3.UP*Roof.TOP)
 	stroke(Vector2.DOWN,175)
 	await touch("roof_off",Roof.LADDER+Vector3.UP)
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	foot_to(rig.truck.to_global(Vector3(2.45,0,6.15)))
 	foot_to(rig.truck.to_global(Vector3(-2.38,0,6.15)))
 	foot_to(panel-rig.truck.global_basis.x*.65)
@@ -87,7 +87,7 @@ func run() -> void:
 	var progress: float = rig.roof.sweep
 	var hook: Vector3 = rig.car.to_global(Vector3.UP*2.80)
 	var sheave: Vector3 = rig.body.boom_tip.global_position
-	check(rig._flat_distance(sheave,hook)<.03 and sheave.y>hook.y+1.15,"the sheave stays directly over the suspended spreader with a vertical hoist cable")
+	check(rig.flat_distance(sheave,hook)<.03 and sheave.y>hook.y+1.15,"the sheave stays directly over the suspended spreader with a vertical hoist cable")
 	check(progress>.25 and progress<.75 and suspended.z>initial.z+2.,"the boom rotates a raised car away from the delivery canopy")
 	stroke(Vector2.DOWN,90)
 	check(rig.car.position.y>=Roof.TOP+Roof.CLEARANCE-.04,"the lower lever holds the load above the eave")
@@ -97,7 +97,7 @@ func run() -> void:
 	stroke(Vector2.LEFT,260)
 	stroke(Vector2.DOWN,460)
 	check(rig.special_work==1. and rig.car.position.distance_to(Roof.LANDING)<.13 and not rig.roof.controls,"wheels land inside the four delivery chalk marks")
-	var desk_panel: Vector3 = rig._panel()
+	var desk_panel: Vector3 = rig.panel_point()
 	stand(desk_panel-rig.truck.global_basis.x*.65,desk_panel)
 	for i in 1500:
 		if rig.phase=="at_lift": break
@@ -121,7 +121,7 @@ func run() -> void:
 	var old:Dictionary=rig.save_state()
 	rig.restore_state(old)
 	check(rig.roof==null and rig.phase=="rigged" and rig.special_work==.32 and rig.car.position.is_equal_approx(old_car),"already accepted single-sling recoveries retain their original progress")
-	panel = rig._panel()
+	panel = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.65,panel)
 	for i in 1500:
 		if rig.phase=="at_lift": break
