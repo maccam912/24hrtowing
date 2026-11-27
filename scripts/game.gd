@@ -11,6 +11,7 @@ const ShopAccount := preload("res://scripts/shop_account.gd")
 const RoadsideFuel := preload("res://scripts/roadside_fuel.gd")
 const DieselNozzle := preload("res://scripts/diesel_nozzle.gd")
 const PartsCounter := preload("res://scripts/parts_counter.gd")
+const SaveUpgrade := preload("res://scripts/save_upgrade.gd")
 const Campaign := preload("res://scripts/county_case.gd")
 const Casework := preload("res://scripts/casework.gd")
 const SurveyCase := preload("res://scripts/survey_case.gd")
@@ -2024,7 +2025,8 @@ func save() -> void:
 	if not test_session and not Ledger.newer_build and not Ledger.write(saved_data):
 		push_warning("Could not save current tow ticket")
 
-func _restore(s: Dictionary) -> void:
+func _restore(saved: Dictionary) -> void:
+	var s := SaveUpgrade.before_restore(saved,audio.lines)
 	_set_pool_receipt(s.get("received_pool",{}))
 	if received_freight:
 		received_freight.queue_free()
@@ -2083,34 +2085,17 @@ func _restore(s: Dictionary) -> void:
 	rotation_offer = Dispatch.unpack(s.get("offer",{}))
 	case_offer = Dispatch.unpack(s.get("case_offer",{}))
 	job = Dispatch.unpack(s.get("ticket",{}))
-	if job.has("aftermath_key") and not job.has("observation_key"):
-		job.observation_key = "order/%d/%s" % [int(job.number),job.aftermath_key]
-	if mode != "available" and job.is_empty():
-		job = Dispatch.legacy_ticket(completed,audio.lines)
 	survey.restore(s.get("survey",{}),held,job.get("kind",""))
 	if survey.notes.has("farm_ring") and not survey.farm_reported:
 		sightings.observations.remember({"key":"farm_ring","kind":"farm_ring"})
-	if not s.has("account") and survey.pending_order() == "hold" and case_offer.is_empty():
-		case_offer = Dispatch.hold_ticket(completed,audio.lines)
-		case_offer.point = county.survey_point
-		case_offer.angle = county.survey_yaw
+	SaveUpgrade.hold_offer(self,s)
 	campaign.restore(s.get("campaign",{}),survey,slips)
 	if survey.tracked_lead != campaign.chapter() or not _can_track_lead():
 		survey.tracked_lead = ""
-	var rig_state: Dictionary = s.rig.duplicate(true)
-	if not s.has("sightings"):
-		if s.get("longer",false):
-			_restore_plat_positions(rig_state)
-			for departure: Dictionary in rig_state.get("departures",[]):
-				_restore_plat_positions(departure)
-		_migrate_case_ticket(rig_state)
-	if not job.is_empty() and not rig_state.has("identity"):
-		rig_state.identity = job
-	elif job.has("case_id") and job.kind == rig_state.get("kind"):
-		# Older rig snapshots only kept the case ID on the dispatch ticket.
-		rig_state.identity.case_id = job.case_id
-	# Older shifts kept finished roadside work as the active ticket until the yard fax.
-	if mode in ["return","invoice"] and job.get("kind") in ["ditch","looksee"] and job.get("case_id") != "ride":
+	var rig_state: Dictionary = s.rig
+	SaveUpgrade.case_ticket(self,s,rig_state)
+	SaveUpgrade.rig_identity(rig_state,job)
+	if SaveUpgrade.finished_roadside(mode,job):
 		_clear_field_job()
 	sync_survey_scene()
 	visits.sync(job,true)
@@ -2127,28 +2112,3 @@ func _restore(s: Dictionary) -> void:
 		bay_locked = false
 	county.set_bay_locked(bay_locked)
 	_display_storage()
-
-# The dispatch ticket always used plat coordinates. Old rig snapshots used world metres.
-func _restore_plat_positions(snapshot: Dictionary) -> void:
-	for key in ["truck","foot","site","car","witness","flare"]:
-		var point = snapshot.get(key)
-		if point is Array and point.size() == 3:
-			var z := float(point[2])
-			point[2] = z - 40.0 * clampf((z - 164.0) / 112.0,0,1)
-
-func _migrate_case_ticket(rig_state: Dictionary) -> void:
-	if case_offer.get("id") == "n5104":
-		case_offer = Dispatch.looksee(int(case_offer.number)-1001)
-	if job.get("id") == "n5104":
-		job = Dispatch.looksee(int(job.number)-1001)
-	var id: String = job.get("case_id","")
-	if not Campaign.DETAILS.has(id) or id != campaign.chapter():
-		return
-	var original_kind: String = job.kind
-	job = campaign.ticket(int(job.number))
-	if mode == "fieldwork" and original_kind == "looksee" and job.kind == "hazard":
-		# The former bridge and mailbox inspections now dispatch actual recoveries.
-		rig_state.merge({"kind":job.kind,"phase":"scene","site":[job.point.x,job.point.y,job.point.z],
-			"site_yaw":job.angle,"identity":job.duplicate(),"loaded":false,"line_end":-1},true)
-		for key in ["car","car_rot","flare"]:
-			rig_state.erase(key)
