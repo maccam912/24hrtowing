@@ -15,7 +15,7 @@ func interact_at(id: String, at: Vector3, offset: Vector3) -> void:
 	game._action("interact")
 
 func panel(id: String) -> void:
-	interact_at(id,rig._panel(),-rig.truck.global_basis.x*.95)
+	interact_at(id,rig.panel_point(),-rig.truck.global_basis.x*.95)
 
 func work(count: int) -> void:
 	for i in count: rig.set_controls(Vector2.ZERO,Vector2.ZERO,rig.tension<.93,false,DT)
@@ -27,7 +27,7 @@ func run_gate(index: int, selected: int) -> void:
 	game._action("play")
 	rig=game.rig
 	game.account.equipment.snatch_block=true
-	game._fit_equipment()
+	game.fit_equipment()
 	game.dispatch_seed=index
 	var jobs: Array = []
 	for i in 100:
@@ -56,20 +56,20 @@ func run_gate(index: int, selected: int) -> void:
 	check(game.subtitle.contains("wire"),"the driver identifies the gate when asked")
 	interact_at("flare",rig.car.position,rig.car.global_basis.x*2.3)
 	panel("cable")
-	var eye: Vector3 = rig._eyelet(-1)
+	var eye: Vector3 = rig.eyelet_point(-1)
 	if selected>=0:
 		interact_at("field_fence",eye,rig.car.global_basis.z*-.7)
 		check(rig.phase=="cable" and not rig.working,"straight cable cannot be pulled through the actual end fence")
 		var post := Gate.point(spec,Gate.FENCE_X,0.)
-		post.y=rig._ground(post)+.9
+		post.y=rig.ground_height(post)+.9
 		interact_at("field_post",post,Vector3.LEFT)
 		check(gate.selected<0,"the loose post cannot take the block")
 		point(tree,Vector3.RIGHT)
 		rig.assist=false
-		rig._update_highlight()
+		rig.update_highlight()
 		check(not rig.highlight.visible and rig.action_id()=="field_wrap","the real tree still takes the strap with assistance disabled")
 		rig.assist=true
-		rig._update_highlight()
+		rig.update_highlight()
 		check(rig.highlight.visible and rig.highlight.global_position.distance_to(tree)<.04,"assistance identifies a physically reachable hardwood")
 		interact_at("field_wrap",tree,Vector3.RIGHT)
 		check(gate.selected==selected and is_instance_valid(gate.sling),"webbing is fastened around the chosen trunk")
@@ -77,7 +77,7 @@ func run_gate(index: int, selected: int) -> void:
 		gate=rig.redirect
 		check(gate.selected==selected and is_instance_valid(gate.sling),"the routed block resumes before hook-up")
 	interact_at("attach",eye,rig.car.global_basis.z*-.7)
-	point(rig._panel(),-rig.truck.global_basis.x)
+	point(rig.panel_point(),-rig.truck.global_basis.x)
 	if selected>=0:
 		rig._cable_curve()
 		check(rig.cable_mesh.get_surface_count()==2 and rig.pulley.global_position.distance_to(tree)<.02,"both visible legs meet at the selected block")
@@ -88,7 +88,7 @@ func run_gate(index: int, selected: int) -> void:
 			work(1)
 			check(not gate.cuts_wire(last,rig.car.position,.65),"the moving body clears the field wire")
 			last=rig.car.position
-			closest=minf(closest,rig._flat_distance(tree,last))
+			closest=minf(closest,rig.flat_distance(tree,last))
 		check(gate.easing and game.mode=="fieldwork" and closest>2.6,"the first pull stops safely short of the trunk with the contract open")
 		var stopped_at:Vector3=rig.car.position
 		work(125)
@@ -97,9 +97,9 @@ func run_gate(index: int, selected: int) -> void:
 		gate=rig.redirect
 		interact_at("field_transfer",tree,Vector3.RIGHT)
 		check(not gate.easing and gate.selected<0 and gate.route_used and not is_instance_valid(gate.sling),"operator removes the slack hardware while the hook stays on the car")
-		point(rig._panel(),-rig.truck.global_basis.x)
+		point(rig.panel_point(),-rig.truck.global_basis.x)
 	work(3300)
-	check(game.mode=="available" and rig.phase in ["departing","done"] and rig._road(rig.car.position)<4.8,"the owner’s car is pulled all the way onto the road and released")
+	check(game.mode=="available" and rig.phase in ["departing","done"] and rig.road_distance(rig.car.position)<4.8,"the owner’s car is pulled all the way onto the road and released")
 	if game.pending_slips.is_empty():
 		game.free()
 		return

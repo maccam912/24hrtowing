@@ -17,10 +17,10 @@ func run() -> void:
 	game._action("play")
 	rig = game.rig
 	var order: Dictionary = game.campaign.ticket(1024,"bridge")
-	game._accept(order)
+	game.accept(order)
 	var vin: String = order.vin
 	check(rig.flowage != null and rig.car_lamps.visible,"the case sedan is running on the frozen flowage")
-	var directions: Dictionary = game._current_road_map()._nearest(Vector2(-434.,-85.))
+	var directions: Dictionary = game.current_road_map().nearest_section(Vector2(-434.,-85.))
 	check(directions.section.name=="River Rd","the east approach has a road in the printed road graph")
 	# Drive from the highway through the actual turn and parking apron.
 	rig.set_spawn(Vector3(-393,0,0),PI/2)
@@ -35,26 +35,26 @@ func run() -> void:
 	var aim: float = rig.heading
 	game._action("interact")
 	check(not rig.in_cab,"Brandt steps down at the end of the road")
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.7,panel)
 	game._action("interact")
 	game._action("interact")
 	check(rig.phase=="cable","the controls release a long steel line on the bank")
 	# Walk the hook away from the load before paying it out across the ice.
-	var drum: Vector3 = rig._drum()
+	var drum: Vector3 = rig.drum_point()
 	var point := Vector3(drum.x,0,drum.z-50.)
 	stand(point,point+Vector3.FORWARD)
 	for tick in 140: rig.set_controls(Vector2.UP,Vector2.ZERO,false,false,DT)
-	check(rig.flowage.end_reached and rig._flat_distance(rig.foot,drum)<52.,"the hook cannot be carried past the last wrap on the drum")
+	check(rig.flowage.end_reached and rig.flat_distance(rig.foot,drum)<52.,"the hook cannot be carried past the last wrap on the drum")
 	for tick in 70: rig.set_controls(Vector2.DOWN,Vector2.ZERO,false,false,DT)
-	check(not rig.flowage.end_reached and rig._flat_distance(rig.foot,drum)<50.,"a fully paid-out hook can be carried back without dropping the job")
+	check(not rig.flowage.end_reached and rig.flat_distance(rig.foot,drum)<50.,"a fully paid-out hook can be carried back without dropping the job")
 	stand(panel-rig.truck.global_basis.x*.7,panel)
 	var old_cable: Dictionary = rig.save_state()
 	old_cable.erase("flowage")
 	old_cable.truck = [-503.,0.,-134.]
 	old_cable.heading = PI/2
 	rig.restore_state(old_cable)
-	panel = rig._panel()
+	panel = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.65,panel)
 	check(rig.action_id()=="ice_repack","an old unfinished setup on the wrong bank offers to rewind and move the rig")
 	rig.interact()
@@ -64,7 +64,7 @@ func run() -> void:
 	stranded.truck = [-495.,-2.,-134.]
 	stranded.car = [-496.,-2.,-135.]
 	rig.restore_state(stranded)
-	panel = rig._panel()
+	panel = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.65,panel)
 	check(rig.flowage.west_salvage and rig.action_id()=="ice_repack","an old partly hauled car can be recovered from its nearest solid bank")
 	rig.interact()
@@ -73,16 +73,16 @@ func run() -> void:
 	await use_panel()
 	check(rig.phase=="cable" and rig.car.position.x == -496.,"rewinding an old westward pull preserves the car's position and VIN")
 	rig.restore_state(old_cable)
-	panel = rig._panel()
+	panel = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x*.65,panel)
 	rig.interact()
 	rig.set_spawn(parked,aim)
 	rig.in_cab=false
 	await use_panel()
-	var fairlead: Vector3 = rig._drum()
+	var fairlead: Vector3 = rig.drum_point()
 	var rear: Vector3 = rig.truck.global_basis.z
 	walk_to_point(fairlead+rear*2.7-rig.truck.global_basis.x*1.8)
-	var eye: Vector3 = rig._eyelet(1)
+	var eye: Vector3 = rig.eyelet_point(1)
 	var shore_eye: Vector3 = eye+Vector3(1.39,0,0)
 	walk_to_point(shore_eye)
 	stand(shore_eye,eye)
@@ -91,7 +91,7 @@ func run() -> void:
 	await tap_control("interact")
 	check(rig.phase=="rigged","Brandt can reach and attach the hook at the bumper on foot")
 	walk_to_point(fairlead+rear*2.7-rig.truck.global_basis.x*1.8)
-	panel = rig._panel()
+	panel = rig.panel_point()
 	walk_to_point(panel-rig.truck.global_basis.x*.75)
 	stand(panel-rig.truck.global_basis.x*.67,panel)
 	check(rig.action_id()=="ice_creep","the bank has a low-speed drum setting")

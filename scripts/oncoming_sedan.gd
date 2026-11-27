@@ -59,7 +59,7 @@ static func _pane(parent: Node3D, at: Vector3, size: Vector2, angle: Vector3, su
 	return panel
 
 static func clear_road(game, center: Vector3, along: Vector3, street: String) -> bool:
-	var nav = game._current_road_map()
+	var nav = game.current_road_map()
 	var side := along.cross(Vector3.UP)
 	for distance: float in [0.,32.,64.,96.,RUN]:
 		var station:=center-along*distance

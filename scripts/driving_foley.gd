@@ -20,12 +20,12 @@ func mount(field) -> void:
 	exhaust = field.voice()
 
 func pavement(rig, contact: Vector3) -> float:
-	var distance: float = rig._road(contact)
+	var distance: float = rig.road_distance(contact)
 	# The two unsealed access lanes are included in the county's route graph.
 	if absf(contact.x-County.CaseSites.ALDER_X)<5.5 and contact.z < -404.: return 0.
 	if absf(contact.z-County.HOFFMANN_LANE_END.y)<5.5 and contact.x > 405. and contact.x < County.HOFFMANN_LANE_END.x+3.: return 0.
 	if distance>5. and rig.world.has_method("_distance_from_lot"):
-		distance = minf(distance,float(rig.world._distance_from_lot(contact.x,contact.z))+4.25)
+		distance = minf(distance,float(rig.world.distance_from_lot(contact.x,contact.z))+4.25)
 	return 1.-smoothstep(4.65,6.20,distance)
 
 func mix(field, rig, active: bool, inside_store: bool, dt: float) -> void:

@@ -108,13 +108,13 @@ func switch_face(r: Rect2, fill: Color, pressed: bool = false) -> void:
 	draw_polyline(PackedVector2Array([rim[6],rim[7],rim[0],rim[1],rim[2]]),shadow if pressed else light,1.5,true)
 	draw_polyline(PackedVector2Array([rim[2],rim[3],rim[4],rim[5],rim[6]]),light if pressed else shadow,2.5,true)
 
-func _bolt(at: Vector2) -> void:
+func bolt(at: Vector2) -> void:
 	draw_circle(at,3.2,Color("#282929"),true,-1,true)
 	draw_circle(at-Vector2(0,0.6),2.4,Color("#978e78"),true,-1,true)
 	draw_line(at-Vector2(1.5,-0.7),at+Vector2(1.5,-0.7),DARK,1.2,true)
 
 func button(id: String, r: Rect2, caption: String, dark: bool = false) -> void:
-	var down: bool = desk._is_down(id)
+	var down: bool = desk.is_down(id)
 	var focus: bool = hover == id or down
 	var type_size := 23 if desk.is_touch_mode() else 18
 	if desk.page == "pause":
@@ -124,7 +124,7 @@ func button(id: String, r: Rect2, caption: String, dark: bool = false) -> void:
 		draw_rect(Rect2(r.position.x,r.position.y,5,r.size.y),ink)
 		rule(r.position.x,r.end.y-1,r.size.x,ink)
 		fitted(r.grow_individual(-23,0,-44,0),caption,scaled,type_size,ink,HORIZONTAL_ALIGNMENT_LEFT)
-		_arrow(Vector2(r.end.x-24,r.get_center().y),10,ink,true)
+		arrow(Vector2(r.end.x-24,r.get_center().y),10,ink,true)
 	elif desk.page == "radio" or id in ["settings_30","settings_60"]:
 		# The radio's push keys and the settings selectors sit in recessed sockets.
 		switch_face(r,Color("#313732"),true)
@@ -189,11 +189,11 @@ func _title() -> void:
 	rule(x+8,y+164,w-16,CREAM,2)
 	fitted(Rect2(x+20,y+124,w-40,36),"BRANDT TOWING & RECOVERY",scaled,20,OXBLOOD)
 	for dx in [13.0,w-13.0]:
-		_bolt(Vector2(x+dx,y+14))
-		_bolt(Vector2(x+dx,y+153))
+		bolt(Vector2(x+dx,y+14))
+		bolt(Vector2(x+dx,y+153))
 	var touch: bool = desk.is_touch_mode()
 	var play := Rect2(x, y+198, maxf(246,w*0.65), 80 if touch else 49)
-	var down: bool = desk._is_down("play")
+	var down: bool = desk.is_down("play")
 	switch_face(play,Color("#272c29"),true)
 	switch_face(play.grow(-3),CREAM if hover == "play" or down else AMBER,down)
 	var key_at := Vector2(play.position.x+(35 if touch else 28),play.get_center().y)
@@ -202,6 +202,11 @@ func _title() -> void:
 	hit("play", play)
 	_title_link("help", Vector2(x,play.end.y+16), "Operator guide")
 	_title_link("options", Vector2(x+(188 if touch else 147),play.end.y+16), "Settings")
+	if drawn.get("newer_save", false):
+		var note := Rect2(x, play.end.y+(110 if touch else 71), maxf(w,340), 46)
+		draw_rect(note, Color("#0d1720",0.82))
+		fitted(Rect2(note.position+Vector2(10,3),Vector2(note.size.x-20,20)), "A newer build saved this route. It stays on file.", subtle, 17, CREAM, HORIZONTAL_ALIGNMENT_LEFT)
+		fitted(Rect2(note.position+Vector2(10,23),Vector2(note.size.x-20,20)), "This build won’t save. Update the game to continue it.", subtle, 17, AMBER, HORIZONTAL_ALIGNMENT_LEFT)
 
 func _ignition(at: Vector2, scale_factor: float, down: bool) -> void:
 	draw_set_transform(at*unit,0.40 if down else -0.28,Vector2.ONE*unit*scale_factor)
@@ -220,7 +225,7 @@ func _ignition(at: Vector2, scale_factor: float, down: bool) -> void:
 func _title_link(id: String, at: Vector2, label: String) -> void:
 	var touch: bool = desk.is_touch_mode()
 	var r := Rect2(at,Vector2(176,78) if touch else Vector2(134,39))
-	switch_face(r,Color("#4a453a") if hover == id else RUBBER,desk._is_down(id))
+	switch_face(r,Color("#4a453a") if hover == id else RUBBER,desk.is_down(id))
 	fitted(r.grow(-6), label, subtle, 23 if touch else 18, CREAM)
 	hit(id,r)
 
@@ -233,7 +238,7 @@ func _menu() -> void:
 	var height := 506 if touch else 452
 	var p := Rect2((dim.x-width)*0.5,(dim.y-height)*0.5,width,height)
 	switch_face(p.grow(9),Color("#533f32"))
-	_sheet(p,PAPER)
+	sheet(p,PAPER)
 	draw_line(p.position+Vector2(16,0),Vector2(p.position.x+16,p.end.y),Color("#b99283"),1.3)
 	var x := p.position.x+28
 	var y := p.position.y+28
@@ -299,7 +304,7 @@ func _menu() -> void:
 				line_y += 34 if entries.size() > 6 else 39
 			button("close",Rect2(x,y+344,148,78 if touch else 44),"Back")
 
-func _sheet(p: Rect2, colour: Color) -> void:
+func sheet(p: Rect2, colour: Color) -> void:
 	draw_rect(Rect2(p.position+Vector2(5,8),p.size), Color(0,0,0,0.4))
 	draw_rect(Rect2(p.position+Vector2(2,3),p.size), colour.darkened(.25))
 	draw_rect(p,colour)
@@ -584,13 +589,13 @@ func _mobile() -> void:
 		# The wheel is one piece of hardware with independent left/right touch zones.
 		var left_rim := Rect2(HUD_MARGIN,bottom-178,THUMB_WIDTH+THUMB_GAP/2,178)
 		var right_rim := Rect2(left_rim.end.x,left_rim.position.y,left_rim.size.x,left_rim.size.y)
-		CabControls.wheel(self,left_rim.merge(right_rim),desk._is_down("steer_l"),desk._is_down("steer_r"))
+		CabControls.wheel(self,left_rim.merge(right_rim),desk.is_down("steer_l"),desk.is_down("steer_r"))
 		hit("steer_l",left_rim)
 		hit("steer_r",right_rim)
 		var pedal_x := right-THUMB_WIDTH
 		var brake_x := pedal_x-THUMB_GAP-THUMB_WIDTH
 		var stopped: bool = drawn.get("truck_stopped",true)
-		var reversing: bool = desk._is_down("reverse")
+		var reversing: bool = desk.is_down("reverse")
 		var reverse_label: bool = reversing or (stopped and not desk.brake_held())
 		_control("gas",Rect2(pedal_x,bottom-164,THUMB_WIDTH,164),"GAS")
 		_control("brake",Rect2(brake_x,bottom-130,THUMB_WIDTH,130),"REVERSE" if reverse_label else "BRAKE")
@@ -607,7 +612,7 @@ func _mobile() -> void:
 		if drawn.get("tower_height",-1.0) >= 0.0 or drawn.get("roof_ladder",false):
 			fitted(Rect2(stick_center-Vector2(52,86),Vector2(104,28)),"CLIMB",scaled,18,CREAM)
 			fitted(Rect2(stick_center+Vector2(-52,57),Vector2(104,28)),"DESCEND",scaled,16,CREAM)
-		var thumb: Vector2 = stick_center + desk._stick*(STICK_RADIUS-33)
+		var thumb: Vector2 = stick_center + desk.stick*(STICK_RADIUS-33)
 		draw_circle(thumb,31,Color("#706b59"),true,-1,true)
 		draw_arc(thumb,29,PI,TAU,24,CREAM,1.7,true)
 		for i in [-1,0,1]:
@@ -631,11 +636,11 @@ func stick_input(point: Vector2) -> Vector2:
 	return ((point-stick_center)/(STICK_RADIUS*0.85)).limit_length()
 
 func _control(id: String, r: Rect2, caption: String) -> void:
-	var pressed: bool = desk._is_down(id) or (id == "brake" and desk._is_down("reverse"))
+	var pressed: bool = desk.is_down(id) or (id == "brake" and desk.is_down("reverse"))
 	CabControls.paint(self,id,r,caption,pressed)
 	hit(id,r)
 
-func _arrow(center: Vector2,scale_px: float,colour: Color,right: bool) -> void:
+func arrow(center: Vector2,scale_px: float,colour: Color,right: bool) -> void:
 	var side := 1 if right else -1
 	var points := PackedVector2Array([center+Vector2(-.4*side,-.78)*scale_px, center+Vector2(.38*side,0)*scale_px, center+Vector2(-.4*side,.78)*scale_px])
 	draw_polyline(points,colour,maxf(2.5,scale_px*.24),true)

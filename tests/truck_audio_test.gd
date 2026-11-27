@@ -28,7 +28,7 @@ func run() -> void:
 	var idle: AudioStreamPlayer = game.audio.engines.diesel
 	ticks(60)
 	check(idle.volume_db > -20 and pull.volume_db < -60, "parked truck plays the idle layer")
-	game.desk._stick = Vector2.UP
+	game.desk.stick = Vector2.UP
 	ticks(30)
 	check(game.rig.speed > 0 and pull.volume_db > -12, "the exhaust comes in on the gas at yard speed")
 	var shifted := false
@@ -42,10 +42,10 @@ func run() -> void:
 			break
 	check(shifted, "the audible engine revs fall on the first upshift")
 	var on_gas := pull.volume_db
-	game.desk._stick = Vector2.ZERO
+	game.desk.stick = Vector2.ZERO
 	ticks(30)
 	check(game.rig.speed > 2 and pull.volume_db < on_gas - 8, "lifting the pedal softens the exhaust while still rolling")
-	game.desk._stick = Vector2.UP
+	game.desk.stick = Vector2.UP
 	ticks(60)
 	game.desk.toggle_pause()
 	ticks(60)
@@ -57,7 +57,7 @@ func run() -> void:
 	var hiss: AudioStreamPlayer = game.audio.effects[(game.audio.cursor-1) % game.audio.effects.size()]
 	check(hiss.volume_db <= -23, "the air release has its own quiet mix level")
 	game.desk._touches.clear()
-	game.desk._stick = Vector2.DOWN
+	game.desk.stick = Vector2.DOWN
 	ticks(180)
 	check(game.rig.speed < -3 and cues.count("reverse") == 3, "three seconds of backing gives three beeps")
 	for player in game.audio.effects:

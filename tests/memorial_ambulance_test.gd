@@ -23,7 +23,7 @@ func run() -> void:
 	check(not first.is_empty() and deputies.size()==2,"Memorial and both deputies keep distinct units")
 	if first.is_empty():
 		game.free(); quit(1); return
-	game._accept(first)
+	game.accept(first)
 	check(rig.car.get_meta("ems",false) and rig.car.get_meta("vin")==EMS.VIN and rig.ems_partner.get_node("EmptyCot")!=null,"EMS box body and both responding crew members are instantiated")
 	EMS.flash(rig.car_lamps,.22)
 	check(rig.car_lamps.get_node("LeftWarning").visible and not rig.car_lamps.get_node("RightWarning").visible,"the parked unit alternates its red corner heads while the steady beams stay on")
@@ -53,16 +53,16 @@ func run() -> void:
 		if not rig.cot_at_line(): break
 		game._physics_process(DT)
 	check(not rig.cot_at_line() and not rig.exiting_riders.is_empty(),"Kit clears the pull and keeps going to the night entrance")
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	game._action("interact")
 	var end := 1 if roadward.dot(rig.car.global_basis.z)>0 else -1
-	var eye: Vector3 = rig._eyelet(end)
+	var eye: Vector3 = rig.eyelet_point(end)
 	stand(eye+rig.car.global_basis.z*end,eye)
 	game._action("interact")
 	stand(panel-rig.truck.global_basis.x,panel)
 	check(rig.phase=="rigged","operator can rig the actual ambulance eye")
-	game._save()
+	game.save()
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	for late in [false,true]:
 		if late:

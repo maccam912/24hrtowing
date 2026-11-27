@@ -146,7 +146,7 @@ func run() -> void:
 	game.campaign.stage = 2
 	game.account.equipment["snatch_block"] = true
 	game.account.equipment["second_winch"] = true
-	game._fit_equipment()
+	game.fit_equipment()
 	director._record("field_car",Vector3(23,0,596),0.,0,0.,"County K")
 	game.job = {}
 	game.mode = "available"

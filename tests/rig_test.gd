@@ -193,11 +193,11 @@ func test_line() -> void:
 	walk_to(Vector3(-3,0,9))
 	operate("flare",rig.car.position+Vector3.UP)
 	walk_to(Vector3(-2.1,0,2.35))
-	operate("cable",rig._panel())
+	operate("cable",rig.panel_point())
 	walk_to(Vector3(-4.8,0,10.8))
-	operate("attach",rig._eyelet(-1))
+	operate("attach",rig.eyelet_point(-1))
 	walk_to(Vector3(-2.1,0,2.35))
-	aim_at(rig._panel())
+	aim_at(rig.panel_point())
 	var initial:Vector3=rig.car.position
 	for i in 160:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
@@ -223,14 +223,14 @@ func test_double_line() -> void:
 	require(rig.warning_triangle == null and (not is_instance_valid(triangle) or not triangle.is_visible_in_tree() or triangle.is_queued_for_deletion()),
 		"placing the flare clears the original roadside triangle")
 	walk_to(Vector3(-2.1,0,2.35))
-	operate("need_block",rig._panel())
+	operate("need_block",rig.panel_point())
 	require(rig.phase=="flared","heavy pull cannot start on the stock line")
 	rig.snatch_block=true
-	operate("cable",rig._panel())
+	operate("cable",rig.panel_point())
 	walk_to(Vector3(-4.8,0,10.8))
-	operate("attach",rig._eyelet(-1))
+	operate("attach",rig.eyelet_point(-1))
 	walk_to(Vector3(-2.1,0,2.35))
-	aim_at(rig._panel())
+	aim_at(rig.panel_point())
 	var saved: Dictionary = rig.save_state()
 	rig.restore_state(saved)
 	require(rig.warning_triangle == null, "a rigged tow resumes without putting the triangle back")
@@ -239,20 +239,20 @@ func test_double_line() -> void:
 	var initial: Vector3 = rig.car.position
 	for i in 180:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
-	require(rig.cable_mesh.get_surface_count()==2 and rig.pulley.visible and rig.pulley.global_position.distance_to(rig._eyelet(-1))<.25,
+	require(rig.cable_mesh.get_surface_count()==2 and rig.pulley.visible and rig.pulley.global_position.distance_to(rig.eyelet_point(-1))<.25,
 		"both parts of the line pass through the block at the tow eye")
 	require(initial.distance_to(rig.car.position)>.5,"fitted block pulls the heavier utility truck")
 	for i in 1800:
 		if rig.phase=="at_lift": break
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
 	require(rig.phase=="at_lift","double-line pull brings the utility pickup to the underlift")
-	operate("lift",rig._panel())
+	operate("lift",rig.panel_point())
 	require(rig.loaded,"heavy utility pickup can be secured for the return haul")
 
 func stand_at(at: Vector3) -> void:
 	rig.in_cab=false
 	rig.foot=Vector3(at.x,0,at.z)
-	rig._update_eyes()
+	rig.update_eyes()
 	aim_at(at)
 
 func test_impossible_recoveries() -> void:
@@ -267,29 +267,29 @@ func test_impossible_recoveries() -> void:
 		rig.snatch_block=true
 		require(rig.warning_triangle == null, recovery+" retains its original recovery scene")
 		require(rig.car_lamps.get_node_or_null("TailpipeVapor")!=null, recovery+" still runs at the site")
-		stand_at(rig._panel() if ice or raised else rig.car.position+Vector3.LEFT*2.5)
-		operate("flare",rig._panel() if ice or raised else rig.car.position)
-		stand_at(rig._panel())
-		operate("cable",rig._panel())
+		stand_at(rig.panel_point() if ice or raised else rig.car.position+Vector3.LEFT*2.5)
+		operate("flare",rig.panel_point() if ice or raised else rig.car.position)
+		stand_at(rig.panel_point())
+		operate("cable",rig.panel_point())
 		if recovery == "tree":
 			var sling: Vector3 = rig.tree_recovery.eye
 			stand_at(sling)
 			operate("tree_block",sling)
-			stand_at(rig._panel())
-			operate("tree_boom",rig._panel())
+			stand_at(rig.panel_point())
+			operate("tree_boom",rig.panel_point())
 		elif raised:
-			operate("sling",rig._panel())
+			operate("sling",rig.panel_point())
 		elif rolling:
-			stand_at(rig._side_eye(-1))
-			operate("roll_hook",rig._side_eye(-1))
-			stand_at(rig._side_eye(1))
-			operate("check_line",rig._side_eye(1))
+			stand_at(rig.side_eye(-1))
+			operate("roll_hook",rig.side_eye(-1))
+			stand_at(rig.side_eye(1))
+			operate("check_line",rig.side_eye(1))
 		else:
-			var eye: Vector3 = rig._eyelet(-1)
+			var eye: Vector3 = rig.eyelet_point(-1)
 			stand_at(eye+Vector3.FORWARD*.60)
 			operate("attach",eye)
-		stand_at(rig._panel())
-		aim_at(rig._panel())
+		stand_at(rig.panel_point())
+		aim_at(rig.panel_point())
 		if raised or rolling:
 			var command := Vector2.UP if recovery == "tree" else Vector2.ZERO
 			for tick in (25 if recovery == "tree" else 150): rig.set_controls(command,Vector2.ZERO,true,false,STEP)
@@ -306,20 +306,20 @@ func test_impossible_recoveries() -> void:
 			require(before>0 and rig.special_work==before and pose.is_equal_approx(rig.car.transform),
 				recovery+" resumes partway through rigging with its pose intact")
 		if recovery == "tree":
-			stand_at(rig._panel())
-			operate("tree_boom",rig._panel())
+			stand_at(rig.panel_point())
+			operate("tree_boom",rig.panel_point())
 			for tick in 120: rig.set_controls(Vector2.UP,Vector2.ZERO,false,false,STEP)
 			for tick in 460: rig.set_controls(Vector2.RIGHT,Vector2.ZERO,false,false,STEP)
 			for tick in 650:
 				if not rig.tree_recovery.controls: break
 				rig.set_controls(Vector2.DOWN,Vector2.ZERO,false,false,STEP)
-			stand_at(rig._panel())
+			stand_at(rig.panel_point())
 		for tick in 3500:
 			if rig.phase=="at_lift": break
 			rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,STEP)
 		require(rig.phase=="at_lift",recovery+" reaches the underlift")
 		require(absf(rig.car.rotation.z)<.001 and absf(rig.car.rotation.x)<.001,recovery+" comes down upright")
-		operate("lift",rig._panel())
+		operate("lift",rig.panel_point())
 		require(rig.loaded,recovery+" can be strapped for the haul")
 		rig.end_job()
 

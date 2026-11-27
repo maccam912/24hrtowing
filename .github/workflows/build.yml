@@ -16,6 +16,9 @@ jobs:
     outputs:
       batches: ${{ steps.plan.outputs.batches }}
       desktop_builds: ${{ vars.ENABLE_DESKTOP_BUILDS != 'false' && 'true' || 'false' }}
+      # Only pushes to the default branch export and publish builds. The README's
+      # download link follows the newest release, so other branches only run tests.
+      release: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -34,6 +37,7 @@ jobs:
     env:
       COMMIT_BATCH: ${{ toJSON(matrix.batch.commits) }}
       ENABLE_DESKTOP_BUILDS: ${{ needs.revisions.outputs.desktop_builds }}
+      RELEASE_BUILD: ${{ needs.revisions.outputs.release }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -69,27 +73,27 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/24hrtowing/godot-4.7.2
-          key: 24hrtowing-godot-4.7.2-linux-${{ github.event_name == 'pull_request' && 'editor' || (needs.revisions.outputs.desktop_builds == 'true' && 'all-templates' || 'android-templates') }}-${{ hashFiles('.github/scripts/install-godot.sh') }}
+          key: 24hrtowing-godot-4.7.2-linux-${{ needs.revisions.outputs.release != 'true' && 'editor' || (needs.revisions.outputs.desktop_builds == 'true' && 'all-templates' || 'android-templates') }}-${{ hashFiles('.github/scripts/install-godot.sh') }}
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-        if: github.event_name != 'pull_request'
+        if: needs.revisions.outputs.release == 'true'
         with:
           distribution: temurin
           java-version: '17'
       - name: Install verified Godot release
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
-            bash .github/scripts/install-godot.sh
-          else
+          if [[ "$RELEASE_BUILD" == true ]]; then
             bash .github/scripts/install-godot.sh --export
+          else
+            bash .github/scripts/install-godot.sh
           fi
       - name: Run gameplay and regression tests
         run: python3 .github/scripts/build_commits.py test
       - name: Install Android build tools
-        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' }}
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
       - name: Export tested commits
-        if: ${{ !cancelled() && github.event_name != 'pull_request' }}
+        if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -105,7 +109,7 @@ jobs:
           unset ANDROID_KEYSTORE_BASE64
           python3 .github/scripts/build_commits.py export
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: ${{ !cancelled() && github.event_name != 'pull_request' && hashFiles('build/ci-releases/*/SHA256SUMS.txt') != '' }}
+        if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' && hashFiles('build/ci-releases/*/SHA256SUMS.txt') != '' }}
         with:
           name: release-${{ matrix.batch.label }}
           path: build/ci-releases/
@@ -115,7 +119,7 @@ jobs:
 
   native:
     needs: [revisions, build]
-    if: ${{ !cancelled() && github.event_name != 'pull_request' && !github.event.deleted && needs.revisions.outputs.desktop_builds == 'true' }}
+    if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' && !github.event.deleted && needs.revisions.outputs.desktop_builds == 'true' }}
     name: Launch ${{ matrix.runner }} · ${{ matrix.batch.label }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -144,7 +148,7 @@ jobs:
 
   publish:
     needs: [revisions, build, native]
-    if: ${{ !cancelled() && github.event_name != 'pull_request' && !github.event.deleted }}
+    if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' && !github.event.deleted }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write
@@ -178,8 +182,8 @@ jobs:
         run: bash .github/scripts/publish.sh
 
   latest:
-    needs: publish
-    if: ${{ !cancelled() && needs.publish.result != 'skipped' }}
+    needs: [revisions, publish]
+    if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' && needs.publish.result != 'skipped' }}
     runs-on: ubuntu-24.04
     permissions:
       contents: write

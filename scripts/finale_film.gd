@@ -105,7 +105,7 @@ func start(game, landing: Vector3) -> void:
 	# and the trees beyond it. Its running lamps face back into the frame.
 	var trace: Dictionary = game.sightings.aftermath.get("shoulder_car", {})
 	var facing := Vector3.FORWARD.rotated(Vector3.UP, float(trace.get("yaw", game.rig.heading)))
-	var nearest: Dictionary = game._current_road_map()._nearest(Vector2(sedan.x, sedan.z))
+	var nearest: Dictionary = game.current_road_map().nearest_section(Vector2(sedan.x, sedan.z))
 	var pavement := Vector3(nearest.point.x, sedan.y, nearest.point.y)
 	var toward_road := sedan.direction_to(pavement)
 	from_road = game.county.surface_point(sedan + facing * 10.0 + toward_road * 2.0) + Vector3.UP * 1.95

@@ -29,7 +29,7 @@ func run() -> void:
 	game.rotation_offer = {}
 	game.account.equipment["snatch_block"] = true
 	game.account.cash = 340
-	game._save()
+	game.save()
 	var older_save: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	older_save.erase("received_freight")
 	older_save.rig.erase("freight")
@@ -76,14 +76,14 @@ func run() -> void:
 	stand(target+rig.car.global_basis.x*2.4,target)
 	game._action("interact")
 	work_at_panel("cable")
-	var eye:Vector3 = rig._eyelet(-1)
+	var eye:Vector3 = rig.eyelet_point(-1)
 	stand(eye+forward,eye)
 	operate_at("freight_tractor")
 	work_at_panel("freight_second")
 	var axle:Vector3 = rig.semi.axle_eye(-1)
 	stand(axle-rig.semi.trailer.global_basis.x*.85,axle)
 	operate_at("freight_axle")
-	var panel:Vector3 = rig._panel()
+	var panel:Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	for i in 180:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,DT)
@@ -113,10 +113,10 @@ func run() -> void:
 		game.free()
 		quit(1)
 		return
-	game._save()
+	game.save()
 	var field_save:Dictionary = game.saved_data.duplicate(true)
 	for bend_at_rest:float in [-.24,.24]:
-		rig.semi.set_trailer_heading(rig.semi.rotation.y+bend_at_rest,rig._ground)
+		rig.semi.set_trailer_heading(rig.semi.rotation.y+bend_at_rest,rig.ground_height)
 		var parked_yaw:float = rig.semi.trailer.global_rotation.y
 		for tick in 900:
 			rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,DT)
@@ -125,7 +125,7 @@ func run() -> void:
 	rig.car.position = rig.YardDrop.STORAGE.center
 	check(not rig.at_dropoff(),"the county storage bay cannot accept freight")
 	rig.in_cab = false
-	var trial_panel:Vector3 = rig._panel()
+	var trial_panel:Vector3 = rig.panel_point()
 	stand(trial_panel-rig.truck.global_basis.x,trial_panel)
 	game._action("interact")
 	check(rig.loaded and game.mode == "haul" and game.pending_slips.is_empty(),"the panel keeps the combination attached at the wrong bay")
@@ -167,6 +167,6 @@ func operate_at(id: String) -> void:
 	game._action("interact")
 
 func work_at_panel(id: String) -> void:
-	var panel: Vector3 = rig._panel()
+	var panel: Vector3 = rig.panel_point()
 	stand(panel-rig.truck.global_basis.x,panel)
 	operate_at(id)

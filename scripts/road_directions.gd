@@ -41,7 +41,7 @@ func build(roads: Array) -> void:
 				graph.connect_points(ids[a], ids[p])
 				sections.append({"name":street.name, "a":a, "b":p, "ids":[ids[a],ids[p]]})
 
-func _nearest(p: Vector2, forward := Vector2.ZERO) -> Dictionary:
+func nearest_section(p: Vector2, forward := Vector2.ZERO) -> Dictionary:
 	var best := INF
 	var selected := {}
 	for section in sections:
@@ -58,12 +58,12 @@ func _nearest(p: Vector2, forward := Vector2.ZERO) -> Dictionary:
 	return selected
 
 func driven_road(p: Vector2) -> String:
-	var nearest := _nearest(p)
+	var nearest := nearest_section(p)
 	if nearest.is_empty() or nearest.section.name == GATE or p.distance_to(nearest.point) >= 7.0:
 		return ""
 	return nearest.section.name
 
-func _path(start: Dictionary, end: Dictionary) -> PackedVector2Array:
+func route_points(start: Dictionary, end: Dictionary) -> PackedVector2Array:
 	graph.add_point(START, start.point)
 	graph.add_point(FINISH, end.point)
 	for id: int in start.section.ids:
@@ -89,7 +89,7 @@ static func _turn(incoming: Vector2, outgoing: Vector2) -> String:
 	return "right" if incoming.cross(outgoing) > 0 else "left"
 
 func _street(a: Vector2, b: Vector2) -> String:
-	return _nearest((a+b) * 0.5, a.direction_to(b)).section.name
+	return nearest_section((a+b) * 0.5, a.direction_to(b)).section.name
 
 static func _cue(words: String, maneuver := "") -> Dictionary:
 	return {"instruction":words, "maneuver":maneuver}
@@ -98,8 +98,8 @@ func cue(position: Vector2, heading_degrees: float, destination: Vector2, landma
 	if sections.is_empty():
 		return {}
 	var forward := Vector2.UP.rotated(deg_to_rad(heading_degrees))
-	var start := _nearest(position, forward)
-	var end := _nearest(destination)
+	var start := nearest_section(position, forward)
+	var end := nearest_section(destination)
 	var road: String = start.section.name
 	if unmapped and road == end.section.name:
 		if position.distance_to(start.point) > 14.0:
@@ -107,7 +107,7 @@ func cue(position: Vector2, heading_degrees: float, destination: Vector2, landma
 		return _cue("%s is missing from my plat. Watch the fire plates along %s." % [landmark, road])
 	if position.distance_to(start.point) > 10.0:
 		return _cue("%s lies %s of you. Get back to the road." % [road, _cardinal(position.direction_to(start.point))])
-	var path := _path(start, end)
+	var path := route_points(start, end)
 	if path.size() < 2:
 		return _cue("Watch both shoulders for %s." % landmark)
 	var direction := path[0].direction_to(path[1])

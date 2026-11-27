@@ -36,9 +36,9 @@ static func grow_grove(draw, county) -> void:
 
 func deploy(rig) -> void:
 	clear_sling()
-	var side: float = signf(rig.car.to_local(rig._drum()).x)
+	var side: float = signf(rig.car.to_local(rig.drum_point()).x)
 	var point: Vector3 = rig.car.to_global(Vector3((-1. if side == 0. else side)*1.66,0,1.26))
-	eye = Vector3(point.x,rig._ground(point)+.9,point.z)
+	eye = Vector3(point.x,rig.ground_height(point)+.9,point.z)
 	sling = Kit.joint(rig,eye,"SlingTail")
 	var mesh = Kit.new(sling)
 	var upper: Vector3 = rig.car.to_global(Vector3(0,1.7,.2))-eye
@@ -56,7 +56,7 @@ func clear_sling() -> void:
 func action(rig, at_panel: bool) -> String:
 	if controls: return "tree_leave"
 	if rig.phase == "cable":
-		if not block_set and rig._in_range(eye,2.1):
+		if not block_set and rig.in_range(eye,2.1):
 			return "tree_block"
 		if at_panel: return "tree_boom" if block_set else "restow"
 	if rig.phase == "rigged" and rig.special_work < 1.0 and at_panel: return "tree_boom"
@@ -66,20 +66,20 @@ func engage(rig) -> void:
 	clear_sling()
 	take_controls(rig)
 	rig.phase = "rigged"
-	rig.line_end = rig._nearest_eyelet()
+	rig.line_end = rig.nearest_eyelet()
 	rig.sound_event.emit("lift")
 
 func instruction(rig) -> String:
-	var landing: Vector3 = rig._boom_landing()
-	if rig._flat_distance(rig.car.position,landing) < .6: return "Lower to the snow"
-	var perch := float(rig._ground(rig.job_site)) + (float(rig.job_site.y) if rig.job_site.y > 0. else 5.)
+	var landing: Vector3 = rig.boom_landing()
+	if rig.flat_distance(rig.car.position,landing) < .6: return "Lower to the snow"
+	var perch := float(rig.ground_height(rig.job_site)) + (float(rig.job_site.y) if rig.job_site.y > 0. else 5.)
 	if rig.car.position.y < perch + LIMB_CLEARANCE - .015: return "Raise clear of the limbs"
 	return "Swing in over the verge"
 
 func stroke(rig, move: Vector2, dt: float) -> void:
-	var landing: Vector3 = rig._boom_landing()
+	var landing: Vector3 = rig.boom_landing()
 	var start: Vector3 = rig.job_site
-	start.y = rig._ground(start) + (start.y if start.y > 0. else 5.)
+	start.y = rig.ground_height(start) + (start.y if start.y > 0. else 5.)
 	var axis := Vector3(landing.x-start.x,0,landing.z-start.z)
 	var reach := axis.length()
 	if reach <= .01: return
@@ -111,11 +111,11 @@ func stroke(rig, move: Vector2, dt: float) -> void:
 		rig.special_work = 1.
 		release()
 		rig.working = false
-		rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(rig.line_end))+.30
+		rig.free_line = rig.flat_distance(rig.drum_point(),rig.eyelet_point(rig.line_end))+.30
 		rig.body.stow_boom()
 		rig.sound_event.emit("ratchet")
-		rig._note("All four wheels on the snow. Winch to the underlift.",6)
+		rig.show_note("All four wheels on the snow. Winch to the underlift.",6)
 	elif rig.fuel <= 0:
 		release()
 		rig.working = false
-		rig._note(rig.reserve_hint(),6)
+		rig.show_note(rig.reserve_hint(),6)

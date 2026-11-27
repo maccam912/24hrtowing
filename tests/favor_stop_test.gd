@@ -61,7 +61,7 @@ func check_later_leads() -> void:
 		game.survey.hold_order = "filed"
 		if id == "line":
 			game.account.equipment["chains"] = true
-		game._sync_survey_scene()
+		game.sync_survey_scene()
 		rig.in_cab = true
 		game._refresh()
 		var slip := int(game.job.number)
@@ -94,7 +94,7 @@ func check_later_leads() -> void:
 			check_report_from_notebook(id)
 
 func check_report_from_notebook(id: String) -> void:
-	game._save()
+	game.save()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	game._recovered(game.job.kind)
 	if game.mode == "haul":

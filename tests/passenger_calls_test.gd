@@ -37,7 +37,7 @@ func run() -> void:
 	quit(int(failures > 0))
 
 func ride_to_counter(call: Dictionary) -> void:
-	game._accept(call)
+	game.accept(call)
 	var driver: Vector3 = rig.get_witness_position()
 	rig.set_spawn(driver+Vector3(5,0,7))
 	inspect_at("offer_ride",driver)

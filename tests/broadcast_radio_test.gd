@@ -41,7 +41,7 @@ func run() -> void:
 	radio.advance(1.,game)
 	check(radio.signal_strength < .01 and radio.program.volume_db < -65 and radio.hiss.volume_db > -32,"the interference drowns the program under static")
 	game.audio.set_sighting(0,0)
-	game._speak("DISPATCH","Brandt, call the office.")
+	game.speak("DISPATCH","Brandt, call the office.")
 	radio.advance(.2,game)
 	game._refresh()
 	check(radio.program.volume_db < -65 and radio.hiss.volume_db < -70 and game.state.subtitle == "Brandt, call the office.","county radio overrides both program and caption")
@@ -49,7 +49,7 @@ func run() -> void:
 	radio.advance(1.,game)
 	check(radio.program.volume_db > -35,"the broadcast comes back after the county call")
 	var head: float = radio.elapsed
-	game._save()
+	game.save()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	game._restore(snapshot)
 	check(radio.station == "fm" and is_equal_approx(radio.elapsed,head),"station and program position survive a cold restore")

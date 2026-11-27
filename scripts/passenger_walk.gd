@@ -66,20 +66,20 @@ func advance(rig,dt: float) -> bool:
 		rig.Scene.walk_person(person)
 		person.rotation.y = rotate_toward(person.rotation.y,atan2(-direction.x,-direction.z),dt*4.6)
 		person.global_position += direction.limit_length(dt*1.65)
-		person.position.y = rig._ground(person.position)
+		person.position.y = rig.ground_height(person.position)
 		return false
 	return true
 
 func save_state(rig) -> Dictionary:
 	var remaining := []
 	for i in range(step,route.size()):
-		remaining.append(rig._v(route[i]))
-	return {"variant":variant,"remaining":remaining,"position":rig._v(person.position),"yaw":person.rotation.y,"store":entering_store}
+		remaining.append(rig.pack_point(route[i]))
+	return {"variant":variant,"remaining":remaining,"position":rig.pack_point(person.position),"yaw":person.rotation.y,"store":entering_store}
 
 func restore(rig,data: Dictionary) -> void:
-	person.position = rig._unpack(data.get("position"),person.position)
+	person.position = rig.unpack_point(data.get("position"),person.position)
 	person.rotation.y = data.get("yaw",0.0)
 	entering_store = data.get("store",false)
 	step = 0
 	for p in data.get("remaining",[]):
-		route.append(rig._unpack(p,person.position))
+		route.append(rig.unpack_point(p,person.position))

@@ -49,7 +49,7 @@ func run() -> void:
 		return
 
 	# Revisit this save after checking the operator can fax before finishing the tow.
-	game._save()
+	game.save()
 	var before_filing: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	rig.set_spawn(game.SPAWN)
 	rig.in_cab = false
@@ -63,7 +63,7 @@ func run() -> void:
 	rig.set_spawn(tow.point)
 	rig.in_cab = false
 	rig.phase = "at_lift"
-	stand(rig._panel() - rig.truck.global_basis.x,rig._panel())
+	stand(rig.panel_point() - rig.truck.global_basis.x,rig.panel_point())
 	game._action("interact")
 	check(rig.loaded and game.mode == "haul", "strapping the hazard still starts a haul")
 	stand_at_cab_door(-1)
@@ -75,7 +75,7 @@ func run() -> void:
 	rig.odo += 1.3
 	park_tow(game.YardDrop.STORAGE.center + Vector3(4,0,0),PI/2)
 	game._action("interact")
-	stand(rig._panel() - rig.truck.global_basis.x,rig._panel())
+	stand(rig.panel_point() - rig.truck.global_basis.x,rig.panel_point())
 	game._action("interact")
 	check(not rig.loaded and game.mode == "invoice", "the hazard reaches storage before filing")
 	stand(game.FAX + Vector3.FORWARD,game.FAX)

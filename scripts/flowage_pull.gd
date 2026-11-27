@@ -64,18 +64,18 @@ func mark_line(rig, a: Vector3, b: Vector3) -> void:
 	for i in count:
 		var fraction := 10.*float(i+1)/FEET_PER_METRE/length
 		var point := a.lerp(b,fraction)
-		point.y = maxf(rig._ground(point)+.065,point.y-sin(fraction*PI)*sag)
+		point.y = maxf(rig.ground_height(point)+.065,point.y-sin(fraction*PI)*sag)
 		markers.multimesh.set_instance_transform(i,Transform3D(Basis.IDENTITY,point))
 	markers.multimesh.visible_instance_count = count
 	if rig.phase == "cable": cable_out = maxf(cable_out,minf(length,MAX_LINE))
 
 func limit_hook_walk(rig, from: Vector3, next: Vector3) -> Vector3:
-	var drum: Vector3 = rig._drum()
+	var drum: Vector3 = rig.drum_point()
 	var before := Vector2(from.x-drum.x,from.z-drum.z)
 	var proposed := Vector2(next.x-drum.x,next.z-drum.z)
 	# Leave room for the hook in the operator's hands and the slope down to
 	# the ice. An older position outside the radius can always walk back.
-	var rise: float = rig._ground(next)+1.2-drum.y
+	var rise: float = rig.ground_height(next)+1.2-drum.y
 	var reach := sqrt(maxf(1.,MAX_LINE*MAX_LINE-rise*rise))-.45
 	if proposed.length() <= reach:
 		if proposed.length() < reach-.8: end_reached = false
@@ -83,7 +83,7 @@ func limit_hook_walk(rig, from: Vector3, next: Vector3) -> Vector3:
 	if proposed.length_squared() <= before.length_squared(): return next
 	if not end_reached:
 		end_reached = true
-		rig._note("End of the drum. Walk the hook back toward the truck.",4.)
+		rig.show_note("End of the drum. Walk the hook back toward the truck.",4.)
 	var edge := proposed.limit_length(maxf(before.length(),reach))
 	return Vector3(drum.x+edge.x,next.y,drum.z+edge.y)
 
@@ -96,7 +96,7 @@ func supported(rig) -> bool:
 			if west_salvage:
 				if wheel.x > WEST_EDGE-.25 or absf(wheel.z-rig.job_site.z)>44.: return false
 			elif not LANDING.has_point(Vector2(wheel.x,wheel.z)): return false
-	var pull: Vector3 = rig.car.position-rig._drum()
+	var pull: Vector3 = rig.car.position-rig.drum_point()
 	pull.y = 0.
 	# An almost-loaded vehicle may already be at the tail of an old rig.
 	return pull.length() < 2.5 or rig.truck.global_basis.z.dot(pull.normalized()) > .66
@@ -129,14 +129,14 @@ func prepare(rig, operate: bool, dt: float) -> bool:
 	if not seated and at_lip:
 		if not lip:
 			lip = true
-			rig._note("First tires at the ice lip. Release the winch to let them settle.",5.)
+			rig.show_note("First tires at the ice lip. Release the winch to let them settle.",5.)
 		if operate:
 			eased = 0.
 		else:
 			eased = minf(.48,eased+dt)
 			if eased >= .48:
 				seated = true
-				rig._note("Tires seated on the bank. Take it slowly to the lift.",4.)
+				rig.show_note("Tires seated on the bank. Take it slowly to the lift.",4.)
 		return seated
 	return true
 

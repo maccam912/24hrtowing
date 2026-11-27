@@ -419,7 +419,7 @@ func road_distance(x: float, z: float, include_alder := true) -> float:
 		distance = minf(distance, dx*dx + dz*dz)
 	return sqrt(distance)
 
-func _distance_from_lot(x: float, z: float) -> float:
+func distance_from_lot(x: float, z: float) -> float:
 	if x > 1050:
 		return Vector2(x,z).distance_to(Vector2(x,z).clamp(East.LOT.position,East.LOT.end))
 	var nearest := INF
@@ -442,7 +442,7 @@ func ground_height(x: float, z: float) -> float:
 	var d := road_distance(x,z)
 	if d < 4.9:
 		return 0.0
-	var lot := _distance_from_lot(x,z)
+	var lot := distance_from_lot(x,z)
 	if lot < 0.01:
 		return 0.0
 	var bank := smoothstep(4.9,6.5,d)*(1.-smoothstep(6.5,8.0,d)) * .29

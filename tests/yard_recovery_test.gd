@@ -27,7 +27,7 @@ func check_haul_and_billing() -> void:
 	rig.set_spawn(tow.point)
 	rig.in_cab = false
 	rig.phase = "at_lift"
-	stand(rig._panel()-rig.truck.global_basis.x,rig._panel())
+	stand(rig.panel_point()-rig.truck.global_basis.x,rig.panel_point())
 	game._action("interact")
 	check(game.mode == "haul" and rig.loaded, "wrecker has an active loaded contract")
 	rig.odo += 1.5
@@ -42,7 +42,7 @@ func check_haul_and_billing() -> void:
 	check(game.desk.page == "pause" and rig.loaded and game.account.cash == 5, "cancel leaves the job and cash alone")
 	await tap_control("yard_recovery")
 	await tap_control("confirm_yard_recovery")
-	check(rig.in_cab and rig.is_stopped() and game._truck_in_yard() and rig.foot == game.SPAWN, "on-foot operator and wrecker recover together")
+	check(rig.in_cab and rig.is_stopped() and game.truck_in_yard() and rig.foot == game.SPAWN, "on-foot operator and wrecker recover together")
 	check(game.mode == "fieldwork" and game.job == tow and rig.phase == "scene" and not rig.loaded and rig.car.position.distance_to(tow.point)<2.0,
 		"the same vehicle, VIN and contract restart at the original scene")
 	check(game.completed == 0 and game.stored.is_empty() and game.pending_slips == pending and game.survey.notes.unit == odo,
@@ -51,7 +51,7 @@ func check_haul_and_billing() -> void:
 		"restart clears billable work and preserves operating costs")
 	game._action("confirm_yard_recovery")
 	resume_shift()
-	check(rig.in_cab and game._truck_in_yard() and rig.phase == "scene" and game.job.vin == tow.vin and rig.odo == odo, "restart survives a reload")
+	check(rig.in_cab and game.truck_in_yard() and rig.phase == "scene" and game.job.vin == tow.vin and rig.odo == odo, "restart survives a reload")
 	check(game.account.cash == 0.0 and game.account.recovery_due == 19.0 and game.account.fuel_due == 0.0, "one yard recovery charges cash and carries its own IOU")
 	game._recovered("hazard")
 	game._dropped()
@@ -74,7 +74,7 @@ func check_custody() -> void:
 	game.survey.hold_order = "offered"
 	game.campaign.ordinary_since = game.Campaign.GAPS[0]
 	game.account.equipment.snatch_block = true
-	game._fit_equipment()
+	game.fit_equipment()
 	use_contact("take_case")
 	inspect_at("sign",rig.get_witness_position())
 	game.desk.dismiss()
@@ -102,7 +102,7 @@ func check_custody() -> void:
 func check_tower() -> void:
 	game.campaign.stage = game.Campaign.ORDER.find("commission")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001+game.completed))
+	game.accept(game.campaign.ticket(1001+game.completed))
 	inspect_at("tower_ladder",game.county.story_point("tower_ladder"))
 	confirm_from_pause()
 	check(game.casework.tower_height < 0 and rig.eyes.current and game.mode == "fieldwork" and not game.campaign.evidence.has("car_ring"),
@@ -111,7 +111,7 @@ func check_tower() -> void:
 func check_passenger_and_release() -> void:
 	game.campaign.stage = game.Campaign.ORDER.find("ride")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001+game.completed))
+	game.accept(game.campaign.ticket(1001+game.completed))
 	var pickup: Vector3 = game.county.story_point("tou")
 	rig.set_spawn(pickup+Vector3(0,0,5))
 	inspect_at("tou",pickup)
@@ -121,7 +121,7 @@ func check_passenger_and_release() -> void:
 	game.account.cash = 0.0
 	game._refresh()
 	game._action("roadside_fuel")
-	check(game.fuel_wait_left > 0, "an empty truck has an incoming fuel can")
+	check(game.fuel_can.en_route(), "an empty truck has an incoming fuel can")
 	game._advance_shift_clock(1.0)
 	game.sightings._start("the_calm",game,rig.get_truck_position(),"Alder Cut",false)
 	rig.speed = 3.0
@@ -132,7 +132,7 @@ func check_passenger_and_release() -> void:
 		"passenger waits at the pickup again")
 	check(rig.is_stopped() and rig.motion == Vector3.ZERO and rig.steering == 0.0 and rig.fuel == 0.0, "recovered truck is at rest with its original empty tank")
 	check(game.sightings.active.is_empty() and game.sightings.seen.has("the_calm"), "roadside sighting ends and remains recorded when the rig is recovered")
-	check(game.account.recovery_due == 24.0 and game.fuel_plow == null and game.fuel_wait_left == 0 and game.account.fuel_due == 0.0 and game._needs_fuel_can(), "broke operator can call for fuel at the yard after cancelling an undelivered can")
+	check(game.account.recovery_due == 24.0 and game.fuel_can.plow == null and game.fuel_can.wait_left == 0 and game.account.fuel_due == 0.0 and game.fuel_can.needed(game), "broke operator can call for fuel at the yard after cancelling an undelivered can")
 	pick_up_tou()
 	var released_card: String = game.filed_card
 	confirm_from_pause()
@@ -143,7 +143,7 @@ func check_passenger_and_release() -> void:
 
 func check_angie() -> void:
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001+game.completed))
+	game.accept(game.campaign.ticket(1001+game.completed))
 	inspect_at("angie",game.county.story_point("angie"))
 	await process_frame
 	game.casework.advance_departure(130.0)

@@ -119,8 +119,8 @@ func run() -> void:
 
 	game.rig.in_cab = false
 	game.rig.foot = game.FAX + Vector3.BACK
-	game.rig._update_eyes()
-	game.rig._note("Cable slipped", 2.0)
+	game.rig.update_eyes()
+	game.rig.show_note("Cable slipped", 2.0)
 	game._refresh()
 	await redraw()
 	var nearby := str(game.state.prompt)
@@ -139,7 +139,7 @@ func run() -> void:
 	key(KEY_T)
 	check(game.job.plate in game.subtitle and "red triangle" in game.subtitle,
 		"Asking again at the shoulder should identify the pickup")
-	game._accept(game.campaign.ticket(1002,"mail"))
+	game.accept(game.campaign.ticket(1002,"mail"))
 	key(KEY_T)
 	check(game.job.plate in game.subtitle and game.job.vehicle in game.subtitle and "triangle" not in game.subtitle,
 		"The talk-in should identify the carrier's wagon from its own slip")

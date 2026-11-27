@@ -56,10 +56,10 @@ func run() -> void:
 	game._action("roadside_fuel")
 	check(game.state.fuel_eta == 18 and "18 min" in game.state.feedback and not game.state.fuel_help and rig.fuel == 0 and game.account.fuel_due == 0, "a single request shows an ETA before any fuel or charge")
 	game._physics_process(.5)
-	var approach_from: Vector3 = game.fuel_plow.position
+	var approach_from: Vector3 = game.fuel_can.plow.position
 	press_key(KEY_R)
 	game._physics_process(4.5)
-	check(game.desk.page == "radio" and game.state.fuel_eta == 13 and game.fuel_plow.position.distance_to(approach_from) > 1, "the plow approaches while the driver monitors the radio")
+	check(game.desk.page == "radio" and game.state.fuel_eta == 13 and game.fuel_can.plow.position.distance_to(approach_from) > 1, "the plow approaches while the driver monitors the radio")
 	game.desk.dismiss()
 	game.desk.toggle_pause()
 	game._physics_process(4.0)
@@ -69,14 +69,14 @@ func run() -> void:
 	check(game.state.fuel_eta == 13 and rig.fuel == 0 and game.account.fuel_due == 0, "restarting mid-wait resumes the dispatch")
 	press_key(KEY_R)
 	game._physics_process(12.5)
-	check(rig.fuel == 0 and game.fuel_wait_left == .5, "can still in transit until ETA")
+	check(rig.fuel == 0 and game.fuel_can.wait_left == .5, "can still in transit until ETA")
 	game._physics_process(.5)
 	check(rig.fuel == game.ShopAccount.CAN_FILL and game.account.fuel_due == game.ShopAccount.CAN_PRICE and "$19.20 on the county IOU" in game.subtitle, "one delivered can restarts a broke operator and records one IOU")
 	check(is_equal_approx(game.shift_seconds,clock_before+18*60) and game.job.number == ticket, "the service call leaves the tow in progress")
 	resume_shift()
 	check(game.job.number == ticket and game.account.fuel_due == game.ShopAccount.CAN_PRICE and game.state.fuel_eta == 0, "county fuel advance and active contract survive resume")
 	game._action("roadside_fuel")
-	check(game.fuel_wait_left == 0, "a delivered order cannot charge again")
+	check(game.fuel_can.wait_left == 0, "a delivered order cannot charge again")
 
 	rig.fuel = 0.0
 	game.account.cash = 35
@@ -86,7 +86,7 @@ func run() -> void:
 	rig.set_spawn(dead_end,PI*.5)
 	rig.speed = .5
 	game._action("roadside_fuel")
-	check(game.fuel_wait_left == 0, "the moving wrecker must stop before calling for fuel")
+	check(game.fuel_can.wait_left == 0, "the moving wrecker must stop before calling for fuel")
 	rig.speed = 0
 	game._refresh()
 	await tap_control("radio")
@@ -95,7 +95,7 @@ func run() -> void:
 	press_key(KEY_R)
 	game._physics_process(game.ShopAccount.CAN_ETA_MINUTES)
 	check(is_equal_approx(game.account.cash,15.8) and game.account.fuel_due == 0 and rig.fuel == game.ShopAccount.CAN_FILL and "$19.20 paid" in game.subtitle, "drivers with money pay twice the pump price when the can arrives")
-	var plow = game.fuel_plow
+	var plow = game.fuel_can.plow
 	check(plow.start.distance_to(plow.stop)>80 and plow.position.distance_to(dead_end)<15 and plow.position.distance_to(dead_end)>10, "the plow approaches the open Alder Cut dead end and stops clear of a sideways wrecker")
 	await test_dry_rigging()
 	game.free()
@@ -108,13 +108,13 @@ func test_dry_rigging() -> void:
 	# Stage the three jobs at their chocked cable step. The roll uses both slings.
 	var truck_at := Vector3(0,0,160)
 	game.account.equipment["snatch_block"] = true
-	game._fit_equipment()
+	game.fit_equipment()
 	for id: String in ["shoulder_car","roof_car","field_car"]:
 		rig.set_spawn(truck_at)
 		var site := truck_at + Vector3(-2,4.75 if id == "roof_car" else 0.0,14)
-		game._accept(game.Dispatch.impossible(8,id,site,id,"County K","east shoulder","Follow County K."))
+		game.accept(game.Dispatch.impossible(8,id,site,id,"County K","east shoulder","Follow County K."))
 		rig.phase = "cable"
-		rig._set_chocks()
+		rig.set_chocks()
 		rig.fuel = 0.0
 		rig.in_cab = false
 		stand_at_cab_door(-1.0)
@@ -133,11 +133,11 @@ func test_dry_rigging() -> void:
 		check(not rig.in_cab, "fuelled chocked rig still requires stowing before cab entry: "+id)
 		if id != "shoulder_car":
 			continue
-		var eye: Vector3 = rig._eyelet(-1)
+		var eye: Vector3 = rig.eyelet_point(-1)
 		stand(eye+Vector3.FORWARD*.75,eye)
 		game._action("interact")
 		check(rig.phase == "rigged","operator resumes with the delivered can and attaches the staged hook")
-		var panel: Vector3 = rig._panel()
+		var panel: Vector3 = rig.panel_point()
 		stand(panel-rig.truck.global_basis.x,panel)
 		rig.fuel = rig.WINCH_FUEL_PER_SECOND*.95
 		for tick in 180:

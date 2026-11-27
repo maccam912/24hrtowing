@@ -28,7 +28,7 @@ static func hayfield(draw, county) -> void:
 
 func axle_eye(rig, side: float) -> Vector3:
 	var offset := Vector3(-side*.9,.50,.35)
-	if rig._recovery() == "nose":
+	if rig.recovery_kind() == "nose":
 		offset = Vector3(side*.72,.45,-side*1.42)
 	return rig.car.to_global(offset)
 
@@ -38,20 +38,20 @@ func draw_lines(rig) -> void:
 	var aux: Vector3 = rig.body.to_global(Vector3(.87,1.97,4.10))
 	var hand: Vector3 = rig.eyes.global_transform*Vector3(.25,-.32,-.46)
 	if rig.phase == "cable":
-		rig._cable_strand(main,rig._side_eye(-1.))
-		rig._cable_strand(check,rig._side_eye(1.))
-		main = rig._side_eye(-1.) if rig.second_line else hand
+		rig.cable_strand(main,rig.side_eye(-1.))
+		rig.cable_strand(check,rig.side_eye(1.))
+		main = rig.side_eye(-1.) if rig.second_line else hand
 		check = hand if fetched else aux
 	rig.pulley.global_position = main
-	rig._cable_strand(rig._drum(),main)
-	rig._cable_strand(rig.body.to_global(Vector3(-.81,1.65,3.28)),main+Vector3.UP*.09)
+	rig.cable_strand(rig.drum_point(),main)
+	rig.cable_strand(rig.body.to_global(Vector3(-.81,1.65,3.28)),main+Vector3.UP*.09)
 	if fetched:
-		rig._cable_strand(aux,check)
+		rig.cable_strand(aux,check)
 
 func action(rig, panel: bool) -> String:
 	if controls: return "roll_leave"
 	if rig.phase == "rigged" and rig.special_work >= 1. and not check_cleared:
-		if rig._in_range(rig._side_eye(1.),2.3): return "roll_clear"
+		if rig.in_range(rig.side_eye(1.),2.3): return "roll_clear"
 		if panel: return "roll_hold"
 	if rig.phase == "cable" and rig.second_line and not fetched:
 		return "roll_fetch" if panel else ""
@@ -62,7 +62,7 @@ func action(rig, panel: bool) -> String:
 func instruction(rig) -> String:
 	if preload_fraction < 1.: return "Take the slack out of the check line"
 	if rig.special_work < .5:
-		return "Draw the rear axle over" if rig._recovery()=="nose" else "Roll onto the near-side tires"
+		return "Draw the rear axle over" if rig.recovery_kind()=="nose" else "Roll onto the near-side tires"
 	return "Ease the check line to set it upright"
 
 func stroke(rig, move: Vector2, dt: float) -> void:
@@ -84,16 +84,16 @@ func stroke(rig, move: Vector2, dt: float) -> void:
 	if moved:
 		rig.fuel = maxf(0.,rig.fuel-used_dt*rig.WINCH_FUEL_PER_SECOND)
 		if not rig.working: rig.sound_event.emit("winch_start")
-		rig._pose_roll(rig.special_work)
+		rig.pose_roll(rig.special_work)
 	rig.working = moved and rig.fuel > 0.
 	rig.tension = move_toward(rig.tension,(.49+.25*sin(PI*rig.special_work)) if moved else 0.,dt*.65)
 	if rig.special_work >= 1.:
 		release()
 		rig.working = false
-		rig.free_line = rig._flat_distance(rig._drum(),rig._eyelet(rig.line_end))+.30
+		rig.free_line = rig.flat_distance(rig.drum_point(),rig.eyelet_point(rig.line_end))+.30
 		rig.sound_event.emit("ratchet")
-		rig._note("Both axles down. Unpin the check line on the far side.",6.)
+		rig.show_note("Both axles down. Unpin the check line on the far side.",6.)
 	elif rig.fuel <= 0.:
 		release()
 		rig.working = false
-		rig._note(rig.reserve_hint(),6.)
+		rig.show_note(rig.reserve_hint(),6.)

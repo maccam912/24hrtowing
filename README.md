@@ -40,7 +40,7 @@ When you’re back at the yard, walk to the fax under the **OFFICE / FAX** sign 
 | Plat book and current slip | PLAT or SLIP | M or J |
 | Set down paper or pause | Stow or pause button, Android Back | Escape |
 
-The first drive starts in chase view. Your chosen view returns when you get back in the truck or continue a saved route. Pull over for the full-size plat. Opening it while moving gives a small lap view. The truck and operator save automatically, including a line that's already attached. The operator guide and 30/60 fps setting are in the truck log.
+The first drive starts in chase view. Your chosen view returns when you get back in the truck or continue a saved route. Pull over for the full-size plat. Opening it while moving gives a small lap view. The truck and operator save automatically, including a line that's already attached. An older build leaves a newer build's save on file and plays without saving. The operator guide and 30/60 fps setting are in the truck log.
 
 If you or the wrecker get wedged, open **Pause → Stuck? Recover to yard**. The county charges $24 to bring you both back. Confirming restarts unfinished fieldwork at the original scene, including any car on the hook. Completed deliveries, slips and case notes stay on file. The county carries any unpaid tow charge until your checks come in.
 
@@ -92,7 +92,7 @@ For a passenger call, park with room at the right cab door, step down, and offer
 
 Choose **Track unpaid stop** on the favor’s fax or on the cab radio. You can make it your next stop even with a paying slip open. Arlene will give you turns, and **Directions & next action** in the truck log tells you what to do on arrival. Look for the red triangle between two amber lamps at a marked stop. You can switch back to the tow at any time. If a lead sits for several calls or a long drive, Arlene gets more specific about where to look. When the favor leads to a paid county assignment, take that call on the radio.
 
-The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip.
+The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip. Brandt works nights only: when the shift clock reaches 07:00, it picks up again at 17:00.
 
 <details>
 <summary>Walkthrough of all eight case calls (spoilers)</summary>
@@ -118,11 +118,13 @@ mkdir -p build
 godot --headless --export-release Linux build/24HRTowing.x86_64
 ```
 
+The test runner imports the project, then runs the boot check and every `tests/*_test.gd` script in parallel, one engine per CPU, and lists every failure at the end. Add part of a test name to run only matching scripts, for example `python3 tools/run_tests.py --godot godot shift_clock`, or `--jobs 1` to run one at a time.
+
 For a local Android build, configure the Android SDK and JDK 17 in Godot, then run `godot --headless --export-debug Android build/24HRTowing-Android-debug.apk`. The project also includes Linux, Windows and macOS export presets.
 
 ## Releases
 
-GitHub Actions tests each pushed revision. By default, each passing revision gets a signed Android ARM APK, Linux and Windows x86-64 packages, a universal ad-hoc-signed macOS app, and SHA-256 checksums. The workflow checks that each desktop package launches on its own operating system. Set the GitHub Actions repository variable `ENABLE_DESKTOP_BUILDS` to `false` for Android-only releases.
+GitHub Actions tests each pushed revision on every branch and pull request. Only the default branch ships builds: by default, each passing revision there gets a signed Android ARM APK, Linux and Windows x86-64 packages, a universal ad-hoc-signed macOS app, and SHA-256 checksums. The workflow checks that each desktop package launches on its own operating system. Set the GitHub Actions repository variable `ENABLE_DESKTOP_BUILDS` to `false` for Android-only releases.
 
 Android version codes increase with the workflow run and commit position. When setting up a separate release repository, configure the encrypted Actions secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD` for signing.
 

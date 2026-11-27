@@ -31,7 +31,7 @@ func advance(rig, dt: float) -> void:
 		warned = false
 	elif rig.warmth < .16 and not rig.in_cab and not warned and rig.info_timer <= 0:
 		warned = true
-		rig._note("Fingers are getting stiff. Could use the cab heater.",6.)
+		rig.show_note("Fingers are getting stiff. Could use the cab heater.",6.)
 
 func save_state() -> Dictionary:
 	return {"blower":blower,"cracked":cracked,"air":air}
@@ -86,3 +86,7 @@ static func draw_panel(c, p: Rect2, s: Dictionary) -> void:
 	c.fitted(Rect2(panel.position+Vector2(3,5),Vector2(panel.size.x-6,29)),"CAB AIR",c.MONO,14,cream)
 	c.fitted(Rect2(panel.position+Vector2(3,29),Vector2(panel.size.x-6,38)),state,c.scaled,23,c.AMBER)
 	c.fitted(Rect2(x,y+276,w,33),"DRIVER WINDOW   /   "+("OPEN" if s.get("window_open",false) else "SHUT"),c.MONO,15,cream,HORIZONTAL_ALIGNMENT_LEFT)
+
+## The blower switch, window latch and cab air the heater page draws.
+func view() -> Dictionary:
+	return {"blower":blower,"window_open":cracked,"cab_air":air}

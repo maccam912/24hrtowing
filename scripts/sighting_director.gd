@@ -151,7 +151,7 @@ func _record(id: String, at: Vector3, heading: float, filed: int, height := 0., 
 	if half_length>0.: aftermath[key]["half_length"] = half_length
 	scene.add_remnant(key,aftermath[key])
 
-func _snow_over(filed: int) -> void:
+func snow_over(filed: int) -> void:
 	if last_filed == filed: return
 	last_filed = filed
 	for key: String in aftermath.keys():
@@ -288,11 +288,11 @@ func _story(game, at: Vector3) -> String:
 
 func _landing_site(game, at: Vector3, heading: Vector3) -> Vector3:
 	# Follow the driver's route only up to the next turn or assigned scene.
-	var nav = game._current_road_map()
+	var nav = game.current_road_map()
 	var start := Vector2(at.x,at.z)
 	var ahead := Vector2(heading.x,heading.z)
 	var job_at: Vector3 = game.job.point
-	var path: PackedVector2Array = nav._path(nav._nearest(start,ahead),nav._nearest(Vector2(job_at.x,job_at.z)))
+	var path: PackedVector2Array = nav.route_points(nav.nearest_section(start,ahead),nav.nearest_section(Vector2(job_at.x,job_at.z)))
 	if path.size()<2 or path[0].direction_to(path[1]).dot(ahead)<.92: return Vector3.INF
 	var run := 0.0
 	for i in range(1,path.size()):
@@ -340,8 +340,8 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 	var side := forward.cross(Vector3.UP)
 	var ahead := 105.0 if id == "the_lift" else (83.0 if id == "woods_car" else 59.0)
 	var at := origin+forward*ahead
-	var roads = game._current_road_map()
-	var near: Dictionary = roads._nearest(Vector2(at.x,at.z))
+	var roads = game.current_road_map()
+	var near: Dictionary = roads.nearest_section(Vector2(at.x,at.z))
 	if not near.is_empty():
 		at.x = near.point.x
 		at.z = near.point.y
@@ -436,7 +436,7 @@ func finish(game, interrupted := false) -> void:
 			_record("hoofprints",shoulder+side*(Scene.Deer.OFFSETS[0]-Scene.Deer.BANK_OFFSET),yaw-PI*.5,game.completed,0.,road)
 		"yard_visit":
 			yard_turned = true
-			game._turn_storage_north()
+			game.turn_storage_north()
 	scene.clear_live()
 	active = ""
 	game.rig.set_sighting(0.,Vector3.INF,0.)
@@ -451,13 +451,13 @@ func _jump_point(game) -> Vector3:
 	if id_is_case(game.job) or rig.phase not in ["scene","idle"]: return Vector3.INF
 	var at: Vector3 = rig.get_truck_position()
 	var dest: Vector3 = game.job.point
-	var roads = game._current_road_map()
+	var roads = game.current_road_map()
 	var heading := Vector3.FORWARD.rotated(Vector3.UP,rig.heading)
 	var end := at+heading*34.
 	var street: String = roads.driven_road(Vector2(at.x,at.z))
 	if street.is_empty() or at.distance_to(dest)<90. or end.distance_to(dest)>=at.distance_to(dest)-8.: return Vector3.INF
 	if roads.driven_road(Vector2(end.x,end.z)) != street or game.county.road_distance(end.x,end.z)>3.2: return Vector3.INF
-	if rig._truck_obstacle(heading*34.,0.): return Vector3.INF
+	if rig.truck_obstacle(heading*34.,0.): return Vector3.INF
 	return end
 
 func id_is_case(job: Dictionary) -> bool:
@@ -482,7 +482,7 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 	var intensity := smoothstep(0.,.12,t)*(1.-smoothstep(.80,1.,t))
 	if active=="mirror_follow" and game.job.get("case_id")=="mail" and once.has("carrier_follow") and not once.has("carrier_words") and elapsed >= 2.3:
 		once["carrier_words"] = true
-		game._speak("DISPATCH","They follow you, Brandt. They always have. While you’re out, they’re not over anybody’s house.")
+		game.speak("DISPATCH","They follow you, Brandt. They always have. While you’re out, they’re not over anybody’s house.")
 	if active in ["snow_roof","dry_road"]:
 		var strip: Node3D = game.county.thawed_roads.get(active)
 		if active=="snow_roof": game.county.shelter_road_snow(intensity)
@@ -500,13 +500,13 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 	game.county.set_sighting_weather(active,calm,t)
 	if active=="set_down" and not heard and t>=.76:
 		heard = true
-		game._speak("DISPATCH",SET_DOWN_LINE)
+		game.speak("DISPATCH",SET_DOWN_LINE)
 	if active=="cow_ring" and not heard and game.sub_time<=0.0 and at.distance_to(shoulder)<65.:
 		heard = true
-		game._say("bev_heifers")
+		game.say("bev_heifers")
 	if active=="walker" and not heard and scene.actor.position.distance_to(game.rig.get_player_position()) < 14. and absf(game.rig.speed)<1.:
 		heard = true
-		game._speak("DRIVER","I’m fine. I just want to see.")
+		game.speak("DRIVER","I’m fine. I just want to see.")
 	if active=="plow_stopped" and not heard and t>.68:
 		heard = true
 		game.scanner.plow_call(game)
@@ -520,7 +520,7 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 				game.rig.set_spawn(jump,game.rig.heading)
 				game.shift_seconds += 40.*60.
 				time_lost = true
-				game._speak("DISPATCH","There you are. I’ve been calling for forty minutes, Brandt.")
+				game.speak("DISPATCH","There you are. I’ve been calling for forty minutes, Brandt.")
 	if t >= 1.0: finish(game)
 
 func advance(dt: float,game) -> void:
@@ -538,7 +538,7 @@ func advance(dt: float,game) -> void:
 		drive = number
 		used = false
 		delay = 0.
-	_snow_over(game.completed)
+	snow_over(game.completed)
 	level = tier(game.completed,game.campaign.stage)
 	var delicate: bool = rig.tension>.01 or rig.working or rig.phase in ["cable","rigged","at_lift","dollies","boom_lower"]
 	if not active.is_empty():
@@ -553,7 +553,7 @@ func advance(dt: float,game) -> void:
 	if level==0 or number<0 or delicate: return
 	var story := _story(game,at)
 	if not story.is_empty() and rig.in_cab:
-		var street: String = game._current_road_map().driven_road(Vector2(at.x,at.z))
+		var street: String = game.current_road_map().driven_road(Vector2(at.x,at.z))
 		var landing := Vector3.INF
 		if story == "set_down":
 			if street.is_empty() or game.county.YARD.grow(8).has_point(Vector2(at.x,at.z)): return
@@ -578,7 +578,7 @@ func advance(dt: float,game) -> void:
 	if distance > (160.0 if level<=1 else 118.0) and delay < 15.0: return
 	# On some loaded jobs leave the outbound leg quiet for a mirror encounter.
 	if game.job.kind=="hazard" and drive%4==2 and game.mode!="haul" and level>=2: return
-	var street: String = game._current_road_map().driven_road(Vector2(at.x,at.z))
+	var street: String = game.current_road_map().driven_road(Vector2(at.x,at.z))
 	if street.is_empty(): return
 	var id := _choose(game,street,at)
 	if id.is_empty():

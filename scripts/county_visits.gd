@@ -181,7 +181,7 @@ static func step_in_reach(game) -> bool:
 	var target := point(game.county,id,step)
 	var eye: Camera3D = game.rig.get_camera()
 	var ray := target-eye.global_position
-	return ray.length() < reach and ray.normalized().dot(-eye.global_basis.z) > (.93 if reach > 4 else .62) and game.rig._ray(eye.global_position,target).is_empty()
+	return ray.length() < reach and ray.normalized().dot(-eye.global_basis.z) > (.93 if reach > 4 else .62) and game.rig.cast_ray(eye.global_position,target).is_empty()
 
 static func instruction(ticket: Dictionary) -> String:
 	var step := int(ticket.get("visit_step",0))

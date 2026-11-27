@@ -8,7 +8,7 @@ func run() -> void:
 	desk = game.desk
 	game.campaign.stage = game.Campaign.ORDER.find("commission")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001))
+	game.accept(game.campaign.ticket(1001))
 	var ladder: Vector3 = game.county.story_point("tower_ladder")
 	for resolution: Vector2i in [Vector2i(800,600),Vector2i(2400,1080)]:
 		screen.size = resolution
@@ -17,7 +17,7 @@ func run() -> void:
 		game.rig.foot = Vector3(ladder.x+1.2,0,ladder.z)
 		game.rig.camera_yaw = PI*.5
 		game.rig.camera_pitch = 0.0
-		game.rig._update_eyes()
+		game.rig.update_eyes()
 		game._refresh()
 		var center := Vector2(screen.size)*.5
 		touch(0,center,true)

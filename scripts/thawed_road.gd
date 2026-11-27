@@ -14,7 +14,7 @@ var vapor := Node3D.new()
 
 static func locate(roads, ahead: Vector3, front: Vector3, id: String) -> Dictionary:
 	var along := Vector2(front.x,front.z)
-	var hit: Dictionary = roads._nearest(Vector2(ahead.x,ahead.z),along)
+	var hit: Dictionary = roads.nearest_section(Vector2(ahead.x,ahead.z),along)
 	if hit.is_empty() or hit.section.name == roads.GATE: return {}
 	var a: Vector2 = hit.section.a
 	var b: Vector2 = hit.section.b

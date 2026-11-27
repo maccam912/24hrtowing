@@ -50,7 +50,7 @@ func tune(next: String, fitted: bool) -> bool:
 	return true
 
 func _reception(game) -> bool:
-	return game.active and game.rig.in_cab and channel != "off" and game.rig.fuel > 0 and game.fuel_wait_left <= 0 \
+	return game.active and game.rig.in_cab and channel != "off" and game.rig.fuel > 0 and not game.fuel_can.en_route() \
 		and (not game.desk.is_blocking() or (game.desk.page == "radio" and game.desk.scanner_open)) \
 		and not (is_instance_valid(game.rig.survey_passenger) and game.rig.survey_passenger.visible) \
 		and game.rig.phase not in ["flared","cable","rigged","at_lift","dollies"]
@@ -107,9 +107,9 @@ func plow_call(game) -> bool:
 func _receive(game, line: Array) -> void:
 	var who: String = line[0]
 	var words: String = line[1]
-	history.push_front({"clock":game._clock(),"channel":channel,"who":who,"words":words})
+	history.push_front({"clock":game.clock(),"channel":channel,"who":who,"words":words})
 	history.resize(mini(history.size(),3))
-	game._message("SCANNER  /  " + who,words)
+	game.show_message("SCANNER  /  " + who,words)
 	game.audio.speak(who,words,true)
 	rx_left = game.sub_time
 	wait_seconds = 72.0 + posmod(int(game.dispatch_seed) + int(cursor.get(channel,0)) * 19,35)
@@ -127,3 +127,7 @@ func restore(save: Dictionary, fitted: bool) -> void:
 	wait_seconds = clampf(save.get("wait",35.0),0,108)
 	rx_left = 0.0
 	scripted_plow = false
+
+## What the scanner page draws: the tuned channel, its log and the receive lamp.
+func view() -> Dictionary:
+	return {"scanner_channel":channel,"scanner_history":history,"scanner_rx":rx_left > 0}

@@ -34,7 +34,7 @@ func run() -> void:
 	check(field.burning.volume_db>shut+10. and field.filter.cutoff_hz>4900.,"cracking the driver window restores brightness and part of the exterior level")
 	rig.in_cab=false
 	rig.set_spawn(Vector3(0,0,160))
-	var panel:Vector3 = rig._panel()
+	var panel:Vector3 = rig.panel_point()
 	stand(panel-rig.body.global_basis.x*.65,panel)
 	rig.interact()
 	check(rig.phase=="cable" and last_impact().get_meta("source_id")=="drum_clutch","taking the cable releases the drum clutch at the truck")
@@ -44,15 +44,15 @@ func run() -> void:
 	check(field.mode=="rope_payout" and field.motor.stream.resource_path.ends_with("rope_payout.wav"),"outgoing cable freewheels on the actual reel")
 	for i in 62: field.mix(true,false,DT)
 	check(field.mode.is_empty() and field.motor.volume_db<-65.,"the drum goes quiet when Brandt stops walking with the hook")
-	var eye: Vector3 = rig._eyelet(-1)
+	var eye: Vector3 = rig.eyelet_point(-1)
 	stand(eye+Vector3.RIGHT,eye)
 	rig.interact()
-	check(rig.phase=="rigged" and last_impact().get_meta("source_id")=="shackle_pin" and last_impact().global_position.distance_to(rig._eyelet(-1))<.03,"the tow eye and pin ring where they meet")
+	check(rig.phase=="rigged" and last_impact().get_meta("source_id")=="shackle_pin" and last_impact().global_position.distance_to(rig.eyelet_point(-1))<.03,"the tow eye and pin ring where they meet")
 	stand(panel-rig.body.global_basis.x*.68,panel)
 	for i in 120:
 		rig.set_controls(Vector2.ZERO,Vector2.ZERO,true,false,DT)
 		field.mix(true,false,DT)
-	check(field.mode=="drum_under_load" and field.motor.global_position.distance_to(rig._drum())<.02 and field.motor.pitch_scale>.96,"the loaded drum sounds at the rear fairlead and climbs in pitch")
+	check(field.mode=="drum_under_load" and field.motor.global_position.distance_to(rig.drum_point())<.02 and field.motor.pitch_scale>.96,"the loaded drum sounds at the rear fairlead and climbs in pitch")
 	rig.sound_event.emit("cable_slip")
 	var slip:AudioStream = last_impact().stream
 	rig.sound_event.emit("ratchet")
@@ -64,7 +64,7 @@ func run() -> void:
 	rig.use_rollback(true)
 	rig.start_job("hazard",Vector3(0,0,179),0.,{})
 	rig.phase="flared"
-	panel=rig._panel()
+	panel=rig.panel_point()
 	stand(panel-rig.body.global_basis.x*.68,panel)
 	rig.interact()
 	field.mix(true,false,DT)

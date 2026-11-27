@@ -20,7 +20,7 @@ func run() -> void:
 	check(not game.account.owns("rollback"),"a new operator cannot buy the carrier before twelve filed slips")
 	game.completed = 12
 	game.account.equipment.aux_tank = true
-	game._fit_equipment()
+	game.fit_equipment()
 	game._refresh()
 	await tap_control("interact")
 	await tap_control("parts_prev")
@@ -45,7 +45,7 @@ func run() -> void:
 	check(game.fleet.model.position.is_equal_approx(home) and not game.fleet.parked.rollback,"the original wrecker remains where it was left")
 	var light: Dictionary = game._offered_rotation()
 	check(game.RollbackDeck.supports(light) and game.rotation_offer.vin==heavy.vin and game.state.wrecker_waiting,"Arlene holds the heavy order and supplies a light ticket")
-	game._accept(heavy)
+	game.accept(heavy)
 	check(game.mode=="available" and game.job.is_empty(),"the carrier can leave a boom job on file")
 	game._action("rotation")
 	check(game.job.vin==light.vin and game.rotation_offer.vin==heavy.vin,"accepting the carrier's light ticket preserves the waiting heavy call")
@@ -57,7 +57,7 @@ func run() -> void:
 	rig.fuel = .28
 	rig.odo += 3.1
 	rig.climate.blower = 2
-	game._save()
+	game.save()
 	var saved: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	game._restore(saved)
 	check(rig.rollback_active and game.fleet.model.position.is_equal_approx(home) and not game.fleet.parked.rollback,"a restart restores both distinct vehicles")

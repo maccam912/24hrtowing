@@ -189,16 +189,16 @@ func settle() -> void:
 func side_at(rig) -> int:
 	for i in 2:
 		var side := -1. if i==0 else 1.
-		if car.to_local(rig.foot).x*side>.58 and rig._in_range(wheel_point(i),1.6):
+		if car.to_local(rig.foot).x*side>.58 and rig.in_range(wheel_point(i),1.6):
 			return i
 	return -1
 
 func action(rig) -> String:
 	if cleared or not rig.phase in ["flared","cable","rigged"]: return ""
 	var here := car.to_local(rig.foot)
-	if not inspected and absf(here.z)<.78 and absf(here.x)>.58 and rig._in_range(car.to_global(Vector3(signf(here.x)*.88,.38,0)),1.68):
+	if not inspected and absf(here.z)<.78 and absf(here.x)>.58 and rig.in_range(car.to_global(Vector3(signf(here.x)*.88,.38,0)),1.68):
 		return "crib_inspect"
-	if not collected and rig._in_range(rack.global_position,1.58): return "crib_fetch"
+	if not collected and rig.in_range(rack.global_position,1.58): return "crib_fetch"
 	if collected:
 		var side := side_at(rig)
 		if side>=0 and not placed & (1<<side): return "crib_place"
@@ -222,21 +222,21 @@ func handle(rig, id: String) -> void:
 	match id:
 		"crib_inspect":
 			inspected=true
-			rig._note("Pan resting on the frozen ridge. Both %s tires hang clear. Pull back on the grounded axle, or crib the hanging pair to come over." % ("rear" if high_end>0 else "front"),8.)
+			rig.show_note("Pan resting on the frozen ridge. Both %s tires hang clear. Pull back on the grounded axle, or crib the hanging pair to come over." % ("rear" if high_end>0 else "front"),8.)
 		"crib_fetch":
 			collected=true
 			rig.sound_event.emit("ratchet")
-			rig._note("Two hardwood packs. Slide one under each hanging tire.",5.)
+			rig.show_note("Two hardwood packs. Slide one under each hanging tire.",5.)
 		"crib_place":
 			var i:=side_at(rig)
 			if i>=0: placed |= 1<<i
 			if placed==3: blocked=false
 			rig.sound_event.emit("ratchet")
-			rig._note("Both wheels supported." if placed==3 else "One wheel supported. Take the other pack around the car.",4.)
+			rig.show_note("Both wheels supported." if placed==3 else "One wheel supported. Take the other pack around the car.",4.)
 	refresh_kit(rig)
 
 func pull(rig, dt: float) -> void:
-	var direction: Vector3 = rig._drum()-car.position
+	var direction: Vector3 = rig.drum_point()-car.position
 	direction.y=0.
 	direction=direction.normalized()
 	var alignment := direction.dot(patch.global_basis.z)*high_end
@@ -247,7 +247,7 @@ func pull(rig, dt: float) -> void:
 		rig.tension=move_toward(rig.tension,.87,dt*.53)
 		warning_left=maxf(0.,warning_left-dt)
 		if warning_left<=0:
-			rig._note("The belly is bearing on ice. Crib the raised wheels or bring the line back from the grounded end." if absf(alignment)>.54 else "The line is pulling across the ridge. Stow it and bring the truck around to an end.",6.)
+			rig.show_note("The belly is bearing on ice. Crib the raised wheels or bring the line back from the grounded end." if absf(alignment)>.54 else "The line is pulling across the ridge. Stow it and bring the truck around to an end.",6.)
 			warning_left=6.
 		return
 	used_blocks = used_blocks or over
@@ -259,12 +259,12 @@ func pull(rig, dt: float) -> void:
 	car.rotation.y=lerp_angle(car.rotation.y,desired,minf(1.,advance.length()*.14))
 	settle()
 	for i in 4: wheels.roll_on_ground(i,false)
-	rig.free_line=rig._flat_distance(rig._drum(),rig._eyelet(rig.line_end))
+	rig.free_line=rig.flat_distance(rig.drum_point(),rig.eyelet_point(rig.line_end))
 	var local := patch.to_local(car.position)
 	if absf(local.z)>wheels.axle_z+CRIB_RUN+.52 or absf(local.x)>4.6:
 		cleared = true
 		blocked = false
-		rig._note("Four tires down. Keep reeling from the side panel.",5.)
+		rig.show_note("Four tires down. Keep reeling from the side panel.",5.)
 		refresh_kit(rig)
 
 func save_state() -> Dictionary:

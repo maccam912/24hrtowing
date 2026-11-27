@@ -48,7 +48,7 @@ func run() -> void:
 	event.pressed = false
 	root.push_input(event,true)
 	var level: float = rig.fuel
-	check(is_equal_approx(game.nozzle_sale,3.60) and is_equal_approx(game.account.cash,22.4) and is_equal_approx(level,.325),"a one-second squeeze meters the same diesel and cash shown on the pump")
+	check(is_equal_approx(game.nozzle.sale,3.60) and is_equal_approx(game.account.cash,22.4) and is_equal_approx(level,.325),"a one-second squeeze meters the same diesel and cash shown on the pump")
 	game._physics_process(DT)
 	check(rig.fuel == level,"letting go stops the sale immediately")
 	resume_shift()
@@ -58,7 +58,7 @@ func run() -> void:
 	stand(bench+Vector3.FORWARD*1.25,bench)
 	for i in 660: room.mix(bench,false,false,0.,true,DT)
 	check(room.activity.brewer < 0. and room.sources.brewer.volume_db < -65., "the thermostat cuts out and the pot falls quiet")
-	game._fit_equipment()
+	game.fit_equipment()
 	check(room.activity.brewer < 0., "re-fitting other equipment leaves the full pot quiet")
 	rig.warmth = .1
 	check(game._site_action() == "yard_coffee","the bench can be reached at "+str(rig.foot)+" (site "+game._site_action()+")")

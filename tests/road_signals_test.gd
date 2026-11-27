@@ -47,7 +47,7 @@ func cycle_pedals(truck_lamps: Node3D, bar: Node3D) -> void:
 	verify_pair(truck_lamps,bar,false,true,"rolling backward")
 	rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,STEP)
 	verify_pair(truck_lamps,bar,true,true,"braking a reversing load")
-	rig._stop_motion()
+	rig.stop_motion()
 	rig.in_cab=false
 	rig.set_controls(Vector2.ZERO,Vector2.ZERO,false,true,STEP)
 	verify_pair(truck_lamps,bar,false,false,"operator on foot")

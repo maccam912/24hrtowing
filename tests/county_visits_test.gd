@@ -109,8 +109,8 @@ func run_visit(id: String) -> void:
 	check(game.slips.back().finding == slip.finding and game.visit_offer.is_empty(),"fax and offer interval survive a new session")
 
 func face(target: Vector3) -> void:
-	rig._update_eyes()
+	rig.update_eyes()
 	var ray: Vector3 = rig.eyes.global_position.direction_to(target)
 	rig.camera_yaw = atan2(-ray.x,-ray.z)
 	rig.camera_pitch = asin(ray.y)
-	rig._update_eyes()
+	rig.update_eyes()

@@ -83,10 +83,10 @@ func effect(id: String, inside_store := false) -> bool:
 		"flare":
 			if is_instance_valid(rig.flame): point = rig.flame.global_position+Vector3.UP*.12
 		"cable_slip","chock","winch_start","lift":
-			point = rig._drum() if id in ["cable_slip","winch_start"] else rig._panel()
-			if id=="winch_start" and rig._boom_job() and rig.special_work<1.: sound = "hydraulic_valve"
+			point = rig.drum_point() if id in ["cable_slip","winch_start"] else rig.panel_point()
+			if id=="winch_start" and rig.boom_job() and rig.special_work<1.: sound = "hydraulic_valve"
 		"hook":
-			if rig.car and rig.phase == "rigged": point = rig._eyelet(rig.line_end)
+			if rig.car and rig.phase == "rigged": point = rig.eyelet_point(rig.line_end)
 	var impact := impacts[cursor]
 	cursor = (cursor+1) % impacts.size()
 	impact.stop()
@@ -99,10 +99,10 @@ func effect(id: String, inside_store := false) -> bool:
 	return true
 
 func motion(dt: float) -> String:
-	var free_hook: bool = rig.phase == "cable" and not rig.in_cab and not rig._boom_job()
+	var free_hook: bool = rig.phase == "cable" and not rig.in_cab and not rig.boom_job()
 	if free_hook:
 		var job: int = rig.car.get_instance_id() if rig.car else 0
-		var extension: float = rig._drum().distance_to(rig.foot+Vector3.UP*1.22)
+		var extension: float = rig.drum_point().distance_to(rig.foot+Vector3.UP*1.22)
 		if job != previous_job:
 			previous_job = job
 			leader = extension
@@ -116,7 +116,7 @@ func motion(dt: float) -> String:
 	if rig.rollback_active and rig.rollback_deck.motion not in ["","pay"] and rig.fuel>0.: return "hydraulic_pump"
 	if rig.working:
 		if rig.rollback_active and rig.rollback_deck.motion=="pay": return "rope_payout"
-		if rig._boom_job() and rig.special_work<1.: return "hydraulic_pump"
+		if rig.boom_job() and rig.special_work<1.: return "hydraulic_pump"
 		return "drum_under_load"
 	return "rope_payout" if payout_hold>0. else ""
 
@@ -143,9 +143,9 @@ func mix(active: bool, inside_store: bool, dt: float, calm := 0.) -> void:
 		if impact.playing:
 			impact.volume_db = gain(impact.get_meta("source_id"),impact.global_position,inside_store) if active else -80.
 	mode = motion(dt) if active else ""
-	var point: Vector3 = rig._drum()
+	var point: Vector3 = rig.drum_point()
 	if mode == "hydraulic_pump":
-		point = rig._panel()
+		point = rig.panel_point()
 		motor.pitch_scale = .86 if rig.rollback_active else 1.08
 	elif mode == "rope_payout": motor.pitch_scale = .83 if rig.rollback_active and rig.rollback_deck.unloading else 1.0
 	else: motor.pitch_scale = .79+.61*float(rig.tension)

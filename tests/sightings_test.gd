@@ -108,7 +108,7 @@ func run() -> void:
 	rig.loaded=false
 	var data: Dictionary = JSON.parse_string(JSON.stringify(director.save_state()))
 	director.restore(data,game.county)
-	director._snow_over(game.completed+10)
+	director.snow_over(game.completed+10)
 	check(director.aftermath.has("field_car") and not director.aftermath.has("bare_ring"),"upturned car survives ten jobs and a reload while rings snow over")
 	check(director.scene.remnants.field_car.has_node("RoadCar/VehicleLamps/TailpipeVapor"),
 		"the car set down in the field keeps its running lights and exhaust")

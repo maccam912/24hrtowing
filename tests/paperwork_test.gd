@@ -15,7 +15,7 @@ func run() -> void:
 	root.add_child(game)
 	var lines: Dictionary = game.audio.lines
 	for id in lines:
-		game._say(id)
+		game.say(id)
 		var stream := game.audio.chatter.stream as AudioStreamWAV
 		check(stream != null and stream.get_length() > 0, "Missing chatter for " + id)
 		check(game.speaker == lines[id][0] and game.subtitle == lines[id][1], "Subtitle for " + id)
@@ -122,7 +122,7 @@ func test_waiting_hazard(game) -> void:
 	game._action("take_case")
 	check(game.job.kind == "hold" and game.waiting_hazard == parked and parked.transform == pose,
 		"A separate case leaves the offered taped car where it was seen")
-	game._save()
+	game.save()
 	var snapshot: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	game.free()
 	game = load("res://game.tscn").instantiate()

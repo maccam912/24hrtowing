@@ -17,7 +17,7 @@ func run() -> void:
 	rig.tire_chains = false
 	frames(190,Vector2.UP)
 	check(road.chains.volume_db<-66.,"ordinary tires have no chain chatter at road speed")
-	rig._stop_motion()
+	rig.stop_motion()
 	rig.tire_chains = true
 	frames(40,Vector2.UP)
 	check(road.chains.stream != null and road.chains.stream.resource_path.ends_with("chain_link.wav"),"at walking pace the fitted tandem strikes one crosslink at a time")
@@ -26,7 +26,7 @@ func run() -> void:
 	var fast:float = road.chains.pitch_scale
 	frames(80,Vector2.ZERO)
 	check(road.chains.pitch_scale<fast and rig.compression_brake==0.,"chain cadence follows wheel travel while the level road stays clear of exhaust braking")
-	rig._stop_motion()
+	rig.stop_motion()
 	frames(100)
 	check(road.chains.volume_db<-66. and road.exhaust.volume_db<-66.,"both tandem and exhaust quiet at a standstill")
 	check(road.pavement(rig,Vector3(84,0,290))<.02 and road.pavement(rig,Vector3(0,0,290))>.98,"deep snow damps the chain while the paved crown carries the strike")
@@ -34,7 +34,7 @@ func run() -> void:
 	rig.set_spawn(Vector3(79,0,293),0)
 	frames(130,Vector2.UP)
 	check(road.surface<.02 and road.chains.volume_db<-66.,"real wheel travel across field snow does not sound like pavement")
-	rig._stop_motion()
+	rig.stop_motion()
 	rig.tire_chains = false
 	rig.set_spawn(Vector3(-24,0,281),-PI/2)
 	for tick in 700:
@@ -51,7 +51,7 @@ func run() -> void:
 	check(greatest>.45 and loudest>-57.,"coasting down the physical bank works the exhaust brake, using all six tire contacts (%.2f / %.1f)" % [greatest,loudest])
 	frames(45,Vector2.UP)
 	check(rig.compression_brake==0. and road.exhaust.volume_db<-65.,"putting power back on silences the overrun")
-	rig._stop_motion()
+	rig.stop_motion()
 	var before:int = road.wiper_turn
 	for i in 220:
 		var wipe_time := fmod(float(rig.body.elapsed),3.6)

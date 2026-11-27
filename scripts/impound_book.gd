@@ -34,3 +34,7 @@ func page_count() -> int:
 
 func visible_cards() -> Array:
 	return cards.slice(leaf*PER_PAGE,(leaf+1)*PER_PAGE)
+
+## The register leaf that is open on the desk.
+func view() -> Dictionary:
+	return {"impound_rows":visible_cards(),"impound_leaf":leaf,"impound_pages":page_count()}

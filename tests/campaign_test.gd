@@ -120,10 +120,10 @@ func inspect_at(id: String, point: Vector3) -> void:
 func glass_lindquist_section() -> void:
 	# Same stick channel used by the touch controls. Swipes use the ordinary
 	# look calculation, with a smaller angle through the field glasses.
-	game.desk._stick = Vector2.UP
+	game.desk.stick = Vector2.UP
 	for tick in 96:
 		game._physics_process(DT)
-	game.desk._stick = Vector2.ZERO
+	game.desk.stick = Vector2.ZERO
 	var height: float = game.casework.tower_height
 	check(height > 3.0 and height < game.County.CaseSites.TANK_PLATFORM and not game.campaign.evidence.has("car_ring"),"the first rungs are climbed manually")
 	resume_shift()
@@ -133,10 +133,10 @@ func glass_lindquist_section() -> void:
 	game.mouse_motion = Vector2(95,-120)
 	game._physics_process(DT)
 	check(rig.camera_yaw != heading and is_equal_approx(rig.foot.y,height),"free look does not move the operator off a rung")
-	game.desk._stick = Vector2.UP
+	game.desk.stick = Vector2.UP
 	for tick in 530:
 		game._physics_process(DT)
-	game.desk._stick = Vector2.ZERO
+	game.desk.stick = Vector2.ZERO
 	check(game._site_action()=="tower_glass" and not game.campaign.evidence.has("car_ring"),"reaching the tank does not enter an observation")
 	game._action("interact")
 	check(game._site_action()=="tower_lower" and rig.eyes.fov < 15 and not game.campaign.evidence.has("car_ring"),"looking through glasses in the wrong direction leaves the notebook blank")
@@ -150,14 +150,14 @@ func glass_lindquist_section() -> void:
 	check(game.casework.glasses and game._site_action()=="tower_note","the view and the unrecorded observation survive quitting on the landing")
 	game._action("interact")
 	check(game.campaign.evidence.has("car_ring") and game._site_action()=="tower_lower","deliberately record the ring once")
-	game.desk._stick = Vector2.DOWN
+	game.desk.stick = Vector2.DOWN
 	for tick in 510:
 		game._physics_process(DT)
-	game.desk._stick = Vector2.ZERO
+	game.desk.stick = Vector2.ZERO
 	check(game.casework.tower_height < 0 and not game.casework.glasses and rig.eyes.current and rig.foot.y < 1 and rig.eyes.fov > 60,"climb down to the same ladder foot")
 
 func check_legacy_progress() -> void:
-	game._save()
+	game.save()
 	var old: Dictionary = JSON.parse_string(JSON.stringify(game.saved_data))
 	old.erase("campaign")
 	for slip: Dictionary in old.slips:
@@ -232,12 +232,12 @@ func follow_detail(id: String) -> void:
 			rig.set_spawn(car+Vector3(0,0,10))
 			rig.in_cab = false
 			rig.phase = "at_lift"
-			var panel: Vector3 = rig._panel()
+			var panel: Vector3 = rig.panel_point()
 			stand(panel-rig.truck.global_basis.x,panel)
 			game._action("interact")
 			check(rig.loaded and game.mode=="haul","the case vehicle goes on the wheel-lift")
 			park_tow(game.YardDrop.STORAGE.center+Vector3(4,0,0),PI/2)
-			panel = rig._panel()
+			panel = rig.panel_point()
 			stand(panel-rig.truck.global_basis.x,panel)
 			game._action("interact")
 			check(game.mode=="invoice" and not rig.loaded,"case recovery requires a physical storage delivery")
@@ -272,13 +272,13 @@ func follow_detail(id: String) -> void:
 			game._action("interact")
 			check(rig.phase == "flared" and game.campaign.evidence.has("angie_consent"), "owner consent unlocks the recovery")
 			rig.phase = "at_lift"
-			var panel: Vector3 = rig._panel()
+			var panel: Vector3 = rig.panel_point()
 			stand(panel-rig.truck.global_basis.x,panel)
 			game._action("interact")
 			check(rig.loaded and rig.dropoff.sign == "STORAGE", "Angie's car is accepted as a storage tow")
 			rig.odo += 2
 			park_tow(game.YardDrop.STORAGE.center+Vector3(4,0,0),PI/2)
-			panel = rig._panel()
+			panel = rig.panel_point()
 			stand(panel-rig.truck.global_basis.x,panel)
 			game._action("interact")
 			check(game.mode == "invoice" and not rig.loaded, "yard panel receives Angie's sedan")

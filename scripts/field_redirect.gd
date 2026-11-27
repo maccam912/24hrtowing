@@ -91,7 +91,7 @@ static func grow(county, draw) -> void:
 func anchor(rig, index: int) -> Vector3:
 	var offset: Vector2 = ANCHORS[index]
 	var root := point(site,offset.x,offset.y)
-	return Vector3(root.x+.34,rig._ground(root)+EYE_HEIGHT,root.z)
+	return Vector3(root.x+.34,rig.ground_height(root)+EYE_HEIGHT,root.z)
 
 func cuts_wire(a: Vector3, b: Vector3, clearance := .0) -> bool:
 	var fence := float(site.road_x)+FENCE_X
@@ -103,25 +103,25 @@ func cuts_wire(a: Vector3, b: Vector3, clearance := .0) -> bool:
 
 func clear_anchor(rig, index: int) -> bool:
 	var tree := anchor(rig,index)
-	var eye: Vector3 = rig._eyelet(rig.line_end if rig.phase=="rigged" else -1)
-	return not cuts_wire(rig._drum(),tree) and not cuts_wire(rig.car.position,tree,1.55) and rig._drum().distance_to(tree)+tree.distance_to(eye)<=rig.CABLE_REACH
+	var eye: Vector3 = rig.eyelet_point(rig.line_end if rig.phase=="rigged" else -1)
+	return not cuts_wire(rig.drum_point(),tree) and not cuts_wire(rig.car.position,tree,1.55) and rig.drum_point().distance_to(tree)+tree.distance_to(eye)<=rig.CABLE_REACH
 
 func direct(rig) -> bool:
-	return not cuts_wire(rig.car.position,rig._drum(),1.55)
+	return not cuts_wire(rig.car.position,rig.drum_point(),1.55)
 
 func nearby(rig) -> int:
 	for i in ANCHORS.size():
-		if rig._in_range(anchor(rig,i),2.15): return i
+		if rig.in_range(anchor(rig,i),2.15): return i
 	return -1
 
 func at_post(rig) -> bool:
 	var post := point(site,FENCE_X,0.)
-	post.y=rig._ground(post)+.9
-	return rig._in_range(post,1.7)
+	post.y=rig.ground_height(post)+.9
+	return rig.in_range(post,1.7)
 
 func action(rig, panel: bool) -> String:
 	if rig.phase=="flared" and panel:
-		if rig._road(rig._drum())>5.2: return "field_park"
+		if rig.road_distance(rig.drum_point())>5.2: return "field_park"
 		if not rig.snatch_block and not direct(rig): return "field_stock"
 	if rig.phase=="cable":
 		var tree := nearby(rig)
@@ -129,10 +129,10 @@ func action(rig, panel: bool) -> String:
 			if selected==tree: return "field_unwrap"
 			return "field_wrap" if clear_anchor(rig,tree) else "field_reach"
 		if at_post(rig): return "field_post"
-		if rig._in_range(rig._eyelet(rig._nearest_eyelet()),2.45):
+		if rig.in_range(rig.eyelet_point(rig.nearest_eyelet()),2.45):
 			if selected<0 and not direct(rig): return "field_fence"
-			if selected>=0 and rig._drum().distance_to(anchor(rig,selected))+anchor(rig,selected).distance_to(rig._eyelet(rig._nearest_eyelet()))>rig.CABLE_REACH: return "field_reach"
-	elif rig.phase=="rigged" and selected<0 and panel and rig._flat_distance(rig._eyelet(rig.line_end),rig._drum())<1.3 and rig._road(rig.car.position)>=4.55:
+			if selected>=0 and rig.drum_point().distance_to(anchor(rig,selected))+anchor(rig,selected).distance_to(rig.eyelet_point(rig.nearest_eyelet()))>rig.CABLE_REACH: return "field_reach"
+	elif rig.phase=="rigged" and selected<0 and panel and rig.flat_distance(rig.eyelet_point(rig.line_end),rig.drum_point())<1.3 and rig.road_distance(rig.car.position)>=4.55:
 		return "field_more_road"
 	elif rig.phase=="rigged" and easing:
 		if nearby(rig)==selected: return "field_transfer" if direct(rig) else "field_restow"
@@ -164,7 +164,7 @@ func hint(rig) -> String:
 
 func marker(rig) -> Vector3:
 	if easing: return anchor(rig,selected)
-	if selected>=0 or direct(rig): return rig._eyelet(rig._nearest_eyelet())
+	if selected>=0 or direct(rig): return rig.eyelet_point(rig.nearest_eyelet())
 	var best := Vector3.INF
 	for i in ANCHORS.size():
 		var root := anchor(rig,i)
@@ -197,14 +197,14 @@ func handle(rig, id: String) -> void:
 		"field_wrap":
 			fit_strap(rig,nearby(rig))
 			rig.sound_event.emit("ratchet")
-			rig._note("Tree strap snug. Carry the hook on to the car.",5.)
+			rig.show_note("Tree strap snug. Carry the hook on to the car.",5.)
 		"field_unwrap": remove_webbing()
 		"field_transfer":
 			remove_webbing()
 			easing=false
-			rig.free_line=rig._flat_distance(rig._drum(),rig._eyelet(rig.line_end))+.45
+			rig.free_line=rig.flat_distance(rig.drum_point(),rig.eyelet_point(rig.line_end))+.45
 			rig.sound_event.emit("ratchet")
-			rig._note("Straight line clear. Finish the pull from the side panel.",5.)
+			rig.show_note("Straight line clear. Finish the pull from the side panel.",5.)
 		"field_restow":
 			remove_webbing()
 			easing=false
@@ -212,13 +212,13 @@ func handle(rig, id: String) -> void:
 			if rig.chocks: rig.chocks.queue_free()
 			rig.chocks=null
 			rig.tension=0.
-			rig._note("Line stowed. Move the truck where the cable clears the end post.",5.)
-		_: rig._note(prompt(id),5.)
+			rig.show_note("Line stowed. Move the truck where the cable clears the end post.",5.)
+		_: rig.show_note(prompt(id),5.)
 
 func lines(rig) -> void:
 	var sheave := anchor(rig,selected)
-	var end: Vector3 = rig._eyelet(rig.line_end) if rig.phase=="rigged" else rig.eyes.to_global(Vector3(.25,-.32,-.46))
+	var end: Vector3 = rig.eyelet_point(rig.line_end) if rig.phase=="rigged" else rig.eyes.to_global(Vector3(.25,-.32,-.46))
 	rig.pulley.global_position = sheave
 	rig.pulley.rotation.y = atan2(end.x-sheave.x,end.z-sheave.z)
-	rig._cable_strand(rig._drum(),sheave+rig.pulley.global_basis.x*.065)
-	rig._cable_strand(sheave-rig.pulley.global_basis.x*.065,end)
+	rig.cable_strand(rig.drum_point(),sheave+rig.pulley.global_basis.x*.065)
+	rig.cable_strand(sheave-rig.pulley.global_basis.x*.065,end)

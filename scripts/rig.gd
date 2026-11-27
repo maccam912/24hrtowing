@@ -245,14 +245,14 @@ func offer_front_seat() -> bool:
 	if kind != "passenger" or phase != "scene" or not witness or not is_stopped():
 		return false
 	var walk := RiderWalk.new(witness,vehicle_identity.driver_variant)
-	if not walk.plot(self,_passenger_step()):
-		_note("Leave room beside the passenger door and offer the ride again.",5)
+	if not walk.plot(self,passenger_step()):
+		show_note("Leave room beside the passenger door and offer the ride again.",5)
 		return false
 	boarding_walk = walk
 	phase = "boarding"
 	return true
 
-func _passenger_step() -> Vector3:
+func passenger_step() -> Vector3:
 	return truck.to_global(Vector3(1.78,0,Truck.DOOR.z))
 
 func _seat_rider() -> void:
@@ -268,10 +268,10 @@ func let_rider_out(ticket: Dictionary) -> bool:
 	var threshold := Rides.inside_door(ticket)
 	var sidewalk := Vector3(threshold.x,0,threshold.z-(2.25 if drop == "esker" else 1.5))
 	var walker := RiderWalk.new(witness,vehicle_identity.driver_variant)
-	witness.position = _passenger_step()
-	witness.position.y = _ground(witness.position)
+	witness.position = passenger_step()
+	witness.position.y = ground_height(witness.position)
 	if _obstructed(truck.to_global(Vector3(0,.80,Truck.DOOR.z)),truck.global_basis.x*1.80) or not walker.plot(self,sidewalk,drop):
-		_note("Pull ahead a little. The passenger needs a clear step to the curb.",5)
+		show_note("Pull ahead a little. The passenger needs a clear step to the curb.",5)
 		return false
 	walker.entering_store = drop == "esker"
 	walker.route.append(threshold)
@@ -288,11 +288,11 @@ func _advance_riders(dt: float) -> void:
 			boarding_walk = null
 			phase = "scene"
 			witness.get_node("AnimationPlayer").play("idle")
-			_note("The driver stepped back. Park before offering the front seat.",5)
+			show_note("The driver stepped back. Park before offering the front seat.",5)
 		elif boarding_walk.advance(self,dt):
 			_seat_rider()
 			sound_event.emit("door")
-			_note("Passenger aboard.",3)
+			show_note("Passenger aboard.",3)
 	for i in range(exiting_riders.size()-1,-1,-1):
 		var walker := exiting_riders[i]
 		if walker.advance(self,dt):
@@ -321,7 +321,7 @@ func set_survey_passenger(on_board: bool, rider:=false) -> void:
 
 func set_spawn(at:Vector3, yaw:=0.0) -> void:
 	truck.position=at
-	truck.position.y=_ground(at)
+	truck.position.y=ground_height(at)
 	heading=yaw
 	chase_heading=yaw
 	truck.rotation.y=yaw
@@ -331,11 +331,11 @@ func set_spawn(at:Vector3, yaw:=0.0) -> void:
 	ground_targets=Vector3(truck.position.y,0,0)
 	foot=at
 	walked=0.0
-	_update_eyes()
+	update_eyes()
 
 func recover_to_yard(at: Vector3, yaw: float) -> void:
 	in_cab = true
-	_stop_motion()
+	stop_motion()
 	camera_yaw = 0.0
 	camera_pitch = -.067
 	info_timer = 0.0
@@ -357,14 +357,14 @@ func reserve_valve_in_reach() -> bool:
 	if in_cab or not is_stopped() or not aux_tank or not aux_tank.visible:
 		return false
 	var local := body.to_local(foot)
-	return local.x > 1.1 and _in_range(body.to_global(Reserve.PUMP),1.95)
+	return local.x > 1.1 and in_range(body.to_global(Reserve.PUMP),1.95)
 
 func reserve_hint() -> String:
 	if reserve_fuel > .0001 and aux_tank and aux_tank.visible:
 		return "Transfer reserve diesel at the curb-side bed rail, just behind the cab."
 	return DRY_RIG_HINT
 
-func _stop_motion() -> void:
+func stop_motion() -> void:
 	compression_brake = 0.0
 	speed = 0.0
 	motion = Vector3.ZERO
@@ -377,24 +377,24 @@ func _stop_motion() -> void:
 	engine_rpm = IDLE_RPM if fuel > 0 else 0.0
 	reverse_timer = 0.0
 
-func _ground(p:Vector3) -> float:
+func ground_height(p:Vector3) -> float:
 	if world and world.has_method("ground_height"):
 		return world.ground_height(p.x,p.z)
 	return 0.0
 
-func _road(p:Vector3) -> float:
+func road_distance(p:Vector3) -> float:
 	if world and world.has_method("road_distance"):
 		return world.road_distance(p.x,p.z)
 	return 0.0
 
-func _ray(a:Vector3,b:Vector3) -> Dictionary:
+func cast_ray(a:Vector3,b:Vector3) -> Dictionary:
 	var query:=PhysicsRayQueryParameters3D.create(a,b,1)
 	return get_world_3d().direct_space_state.intersect_ray(query)
 
 func _wheel_ground(x:float,z:float) -> float:
 	var p:Vector3=truck.to_global(Vector3(x,0,z))
-	var base:=_ground(p)
-	var hit:=_ray(Vector3(p.x,base+1.1,p.z),Vector3(p.x,base-1.8,p.z))
+	var base:=ground_height(p)
+	var hit:=cast_ray(Vector3(p.x,base+1.1,p.z),Vector3(p.x,base-1.8,p.z))
 	if not hit.is_empty() and absf(hit.position.y-base)<.45:
 		return hit.position.y
 	return base
@@ -428,10 +428,10 @@ func _suspension(dt:float) -> void:
 func _obstructed(a:Vector3,displacement:Vector3) -> bool:
 	if displacement.length_squared()<.000001:
 		return false
-	var hit:=_ray(a,a+displacement)
+	var hit:=cast_ray(a,a+displacement)
 	return not hit.is_empty() and absf((hit.normal as Vector3).y)<.72
 
-func _truck_obstacle(step:Vector3, turn:float) -> bool:
+func truck_obstacle(step:Vector3, turn:float) -> bool:
 	if step.is_zero_approx(): return false
 	for z in [-4.06,6.43 if rollback_active else 4.22]:
 		for x in [-1.12,1.12]:
@@ -543,15 +543,15 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 	var signals: Truck.RoadSignals = rollback_deck.signals if rollback_active else body.signals
 	signals.set_lit(braking,backing)
 	if tow_signals: tow_signals.set_lit(loaded and braking,loaded and backing)
-	_update_eyes()
+	update_eyes()
 	_cable_curve()
-	_update_highlight()
+	update_highlight()
 	climate.advance(self,dt)
 	if fuel>0:
 		fuel=maxf(fuel-dt*.000017,0)
 	body.glass_material.set_shader_parameter("cold",1.0-climate.air)
 	body.move_driver_window(climate.cracked,dt)
-	body.animate(dt,speed,steering,engine_rpm,tension,fuel,odo,_compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
+	body.animate(dt,speed,steering,engine_rpm,tension,fuel,odo,compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
 
 func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 	var forward:Vector3=-truck.global_basis.z
@@ -562,7 +562,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 		var rear := (tire_contacts[1]+tire_contacts[2]+tire_contacts[4]+tire_contacts[5])*.25
 		var descent := (rear-front)/Truck.WHEELBASE
 		compression_brake = smoothstep(.011,.083,descent)*smoothstep(2.6,5.1,speed)
-	var road_dist:=_road(truck.position)
+	var road_dist:=road_distance(truck.position)
 	var offroad:=smoothstep(5.1,11.0,road_dist)
 	# A packed yard and parking lots provide the same support as a road.
 	if Rect2(-65,-90,68,61).has_point(Vector2(truck.position.x,truck.position.z)) or RiverLanes.LOT.has_point(Vector2(truck.position.x,truck.position.z)):
@@ -589,7 +589,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 	if is_chocked():
 		speed = 0.0
 		if fuel > 0.0 and absf(throttle) > .04 and info_timer <= 0:
-			_note("Wheels chocked. Step out and finish or stow the rigging.",4)
+			show_note("Wheels chocked. Step out and finish or stow the rigging.",4)
 	elif handbrake:
 		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip*load_factor)
 		if absf(speed)<.20 and absf(prev)>=.20: sound_event.emit("air_brake")
@@ -615,7 +615,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 				demand = minf(1.0, demand * 1.2)
 	else:
 		speed=move_toward(speed,0,coast_decel*dt)
-	if fuel<=0 and info_timer<=0: _note(reserve_hint() if reserve_fuel > .0001 else "Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
+	if fuel<=0 and info_timer<=0: show_note(reserve_hint() if reserve_fuel > .0001 else "Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
 	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
 	if loaded and tanker:
@@ -638,7 +638,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 		lateral_speed += tanker.surge.x*minf(absf(speed)*.25,3.0)*dt
 	motion = midway*speed + right*lateral_speed
 	var step := motion*dt + (next_forward-forward)*Truck.REAR_AXLE_Z
-	if _truck_obstacle(step,turn):
+	if truck_obstacle(step,turn):
 		wear=minf(1,wear+clampf(absf(speed)-4,0,12)*.0015)
 		motion=Vector3.ZERO
 		speed=0
@@ -713,7 +713,7 @@ func _walk(move:Vector2, dt:float) -> void:
 		if _obstructed(eye,z_move+z_move.normalized()*.17): dest.z=foot.z
 	if Highway.boundary_distance(dest) > Highway.boundary_distance(foot):
 		dest = foot
-	dest.y=_ground(dest)
+	dest.y=ground_height(dest)
 	foot=dest
 	walked+=Vector2(foot.x-start.x,foot.z-start.z).length()
 	if walked>=FOOTSTEP_DISTANCE:
@@ -728,7 +728,7 @@ func toggle_driving_view() -> void:
 	camera_pitch = -.067
 	_reset_chase()
 	_frame_nearby_car()
-	_update_eyes()
+	update_eyes()
 
 func _reset_chase() -> void:
 	chase_heading = heading
@@ -763,15 +763,15 @@ func _update_chase() -> void:
 		# Aim over the coupling, keeping the free axle in the lower half of the view.
 		focus=truck.global_position.lerp(car.global_position,.32)+Vector3.UP*1.45
 	var offset := (behind*cos(chase_elevation) + Vector3.UP*sin(chase_elevation))*length
-	var hit := _ray(pivot,pivot+offset)
+	var hit := cast_ray(pivot,pivot+offset)
 	if not hit.is_empty():
 		offset = offset.normalized()*maxf(0.0,pivot.distance_to(hit.position)-0.35)
 	var at := pivot + offset
-	at.y = maxf(at.y,_ground(at)+0.55)
+	at.y = maxf(at.y,ground_height(at)+0.55)
 	eyes.global_position = at
 	eyes.look_at(focus,Vector3.UP)
 
-func _update_eyes() -> void:
+func update_eyes() -> void:
 	if berm and berm.bundle: berm.bundle.visible = berm.collected and berm.placed!=3 and not berm.cleared and not in_cab
 	eyes.fov = 62.0 if in_cab and driving_view == "chase" else 76.0
 	if in_cab and driving_view == "chase":
@@ -796,7 +796,7 @@ func wipeable_mirror() -> int:
 			return i
 	return -1
 
-func _heading_degrees() -> float:
+func heading_degrees() -> float:
 	return fposmod(-rad_to_deg(heading),360)
 
 func set_sighting(calm: float, light_at: Vector3, electrical: float) -> void:
@@ -808,12 +808,12 @@ func set_sighting(calm: float, light_at: Vector3, electrical: float) -> void:
 		electrical_fade = 0.0
 	body.set_electrics(electrical_fade)
 
-func _compass_degrees() -> float:
+func compass_degrees() -> float:
 	if sighting_light == Vector3.INF:
-		return _heading_degrees()
+		return heading_degrees()
 	var toward := sighting_light - truck.global_position
 	var bearing := atan2(toward.x,-toward.z)
-	return fposmod(rad_to_deg(lerp_angle(deg_to_rad(_heading_degrees()),bearing,sighting_calm)),360.0)
+	return fposmod(rad_to_deg(lerp_angle(deg_to_rad(heading_degrees()),bearing,sighting_calm)),360.0)
 
 static func uses_warning_triangle(job_kind: String, ticket: Dictionary) -> bool:
 	return job_kind in ["ditch","hazard"] and not ticket.has("case_id") and ticket.get("recovery","") in ["","semi","milk"]
@@ -840,16 +840,16 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	road_wheels = car.get_node_or_null("RoadWheels") as Scene.RoadWheels
 	semi = car as Semi
 	tanker = car as Tanker
-	car.position=Vector3(target.x,_ground(target),target.z)
+	car.position=Vector3(target.x,ground_height(target),target.z)
 	car.rotation.y=yaw
-	match _recovery():
+	match recovery_kind():
 		"milk":
 			var left := car.to_global(Vector3.LEFT*Tanker.SIZE.x)
 			var right := car.to_global(Vector3.RIGHT*Tanker.SIZE.x)
-			car.rotation.z = clampf(atan2(_ground(right)-_ground(left),Tanker.SIZE.x*2),-.17,.17)
-			VehicleDrifts.place(car,_ground)
+			car.rotation.z = clampf(atan2(ground_height(right)-ground_height(left),Tanker.SIZE.x*2),-.17,.17)
+			VehicleDrifts.place(car,ground_height)
 		"semi":
-			semi.park_at(car.position,yaw,vehicle_identity.get("fold",1.12),_ground)
+			semi.park_at(car.position,yaw,vehicle_identity.get("fold",1.12),ground_height)
 		"roll":
 			car.rotation.z = PI
 			car.position.y += Scene.SEDAN_SIZE.y + 1.25
@@ -857,56 +857,56 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 			car.rotation.x = -PI/2
 			car.position.y += Scene.SEDAN_SIZE.z
 		"roof", "tree":
-			car.position.y += target.y if target.y > 0 else (4.75 if _recovery()=="roof" else 5.0)
+			car.position.y += target.y if target.y > 0 else (4.75 if recovery_kind()=="roof" else 5.0)
 		"gate":
 			car.position.y += target.y
 		"":
 			if vehicle_identity.has("field_berm"):
-				berm = HighCenter.new(car,int(vehicle_identity.field_berm),_ground)
+				berm = HighCenter.new(car,int(vehicle_identity.field_berm),ground_height)
 				berm.pack_truck(self)
 			elif vehicle_identity.has("wheel_fault"):
-				WheelFault.settle_on_shoulder(car,_ground)
+				WheelFault.settle_on_shoulder(car,ground_height)
 			elif kind == "hazard" and not vehicle_identity.get("running",false):
-				VehicleDrifts.place(car, _ground)
+				VehicleDrifts.place(car, ground_height)
 			elif _county_plow():
 				var nose := car.to_global(Vector3.FORWARD*3.4)
 				var tail := car.to_global(Vector3.BACK*3.2)
-				car.rotation.x = clampf(atan2(_ground(nose)-_ground(tail),6.6),-.17,.17)
-				VehicleDrifts.place(car,_ground)
-	if _recovery() == "ice" and Flowage.on_flowage(job_site):
+				car.rotation.x = clampf(atan2(ground_height(nose)-ground_height(tail),6.6),-.17,.17)
+				VehicleDrifts.place(car,ground_height)
+	if recovery_kind() == "ice" and Flowage.on_flowage(job_site):
 		flowage = Flowage.new()
 		flowage.fit_marks(self)
-	if _recovery() == "roof" and vehicle_identity.get("canopy_spreader",false): roof = Roof.new()
+	if recovery_kind() == "roof" and vehicle_identity.get("canopy_spreader",false): roof = Roof.new()
 	if vehicle_identity.has("field_gate"): redirect = Redirect.new(int(vehicle_identity.field_gate))
 	if vehicle_identity.has("wheel_fault"):
 		axle_fault = WheelFault.new(vehicle_identity)
 		if phase in ["scene","flared","cable","rigged"]: axle_fault.drag_mark(self)
-	if _recovery() == "tree": tree_recovery = TreeRecovery.new()
+	if recovery_kind() == "tree": tree_recovery = TreeRecovery.new()
 	if _roll_job() and vehicle_identity.get("two_drum_roll",false): rollover = Rollover.new()
-	_set_car_lamps("running" if _running_car() else "hazard")
+	set_car_lamps("running" if _running_car() else "hazard")
 	if phase == "scene" and uses_warning_triangle(kind,vehicle_identity):
 		# Face traffic from either direction, on the road side of the car.
 		# Dispatch parks cars at a slight yaw along the county's section roads.
 		var road_yaw := snappedf(job_yaw, PI / 2.0)
 		var across := Vector3.RIGHT.rotated(Vector3.UP,road_yaw)
-		if _road(target + across) > _road(target - across):
+		if road_distance(target + across) > road_distance(target - across):
 			across = -across
 		var ahead := 6.0 if _county_plow() or semi or tanker else 3.5
 		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * ahead
-		at.y = _ground(at)
+		at.y = ground_height(at)
 		warning_triangle = Scene.warning_triangle(self,at,road_yaw)
 	if kind in ["ditch","hold","passenger"] or semi or tanker or vehicle_identity.has("sheriff_order"):
 		witness=Scene.person(self,kind=="hold" or vehicle_identity.has("sheriff_order"),vehicle_identity.driver_variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
-		witness.position=Vector3(point.x,_ground(point),point.z)
+		witness.position=Vector3(point.x,ground_height(point),point.z)
 		witness.rotation.y=yaw-1.14
 	if variant == Scene.Ambulance.VARIANT and not vehicle_identity.get("cot_released",false):
 		ems_partner = Scene.person(self,false,Scene.Ambulance.ATTENDANT)
 		var at := car.to_global(Vector3(0,0,5.30))
-		ems_partner.position = Vector3(at.x,_ground(at),at.z)
+		ems_partner.position = Vector3(at.x,ground_height(at),at.z)
 		var toward := Rides.Memorial.DOOR-ems_partner.position
 		ems_partner.rotation.y = atan2(-toward.x,-toward.z)
-	_update_highlight()
+	update_highlight()
 
 func cot_at_line() -> bool:
 	if vehicle_identity.get("variant",-1) != Scene.Ambulance.VARIANT:
@@ -914,7 +914,7 @@ func cot_at_line() -> bool:
 	if ems_partner:
 		return true
 	for walker in exiting_riders:
-		if walker.variant == Scene.Ambulance.ATTENDANT and _flat_distance(walker.person.position,job_site)<9.0:
+		if walker.variant == Scene.Ambulance.ATTENDANT and flat_distance(walker.person.position,job_site)<9.0:
 			return true
 	return false
 
@@ -924,7 +924,7 @@ func send_cot_inside() -> bool:
 	var walker := RiderWalk.new(ems_partner,Scene.Ambulance.ATTENDANT)
 	var door := Rides.Memorial.DOOR
 	if not walker.plot(self,door+Vector3.FORWARD*1.1,"ems_cot"):
-		_note("Leave Kit a clear route to the hospital curb.",5)
+		show_note("Leave Kit a clear route to the hospital curb.",5)
 		return false
 	walker.route.append(door+Vector3.BACK*.7)
 	exiting_riders.append(walker)
@@ -996,20 +996,20 @@ func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node
 	var variant:=int(ticket.get("variant",3 if job_kind in ["bridge","river"] else 2))
 	var model_kind:="hold" if job_kind=="hold" else "hazard"
 	var stored:=Scene.car(self,model_kind,variant,ticket)
-	stored.position=Vector3(point.x,_ground(point),point.z)
+	stored.position=Vector3(point.x,ground_height(point),point.z)
 	stored.rotation.y=yaw
 	if ticket.has("field_berm"):
-		HighCenter.new(stored,int(ticket.field_berm),_ground)
+		HighCenter.new(stored,int(ticket.field_berm),ground_height)
 	elif ticket.has("wheel_fault"):
-		WheelFault.settle_on_shoulder(stored,_ground)
+		WheelFault.settle_on_shoulder(stored,ground_height)
 	elif model_kind == "hazard":
-		VehicleDrifts.place(stored, _ground)
+		VehicleDrifts.place(stored, ground_height)
 	return stored
 
 func _face_operator(dt: float) -> void:
 	if not witness or not witness.visible or phase in ["boarding","departing"]:
 		return
-	var distance := _flat_distance(foot, witness.position)
+	var distance := flat_distance(foot, witness.position)
 	if distance < 0.4 or distance > 4.3:
 		return
 	var toward := foot - witness.position
@@ -1032,28 +1032,28 @@ func get_target_position() -> Vector3:
 	return car.global_position if car else Vector3.INF
 
 func near_casualty(radius:float) -> bool:
-	return car and car.visible and _flat_distance(get_player_position(),car.global_position)<radius
+	return car and car.visible and flat_distance(get_player_position(),car.global_position)<radius
 
-func _flat_distance(a:Vector3,b:Vector3) -> float:
+func flat_distance(a:Vector3,b:Vector3) -> float:
 	return Vector2(a.x-b.x,a.z-b.z).length()
 
-func _panel() -> Vector3:
+func panel_point() -> Vector3:
 	return body.to_global(Rollback.PANEL if rollback_active else Truck.PANEL)
 
-func _drum() -> Vector3:
+func drum_point() -> Vector3:
 	return rollback_deck.drum(self) if rollback_active else body.to_global(Truck.DRUM)
 
 func _hitch() -> Vector3:
 	return body.stinger.to_global(Truck.HITCH)
 
-func _eyelet(end:int) -> Vector3:
+func eyelet_point(end:int) -> Vector3:
 	var size: Vector3 = car.get_meta("body_size")
 	return car.to_global(Vector3(0,size.y-.087,end*size.z*1.016))
 
-func _nearest_eyelet() -> int:
+func nearest_eyelet() -> int:
 	if tanker: return -1
 	if _county_plow(): return 1
-	return 1 if _flat_distance(foot,_eyelet(1))<_flat_distance(foot,_eyelet(-1)) else -1
+	return 1 if flat_distance(foot,eyelet_point(1))<flat_distance(foot,eyelet_point(-1)) else -1
 
 func _county_plow() -> bool:
 	return vehicle_identity.get("variant",-1) == Scene.Snowplow.VARIANT
@@ -1068,55 +1068,55 @@ func duane_on_scene() -> bool:
 
 func _reaches() -> bool:
 	var reach := CABLE_REACH
-	if _recovery() == "ice":
+	if recovery_kind() == "ice":
 		reach = ICE_LINE
-	elif _boom_job():
+	elif boom_job():
 		reach = BOOM_REACH
-	return car and _flat_distance(_drum(),car.position)<=reach
+	return car and flat_distance(drum_point(),car.position)<=reach
 
-func _recovery() -> String:
+func recovery_kind() -> String:
 	return vehicle_identity.get("recovery","")
 
-func _boom_job() -> bool:
-	return _recovery() in ["roof","tree"]
+func boom_job() -> bool:
+	return recovery_kind() in ["roof","tree"]
 
-func _boom_landing() -> Vector3:
-	var ground_start := Vector3(job_site.x,_ground(job_site),job_site.z)
-	var toward := _drum()-ground_start
+func boom_landing() -> Vector3:
+	var ground_start := Vector3(job_site.x,ground_height(job_site),job_site.z)
+	var toward := drum_point()-ground_start
 	toward.y = 0
 	var travel := minf(8.25,toward.length()-2.5)
 	var landing := ground_start+toward.normalized()*travel
-	landing.y = _ground(landing)
+	landing.y = ground_height(landing)
 	return landing
 
 func _clear_to_lower() -> bool:
-	var landing := _boom_landing()
-	if _flat_distance(landing,job_site) < 5.9: return false
+	var landing := boom_landing()
+	if flat_distance(landing,job_site) < 5.9: return false
 	# Check the actual car footprint under the raised boom before committing
 	# to the lift. A car can't be lowered through the roof it is sitting on.
 	for x: float in [-.96,.96]:
 		for z: float in [-2.18,2.18]:
 			var at := landing+Vector3(x,0,z).rotated(Vector3.UP,job_yaw)
-			var hit := _ray(at+Vector3.UP*11,at+Vector3.UP*.55)
+			var hit := cast_ray(at+Vector3.UP*11,at+Vector3.UP*.55)
 			if not hit.is_empty(): return false
 	return true
 
 func _roll_job() -> bool:
-	return _recovery() in ["roll","nose"]
+	return recovery_kind() in ["roll","nose"]
 
 func _running_car() -> bool:
-	return kind == "hold" or not _recovery().is_empty() or vehicle_identity.get("running",false)
+	return kind == "hold" or not recovery_kind().is_empty() or vehicle_identity.get("running",false)
 
-func _side_eye(side: float) -> Vector3:
+func side_eye(side: float) -> Vector3:
 	# Two slings cradle the casualty from opposite sides. Both chains reach
 	# the snow, including when the rear axle is high above the shoulder.
 	var point := car.position + Vector3.RIGHT.rotated(Vector3.UP,car.rotation.y)*side
-	point.y = _ground(point)+.62
+	point.y = ground_height(point)+.62
 	return point
 
-func _in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
+func in_range(at:Vector3,dist:float, require_facing:=true) -> bool:
 	var offset:=at-eyes.global_position
-	if _flat_distance(foot,at)>dist or absf(offset.y)>3:
+	if flat_distance(foot,at)>dist or absf(offset.y)>3:
 		return false
 	# Forgiving hands' reach for mobile. At the edge, turn toward what you want.
 	return not require_facing or offset.length()<1.5 or (-eyes.global_basis.z).dot(offset.normalized())>-.13
@@ -1148,7 +1148,7 @@ func is_chocked() -> bool:
 	return (rollback_active and not rollback_deck.motion.is_empty()) or phase in ["cable","rigged","at_lift","dollies"]
 
 func at_dry_rig_door() -> bool:
-	return not in_cab and fuel <= 0.0 and is_chocked() and _at_door()
+	return not in_cab and fuel <= 0.0 and is_chocked() and at_door()
 
 func action_id() -> String:
 	if in_cab:
@@ -1156,8 +1156,8 @@ func action_id() -> String:
 	if at_dry_rig_door():
 		return "enter"
 	if kind=="passenger":
-		return "enter" if _at_door() else ""
-	var panel_range:=_in_range(_panel(),2.65)
+		return "enter" if at_door() else ""
+	var panel_range:=in_range(panel_point(),2.65)
 	if berm:
 		var field_action := berm.action(self)
 		if not field_action.is_empty(): return field_action
@@ -1174,7 +1174,7 @@ func action_id() -> String:
 	if roof:
 		var roof_action := roof.action(self,panel_range)
 		if not roof_action.is_empty(): return roof_action
-		if roof.on_roof or roof.ladder >= 0. or (phase in ["cable","rigged"] and special_work<1.): return "enter" if _at_door() else ""
+		if roof.on_roof or roof.ladder >= 0. or (phase in ["cable","rigged"] and special_work<1.): return "enter" if at_door() else ""
 	if flowage:
 		var bank_action := flowage.action(self,panel_range)
 		if not bank_action.is_empty(): return bank_action
@@ -1185,57 +1185,57 @@ func action_id() -> String:
 	if tree_recovery:
 		var nearby := tree_recovery.action(self,panel_range)
 		if not nearby.is_empty(): return nearby
-	if phase=="scene" and (_boom_job() or _recovery()=="ice") and panel_range:
+	if phase=="scene" and (boom_job() or recovery_kind()=="ice") and panel_range:
 		return "flare"
-	if phase=="scene" and near_casualty(8.5) and (_in_range(car.position+Vector3.UP,8.5) or not _at_door()):
+	if phase=="scene" and near_casualty(8.5) and (in_range(car.position+Vector3.UP,8.5) or not at_door()):
 		return "flare"
 	if phase=="flared" and tanker and not tanker.checked:
-		if _in_range(tanker.to_global(Tanker.CABINET),2.5): return "milk_manifest"
+		if in_range(tanker.to_global(Tanker.CABINET),2.5): return "milk_manifest"
 		if panel_range: return "milk_seal"
 	if phase=="flared" and panel_range:
 		if not _reaches(): return "too_far"
 		if (semi or rollover) and not second_winch: return "need_second_winch"
 		if semi or tanker:
-			var set_up := car.to_local(_drum())
+			var set_up := car.to_local(drum_point())
 			var nose:float = car.get_meta("body_size").z
 			if set_up.z > -nose-.6 or absf(set_up.x)>12.: return "milk_position" if tanker else "freight_position"
-		if _boom_job() and not _clear_to_lower(): return "boom_space"
-		if not flowage and _recovery()=="ice" and (_flat_distance(_drum(),job_site)<22.0 or _ground(truck.position)< -1.0): return "shore"
+		if boom_job() and not _clear_to_lower(): return "boom_space"
+		if not flowage and recovery_kind()=="ice" and (flat_distance(drum_point(),job_site)<22.0 or ground_height(truck.position)< -1.0): return "shore"
 		return "need_block" if vehicle_identity.heavy_recovery and not snatch_block else "cable"
 	if phase=="cable":
 		if semi: return semi.cable_action(self,panel_range)
-		if _boom_job() and panel_range: return "sling"
+		if boom_job() and panel_range: return "sling"
 		if tree_recovery: return ""
 		if _roll_job():
-			if _in_range(_side_eye(1.0 if second_line else -1.0),2.35): return "check_line" if second_line else "roll_hook"
+			if in_range(side_eye(1.0 if second_line else -1.0),2.35): return "check_line" if second_line else "roll_hook"
 			return "restow" if panel_range else ""
-		if _in_range(_eyelet(_nearest_eyelet()),2.45):
-			if flowage and _drum().distance_to(_eyelet(_nearest_eyelet())) > Flowage.MAX_LINE: return "ice_short"
+		if in_range(eyelet_point(nearest_eyelet()),2.45):
+			if flowage and drum_point().distance_to(eyelet_point(nearest_eyelet())) > Flowage.MAX_LINE: return "ice_short"
 			return "attach"
-		if _county_plow() and _in_range(_eyelet(-1),2.6): return "plow_blade"
+		if _county_plow() and in_range(eyelet_point(-1),2.6): return "plow_blade"
 		if panel_range: return "restow"
 	if phase=="rigged":
 		if panel_range and cot_at_line(): return "ems_wait"
 		if panel_range: return "winch"
-		if semi and semi.rigging=="both": return "enter" if _at_door() else ""
-		if not _boom_job() and not _roll_job() and _in_range(_eyelet(line_end),1.8): return "unhook"
+		if semi and semi.rigging=="both": return "enter" if at_door() else ""
+		if not boom_job() and not _roll_job() and in_range(eyelet_point(line_end),1.8): return "unhook"
 	if phase=="at_lift":
-		if kind=="hold" and _in_range(car.position+Vector3.UP*.35,3.3): return "dollies"
+		if kind=="hold" and in_range(car.position+Vector3.UP*.35,3.3): return "dollies"
 		if kind!="hold" and panel_range: return "lift"
 	if phase=="dollies" and panel_range: return "lift"
 	if phase=="loaded" and panel_range:
 		if tanker and at_dropoff() and not tanker.is_settled(): return "milk_settle"
 		return "drop" if at_dropoff() else "haul"
-	if _at_door(): return "enter"
+	if at_door(): return "enter"
 	return ""
 
-func _at_door() -> bool:
+func at_door() -> bool:
 	var side := truck.to_local(foot).x
 	if absf(side)<.58:
 		return false
 	var handle := Truck.DOOR+Vector3.UP*1.57
 	handle.x=signf(side)*absf(handle.x)
-	return _in_range(body.to_global(handle),2.12)
+	return in_range(body.to_global(handle),2.12)
 
 func context_text() -> String:
 	var action:=action_id()
@@ -1286,14 +1286,14 @@ func context_text() -> String:
 		return "Take the vehicle to %s" % dropoff.sign
 	if action == "winch" and special_work < 1.0:
 		if semi: return "Hold WINCH to bring the trailer back in line"
-		if _boom_job(): return "Hold WINCH to lift clear, swing out and lower"
+		if boom_job(): return "Hold WINCH to lift clear, swing out and lower"
 		if _roll_job(): return "Hold WINCH to roll upright against the check line"
 	var extra := {"boom_space":"Move toward the open road · leave room to swing the car clear", "shore":"Set the wrecker back on the bank · at least 22 m from the sedan",
 		"sling":"Swing boom over the car and set the lifting sling", "roll_hook":"Shackle the lifting line to the near-side sling",
 		"check_line":"Attach the second line to the opposite sling"}
 	if extra.has(action): return extra[action]
-	if action=="too_far" and _boom_job(): return "Bring rear of wrecker within 15 m of the car"
-	if action=="cable" and _boom_job(): return "Chock wheels and unfold recovery boom"
+	if action=="too_far" and boom_job(): return "Bring rear of wrecker within 15 m of the car"
+	if action=="cable" and boom_job(): return "Chock wheels and unfold recovery boom"
 	if vehicle_identity.get("heavy_recovery",false):
 		if action == "plow_blade": return "Go around the blade to the rear recovery eye"
 		if action == "attach" and _county_plow(): return "Shackle the block to the rear recovery eye"
@@ -1343,13 +1343,13 @@ func _hint() -> String:
 		return "Return to the side panel and take the boom levers." if tree_recovery.block_set else "Reeve the block into the orange sling hanging beside the sedan."
 	if tree_recovery and phase == "rigged" and special_work < 1.:
 		return tree_recovery.instruction(self) + ". Use the wrecker’s side-panel levers."
-	if phase == "scene" and _boom_job():
+	if phase == "scene" and boom_job():
 		return "Back toward the car. Leave 9–15 m between the rear controls and the casualty so the boom can swing clear."
 	if flowage:
 		if phase in ["scene","flared"]: return flowage.setup_note()
 		if phase == "cable": return "Walk the hook to the sedan. The orange wraps mark every ten feet on the long cable."
 		if phase == "rigged" and not flowage.creep: return "Go back to the truck and shift the drum to creep."
-	if phase == "scene" and _recovery()=="ice":
+	if phase == "scene" and recovery_kind()=="ice":
 		return "Stay on the bank, 22–52 m from the car. Set a flare at the rear controls and run the cable onto the ice."
 	if _county_plow():
 		if phase == "scene":
@@ -1357,7 +1357,7 @@ func _hint() -> String:
 		if phase == "cable":
 			return "Carry the snatch block around to the rear of the salt box. Shackle it to the recovery eye below the tailgate."
 	if phase == "cable":
-		if _boom_job(): return "Set the lifting sling from the rear boom controls."
+		if boom_job(): return "Set the lifting sling from the rear boom controls."
 		if _roll_job(): return "Attach the second line on the opposite side." if second_line else "Carry the block to the sling on the car’s left side."
 	match phase:
 		"scene": return "Park on the shoulder within 35 m. Step out at a standstill and set a flare beside the disabled vehicle."
@@ -1379,7 +1379,7 @@ func interact() -> void:
 		redirect.handle(self,a)
 		return
 	if roof and a.begins_with("roof_"):
-		if a in ["roof_setup","roof_boom"] and fuel <= 0.: _note(reserve_hint(),5.)
+		if a in ["roof_setup","roof_boom"] and fuel <= 0.: show_note(reserve_hint(),5.)
 		else: roof.handle(self,a)
 		return
 	if axle_fault and a.begins_with("axle_"):
@@ -1395,21 +1395,21 @@ func interact() -> void:
 		return
 	if a == "milk_manifest":
 		tanker.checked = true
-		_note("%d gallons   ·   Seal %s intact. Take the snatch block at the side panel." % [tanker.gallons,tanker.seal],6.)
+		show_note("%d gallons   ·   Seal %s intact. Take the snatch block at the side panel." % [tanker.gallons,tanker.seal],6.)
 		sound_event.emit("ratchet")
 		return
 	if a in ["milk_position","milk_seal","milk_settle"]:
-		_note(context_text(),4.)
+		show_note(context_text(),4.)
 		return
 	if a=="freight_position":
-		_note(context_text(),4)
+		show_note(context_text(),4)
 		return
 	if semi and a.begins_with("freight_"):
 		semi.handle_work(self,a)
-		_update_highlight()
+		update_highlight()
 		return
 	if a in ["lift","sling","winch","tree_boom","roll_levers","ice_creep"] and fuel <= 0.0:
-		_note(reserve_hint(),6.0)
+		show_note(reserve_hint(),6.0)
 		return
 	match a:
 		"exit":
@@ -1419,13 +1419,13 @@ func interact() -> void:
 			var clearance := step_out + step_out.normalized()*.20
 			if _obstructed(aisle,clearance):
 				if _obstructed(aisle,-clearance):
-					_note("Both doors are blocked. Move the wrecker into the open.",3)
+					show_note("Both doors are blocked. Move the wrecker into the open.",3)
 					return
 				step_out = -step_out
 			motion=Vector3.ZERO
 			speed=0
 			foot=aisle+step_out
-			foot.y=_ground(foot)
+			foot.y=ground_height(foot)
 			walked=0.0
 			if driving_view == "chase":
 				camera_yaw = wrapf(chase_heading+chase_orbit,-PI,PI)
@@ -1436,7 +1436,7 @@ func interact() -> void:
 			sound_event.emit("door")
 		"enter":
 			if is_chocked() and fuel > 0.0:
-				_note("Finish or stow the rigging first.",2.5)
+				show_note("Finish or stow the rigging first.",2.5)
 				return
 			# Looking down at the exterior door handle should not leave the
 			# seated operator facing their lap or the back wall of the cab.
@@ -1448,34 +1448,34 @@ func interact() -> void:
 			sound_event.emit("door")
 		"flare":
 			var loc:=foot+(car.position-foot).normalized()*.55
-			loc.y=_ground(loc)
+			loc.y=ground_height(loc)
 			flame=Scene.flare(self,loc)
 			_clear_warning_triangle()
 			phase="flared"
 			sound_event.emit("flare")
 		"cable":
 			phase="cable"
-			_set_chocks()
+			set_chocks()
 			sound_event.emit("chock")
 			if tree_recovery: tree_recovery.deploy(self)
 		"tree_block":
 			tree_recovery.block_set = true
 			sound_event.emit("ratchet")
-			_note("Block set. Take the boom levers at the truck.",4)
+			show_note("Block set. Take the boom levers at the truck.",4)
 		"tree_boom": tree_recovery.engage(self)
 		"tree_leave": tree_recovery.release()
 		"ice_creep":
 			flowage.creep = true
 			sound_event.emit("ratchet")
-			_note("Drum in creep. Pull slowly until the first tires reach the bank.",5.)
-		"ice_short","ice_bank": _note(context_text(),5.)
+			show_note("Drum in creep. Pull slowly until the first tires reach the bank.",5.)
+		"ice_short","ice_bank": show_note(context_text(),5.)
 		"roll_levers": rollover.take_controls(self)
 		"roll_leave": rollover.release()
-		"roll_hold": _note(context_text(),4.)
+		"roll_hold": show_note(context_text(),4.)
 		"roll_clear":
 			rollover.check_cleared = true
 			sound_event.emit("ratchet")
-			_note("Check line clear. Winch to the wheel-lift.",4.)
+			show_note("Check line clear. Winch to the wheel-lift.",4.)
 		"roll_fetch":
 			rollover.fetched = true
 			sound_event.emit("ratchet")
@@ -1483,19 +1483,19 @@ func interact() -> void:
 			second_line=true
 			sound_event.emit("ratchet")
 		"sling","check_line":
-			line_end=_nearest_eyelet()
+			line_end=nearest_eyelet()
 			phase="rigged"
-			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
+			free_line=flat_distance(drum_point(),eyelet_point(line_end))+.45
 			sound_event.emit("lift" if a=="sling" else "ratchet")
 		"attach":
 			if kind=="hold":
 				Scene.close_driver_door(car)
-			line_end=_nearest_eyelet()
+			line_end=nearest_eyelet()
 			phase="rigged"
-			free_line=_flat_distance(_drum(),_eyelet(line_end))+.45
+			free_line=flat_distance(drum_point(),eyelet_point(line_end))+.45
 			if redirect and redirect.selected>=0:
 				redirect.route_used = true
-				free_line = _flat_distance(redirect.anchor(self,redirect.selected),_eyelet(line_end))+.45
+				free_line = flat_distance(redirect.anchor(self,redirect.selected),eyelet_point(line_end))+.45
 			sound_event.emit("hook")
 		"restow","unhook","ice_repack":
 			if berm: berm.blocked=false
@@ -1505,7 +1505,7 @@ func interact() -> void:
 			if flowage:
 				flowage.creep = false
 				flowage.cable_out = 0.
-				if a=="ice_repack": _note(flowage.setup_note(),7.)
+				if a=="ice_repack": show_note(flowage.setup_note(),7.)
 			if rollover: rollover.fetched = false
 			if tree_recovery:
 				tree_recovery.clear_sling()
@@ -1520,52 +1520,52 @@ func interact() -> void:
 			sound_event.emit("ratchet")
 		"dollies":
 			phase="dollies"
-			_fit_dollies()
+			fit_dollies()
 			sound_event.emit("ratchet")
 		"lift":
 			phase="loaded"
 			loaded=true
 			body.stinger.position.z=0.0
 			_track_underlift(Vector3.ZERO,true)
-			_set_car_lamps("tow")
+			set_car_lamps("tow")
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("lift")
-			_finish_recovery()
+			finish_recovery()
 		"drop":
 			phase="done"
 			loaded=false
 			body.crossbar.release()
 			car.rotation.x=0
 			car.rotation.z=0
-			car.position.y=_ground(car.position)
+			car.position.y=ground_height(car.position)
 			if road_wheels: road_wheels.release(dollies)
 			sound_event.emit("lift")
 			dropped.emit()
-		"need_block": _note("This recovery needs a double line. Order the snatch block at the yard.",4)
-		"need_second_winch": _note(context_text(),4)
-		"plow_blade": _note(context_text(),3)
-		"boom_space": _note("The car needs open ground under all four wheels. Move back toward the road.",4)
-		"shore": _note("Ice won't hold the wrecker. Set up on the bank.",4)
-		"too_far": _note(context_text(),3)
-	_update_eyes()
+		"need_block": show_note("This recovery needs a double line. Order the snatch block at the yard.",4)
+		"need_second_winch": show_note(context_text(),4)
+		"plow_blade": show_note(context_text(),3)
+		"boom_space": show_note("The car needs open ground under all four wheels. Move back toward the road.",4)
+		"shore": show_note("Ice won't hold the wrecker. Set up on the bank.",4)
+		"too_far": show_note(context_text(),3)
+	update_eyes()
 
-func _set_chocks() -> void:
+func set_chocks() -> void:
 	chocks=Kit.joint(truck,Vector3.ZERO,"Chocks")
 	var k=Kit.new(chocks)
 	for s in [-1,1]:
 		k.box(Vector3(s*1.02,.115,3.40),Vector3(.36,.20,.30),Color("#915c39"),Vector3(-.27,0,0))
 	k.finish()
 
-func _fit_dollies() -> void:
+func fit_dollies() -> void:
 	dollies = road_wheels.fit_dollies(line_end)
-	road_wheels.ground_axle(line_end,_ground,dollies)
+	road_wheels.ground_axle(line_end,ground_height,dollies)
 
 func _winch(operate:bool,dt:float) -> void:
 	var prev_work:=working
 	slip_cooldown=maxf(0,slip_cooldown-dt)
 	var paying := rollback_active and rollback_deck.motion == "pay"
-	working=(phase=="rigged" or paying) and not in_cab and operate and fuel>0.0 and _in_range(_panel(),2.7,false) and slip_cooldown<=0
+	working=(phase=="rigged" or paying) and not in_cab and operate and fuel>0.0 and in_range(panel_point(),2.7,false) and slip_cooldown<=0
 	if working and ((vehicle_identity.heavy_recovery and not snatch_block) or (semi and not second_winch)):
 		working = false
 	if working and cot_at_line(): working = false
@@ -1577,7 +1577,7 @@ func _winch(operate:bool,dt:float) -> void:
 		tension=move_toward(tension,0.0,dt*.72)
 		if tanker:
 			if not loaded:
-				tanker.update_during_pull(dt,0,tanker.global_basis.inverse()*(_drum()-tanker.global_position).normalized())
+				tanker.update_during_pull(dt,0,tanker.global_basis.inverse()*(drum_point()-tanker.global_position).normalized())
 			elif not in_cab:
 				tanker.step_liquid(dt,Vector2.ZERO)
 		return
@@ -1587,7 +1587,7 @@ func _winch(operate:bool,dt:float) -> void:
 		dt = fuel / WINCH_FUEL_PER_SECOND
 		fuel = 0.0
 		working = false
-		_note(reserve_hint(),6.0)
+		show_note(reserve_hint(),6.0)
 	else:
 		fuel -= dt * WINCH_FUEL_PER_SECOND
 	if berm and not berm.cleared:
@@ -1601,25 +1601,25 @@ func _winch(operate:bool,dt:float) -> void:
 	if semi and semi.rigging == "both":
 		semi.straighten(self,dt)
 		return
-	if special_work < 1.0 and (_roll_job() or _boom_job()):
+	if special_work < 1.0 and (_roll_job() or boom_job()):
 		_work_casualty(dt)
 		return
-	var attach:=_eyelet(line_end)
-	var fairlead:=_drum()
+	var attach:=eyelet_point(line_end)
+	var fairlead:=drum_point()
 	var pulling_round_tree := redirect != null and redirect.selected>=0
 	if pulling_round_tree: fairlead = redirect.anchor(self,redirect.selected)
 	var toward:=fairlead-attach
 	toward.y=0
 	var gap:=toward.length()
 	var axial:float=absf(toward.normalized().dot(car.global_basis.z))
-	var drum_lead := _drum()-fairlead if pulling_round_tree else toward
+	var drum_lead := drum_point()-fairlead if pulling_round_tree else toward
 	drum_lead.y=0
 	var sideways:float=1.0-absf(drum_lead.normalized().dot(truck.global_basis.z))
 	var resistance:=.48+(.13 if kind=="hold" else 0.0)+(1-axial)*.32+sideways*.17
-	if _road(car.position)>6.8: resistance+=.12
+	if road_distance(car.position)>6.8: resistance+=.12
 	if warmth<.24: resistance+=.04
 	var shortening:=dt*(1.52 if kind=="hold" else 1.84)*(1.0-wear*.22)
-	if _recovery()=="ice":
+	if recovery_kind()=="ice":
 		shortening*=.72
 		resistance*=.78
 	if vehicle_identity.heavy_recovery:
@@ -1636,7 +1636,7 @@ func _winch(operate:bool,dt:float) -> void:
 	tension=move_toward(tension,resistance*clampf(taut/.34,0,1),dt*(.23+taut*.38))
 	if tension>=.99:
 		slip_cooldown=1.14
-		_note("Cable slipped · let the drum settle",slip_cooldown)
+		show_note("Cable slipped · let the drum settle",slip_cooldown)
 		free_line=gap+.38
 		tension=.60
 		wear=minf(1,wear+.012)
@@ -1649,73 +1649,73 @@ func _winch(operate:bool,dt:float) -> void:
 		tanker.update_during_pull(dt,amount/maxf(.001,dt),tanker.global_basis.inverse()*toward.normalized())
 		car.rotation.z = move_toward(car.rotation.z,0,amount*.028)
 	car.position+=toward.normalized()*amount
-	car.position.y=lerpf(car.position.y,_ground(car.position),1-exp(-7.0*dt))
+	car.position.y=lerpf(car.position.y,ground_height(car.position),1-exp(-7.0*dt))
 	if _county_plow():
 		car.rotation.x = move_toward(car.rotation.x,0.0,amount*.045)
 	var desired:=atan2(toward.x,toward.z)+(PI if line_end<0 else 0.0)
 	car.rotation.y=lerp_angle(car.rotation.y,desired,clampf(amount*.16,0,.20))
-	if semi: semi.follow(_ground)
+	if semi: semi.follow(ground_height)
 	if axle_fault:
-		WheelFault.settle_on_shoulder(car,_ground)
+		WheelFault.settle_on_shoulder(car,ground_height)
 		axle_fault.roll_free_wheels(self)
 	if pulling_round_tree and gap <= Redirect.BLOCK_CLEARANCE:
 		redirect.easing = true
 		free_line = gap+.55
 		working = false
 		tension = 0.
-		_note("Past the corner. Slack is off. Walk to the tree and take the block out.",6.)
+		show_note("Past the corner. Slack is off. Walk to the tree and take the block out.",6.)
 		return
-	if not pulling_round_tree and ((gap<=1.15 and not redirect) or (kind=="ditch" and _road(car.position)<4.55 and car.position.distance_to(job_site)>3.0)):
+	if not pulling_round_tree and ((gap<=1.15 and not redirect) or (kind=="ditch" and road_distance(car.position)<4.55 and car.position.distance_to(job_site)>3.0)):
 		tension=0
 		working=false
 		if kind=="ditch":
 			phase="departing"
 			_begin_departure()
 			if _county_plow():
-				_note("Plow free · Duane's taking the route back.",6.0)
+				show_note("Plow free · Duane's taking the route back.",6.0)
 			else:
-				_note("Ditch pull complete · driver leaving. Clear for the next call.",8.0)
+				show_note("Ditch pull complete · driver leaving. Clear for the next call.",8.0)
 			if chocks: chocks.queue_free()
 			chocks=null
 			sound_event.emit("ratchet")
-			_finish_recovery()
+			finish_recovery()
 		else:
 			phase="at_lift"
 			sound_event.emit("ratchet")
 
 func _work_casualty(dt: float) -> void:
-	var duration := 9.0 if _boom_job() else 7.0
+	var duration := 9.0 if boom_job() else 7.0
 	special_work = move_toward(special_work,1.0,dt/duration)
 	tension = move_toward(tension,.57+.15*sin(PI*special_work),dt*.32)
-	if _roll_job(): _pose_roll(special_work)
+	if _roll_job(): pose_roll(special_work)
 	else:
-		var height := job_site.y if job_site.y>0 else (4.75 if _recovery()=="roof" else 5.0)
-		var start := Vector3(job_site.x,_ground(job_site)+height,job_site.z)
-		var landing := _boom_landing()
+		var height := job_site.y if job_site.y>0 else (4.75 if recovery_kind()=="roof" else 5.0)
+		var start := Vector3(job_site.x,ground_height(job_site)+height,job_site.z)
+		var landing := boom_landing()
 		car.position = start.lerp(Vector3(landing.x,start.y,landing.z),smoothstep(.19,.68,special_work))
 		car.position.y = lerpf(start.y+.65*smoothstep(0,.17,special_work),landing.y,smoothstep(.68,1,special_work))
 		body.aim_boom(car.global_position+Vector3.UP*2.15)
 	if special_work >= 1.0:
-		free_line = _flat_distance(_drum(),_eyelet(line_end))+.30
+		free_line = flat_distance(drum_point(),eyelet_point(line_end))+.30
 		body.stow_boom()
-		_note("On its wheels. Keep winching to the underlift.",4)
+		show_note("On its wheels. Keep winching to the underlift.",4)
 
-func _pose_roll(progress: float) -> void:
+func pose_roll(progress: float) -> void:
 	var angle := PI*(1.0-smoothstep(0.0,1.0,progress))
-	if _recovery()=="roll":
+	if recovery_kind()=="roll":
 		car.rotation.z = angle
-		car.position.y = _ground(car.position) + maxf(0.0,-cos(angle))*1.71 + sin(angle)*.96
+		car.position.y = ground_height(car.position) + maxf(0.0,-cos(angle))*1.71 + sin(angle)*.96
 	else:
 		car.rotation.x = -angle*.5
-		car.position.y = _ground(car.position) + sin(angle*.5)*Scene.SEDAN_SIZE.z
+		car.position.y = ground_height(car.position) + sin(angle*.5)*Scene.SEDAN_SIZE.z
 
-func _finish_recovery() -> void:
+func finish_recovery() -> void:
 	if flame:
 		flame.queue_free()
 		flame=null
 	recovered.emit(kind)
 
-func _set_car_lamps(mode:String) -> void:
+func set_car_lamps(mode:String) -> void:
 	if car_lamps:
 		car_lamps.hide()
 		car_lamps.queue_free()
@@ -1744,13 +1744,13 @@ func _track_underlift(pin_travel := Vector3.ZERO, first_hook := false) -> void:
 		var tail := car.to_global(rolling_axle)-hitch
 		trailing_yaw = heading+clampf(angle_difference(heading,atan2(tail.x,tail.z)),-PI/3,PI/3)
 	var rear_contact:=hitch+Vector3.BACK.rotated(Vector3.UP,trailing_yaw)*2.0*half_wheelbase
-	var contact_height := _ground(rear_contact)
+	var contact_height := ground_height(rear_contact)
 	var tow_roll := 0.0
 	var vehicle_yaw := trailing_yaw+(PI if line_end>0 else 0.0)
 	if road_wheels:
 		var side := Vector3.RIGHT.rotated(Vector3.UP,vehicle_yaw)*size.x
-		var left := _ground(rear_contact-side)
-		var right := _ground(rear_contact+side)
+		var left := ground_height(rear_contact-side)
+		var right := ground_height(rear_contact+side)
 		contact_height = (right+left)*.5
 		if dollies: contact_height += Scene.RoadWheels.DOLLY_RISE
 		var lateral := speed*speed*tan(steering)/Truck.WHEELBASE
@@ -1762,8 +1762,8 @@ func _track_underlift(pin_travel := Vector3.ZERO, first_hook := false) -> void:
 	if semi: half_track = Semi.HALF_TRACK
 	body.crossbar.follow_axle(car,line_end,half_track,wheel_height)
 	car.global_position=body.crossbar.to_global(Vector3.UP*Truck.WheelLift.AXLE_HEIGHT)-car.global_basis*lifted_axle
-	if road_wheels: road_wheels.ground_axle(line_end,_ground,dollies)
-	if semi: semi.follow(_ground,first_hook or not pin_travel.is_zero_approx())
+	if road_wheels: road_wheels.ground_axle(line_end,ground_height,dollies)
+	if semi: semi.follow(ground_height,first_hook or not pin_travel.is_zero_approx())
 
 func _begin_departure() -> DepartingDriver:
 	var driver := DepartingDriver.new(self,car,witness,car_lamps,job_site,job_yaw,vehicle_identity)
@@ -1771,7 +1771,7 @@ func _begin_departure() -> DepartingDriver:
 	departures.append(driver)
 	return driver
 
-func _in_wrecker(point:Vector3) -> bool:
+func in_wrecker(point:Vector3) -> bool:
 	var local:=truck.to_local(point)
 	return absf(local.x)<1.75 and local.z> -4.5 and local.z<(6.6 if rollback_active else 5.1)
 
@@ -1817,33 +1817,33 @@ func _cable_curve() -> void:
 	if semi:
 		semi.draw_lines(self)
 		return
-	var a:=_drum()
-	if _boom_job() and special_work<1 and phase in ["cable","rigged"]:
+	var a:=drum_point()
+	if boom_job() and special_work<1 and phase in ["cable","rigged"]:
 		body.aim_boom(car.global_position+Vector3.UP*2.15)
 		if tree_recovery and phase=="cable":
 			pulley.global_position = tree_recovery.eye if tree_recovery.block_set else eyes.global_transform*Vector3(.25,-.32,-.46)
-			_cable_strand(a,pulley.global_position)
+			cable_strand(a,pulley.global_position)
 		if phase=="rigged":
 			var sling_top: Vector3=body.boom_tip.global_position
-			if _recovery()=="tree":
+			if recovery_kind()=="tree":
 				sling_top=car.to_global(Vector3(0,1.87,0))
 				pulley.global_position=sling_top
 				pulley.rotation.y=body.boom.global_rotation.y
 				for side: float in [-1.0,1.0]:
 					var offset: Vector3 = pulley.global_basis.x*(side*.07)
-					_cable_strand(body.boom_tip.global_position+offset,sling_top+offset)
+					cable_strand(body.boom_tip.global_position+offset,sling_top+offset)
 			for side: float in [-1.0,1.0]:
-				_cable_strand(sling_top,car.to_global(Vector3(side*.81,.82,0)))
+				cable_strand(sling_top,car.to_global(Vector3(side*.81,.82,0)))
 		return
 	if rollover and phase in ["cable","rigged"] and not rollover.check_cleared:
 		rollover.draw_lines(self)
 		return
 	if _roll_job() and special_work<1.0 and (second_line or phase=="rigged"):
-		pulley.global_position=_side_eye(-1.0)
-		_cable_strand(a,pulley.global_position)
-		if phase=="rigged": _cable_strand(body.to_global(Vector3(.67,1.34,4.09)),_side_eye(1.0))
+		pulley.global_position=side_eye(-1.0)
+		cable_strand(a,pulley.global_position)
+		if phase=="rigged": cable_strand(body.to_global(Vector3(.67,1.34,4.09)),side_eye(1.0))
 		return
-	var b:=_eyelet(line_end)
+	var b:=eyelet_point(line_end)
 	if phase=="cable":
 		b = foot + Vector3.UP*.15 if in_cab else eyes.global_transform*Vector3(.25,-.32,-.46)
 	if flowage and phase in ["cable","rigged"]: flowage.mark_line(self,a,b)
@@ -1851,11 +1851,11 @@ func _cable_curve() -> void:
 		pulley.global_position=b+Vector3.UP*.12
 		pulley.rotation.y=atan2(b.x-a.x,b.z-a.z)
 		b=pulley.global_position
-		_cable_strand(body.to_global(Vector3(.67,1.34,4.09)),b+pulley.global_basis.x*.07)
+		cable_strand(body.to_global(Vector3(.67,1.34,4.09)),b+pulley.global_basis.x*.07)
 		b-=pulley.global_basis.x*.07
-	_cable_strand(a,b)
+	cable_strand(a,b)
 
-func _cable_strand(a: Vector3, b: Vector3) -> void:
+func cable_strand(a: Vector3, b: Vector3) -> void:
 	var sag:float=clampf(a.distance_to(b)*.05,.07,1.25)*(1.0-tension*.83)
 	var side:Vector3=(b-a).cross(eyes.global_position-a).normalized()*.014
 	if side.length_squared()<.000001: side=Vector3.RIGHT*.014
@@ -1863,12 +1863,12 @@ func _cable_strand(a: Vector3, b: Vector3) -> void:
 	for i in 13:
 		var t:=i/12.0
 		var p:=a.lerp(b,t)
-		p.y=maxf(_ground(p)+.045,p.y-sin(t*PI)*sag)
+		p.y=maxf(ground_height(p)+.045,p.y-sin(t*PI)*sag)
 		cable_mesh.surface_add_vertex(p-side)
 		cable_mesh.surface_add_vertex(p+side)
 	cable_mesh.surface_end()
 
-func _update_highlight() -> void:
+func update_highlight() -> void:
 	if redirect and (phase=="cable" or redirect.easing):
 		var eye := redirect.marker(self) if assist and not in_cab else Vector3.INF
 		highlight.visible = eye.is_finite() and foot.distance_to(eye)<9.
@@ -1884,7 +1884,7 @@ func _update_highlight() -> void:
 		return
 	if rollover and (phase == "cable" or (phase == "rigged" and special_work >= 1. and not rollover.check_cleared)):
 		var side := 1. if second_line else -1.
-		var eye := _side_eye(side)
+		var eye := side_eye(side)
 		highlight.visible = assist and (not second_line or rollover.fetched) and foot.distance_to(eye)<9.
 		if highlight.visible: highlight.global_position = eye
 		return
@@ -1899,8 +1899,8 @@ func _update_highlight() -> void:
 		return
 	highlight.visible=not in_cab and assist and phase=="cable" and near_casualty(9)
 	if highlight.visible:
-		var e:=_nearest_eyelet()
-		highlight.global_position=_side_eye(1.0 if second_line else -1.0) if _roll_job() else _eyelet(e)
+		var e:=nearest_eyelet()
+		highlight.global_position=side_eye(1.0 if second_line else -1.0) if _roll_job() else eyelet_point(e)
 		highlight.rotation=Vector3(PI/2,car.rotation.y,0)
 
 func _lay_tracks() -> void:
@@ -1918,22 +1918,22 @@ func _lay_tracks() -> void:
 	elif semi:
 		tow_tracks.mark(semi.trailer.to_global(Vector3.BACK*Semi.BOGIE),semi.trailer.global_rotation.y,1.13,.28)
 
-func _note(message:String,seconds:float) -> void:
+func show_note(message:String,seconds:float) -> void:
 	info=message
 	info_timer=seconds
 
 func get_status() -> Dictionary:
-	return {"in_cab":in_cab,"speed_mph":absf(speed)*MPH_PER_MPS,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":_compass_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"blower":climate.blower,"window_open":climate.cracked,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
+	return {"in_cab":in_cab,"speed_mph":absf(speed)*MPH_PER_MPS,"speed_mps":speed,"engine_rpm":engine_rpm,"engine_load":engine_load,"heading":compass_degrees(),"odo":odo,"loaded":loaded,"phase":phase,"tension":tension,"fuel":fuel,"warmth":warmth,"blower":climate.blower,"window_open":climate.cracked,"wear":wear,"working":working,"hint":_hint(),"context":context_text()}
 
-func _v(p:Vector3)->Array:
+func pack_point(p:Vector3)->Array:
 	return [p.x,p.y,p.z]
 
-func _unpack(a:Variant,fallback:Vector3)->Vector3:
+func unpack_point(a:Variant,fallback:Vector3)->Vector3:
 	if a is Array and a.size()==3: return Vector3(float(a[0]),float(a[1]),float(a[2]))
 	return fallback
 
 func save_state() -> Dictionary:
-	var d:={"truck":_v(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":_v(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":_v(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
+	var d:={"truck":pack_point(truck.position),"heading":heading,"yaw":camera_yaw,"pitch":camera_pitch,"cab":in_cab,"foot":pack_point(foot),"odo":odo,"fuel":fuel,"warmth":warmth,"coffee_left":coffee_left,"cab_heat":climate.save_state(),"spot_on":spot_on,"mirror_ice":body.mirror_ice.duplicate(),"wear":wear,"phase":phase,"kind":kind,"loaded":loaded,"site":pack_point(job_site),"site_yaw":job_yaw,"line_end":line_end,"free_line":free_line,"chains":tire_chains}
 	d["driving_view"] = driving_view
 	d["snow_tracks"] = [truck_tracks.snapshot(),tow_tracks.snapshot()]
 	if berm: d.berm = berm.save_state()
@@ -1959,7 +1959,7 @@ func save_state() -> Dictionary:
 	if boarding_walk:
 		d.boarding = boarding_walk.save_state(self)
 	if kind == "passenger" and phase == "scene" and witness:
-		d.waiting_rider = _v(witness.position)
+		d.waiting_rider = pack_point(witness.position)
 	d.exiting_riders = []
 	for walker in exiting_riders:
 		d.exiting_riders.append(walker.save_state(self))
@@ -1970,9 +1970,9 @@ func save_state() -> Dictionary:
 		else:
 			d.departures.append(driver.save_state())
 	if car:
-		d["car"]=_v(car.position)
-		d["car_rot"]=_v(car.rotation)
-	if flame: d["flare"]=_v(flame.position)
+		d["car"]=pack_point(car.position)
+		d["car_rot"]=pack_point(car.rotation)
+	if flame: d["flare"]=pack_point(flame.position)
 	return d
 
 func restore_state(d:Dictionary) -> void:
@@ -1981,7 +1981,7 @@ func restore_state(d:Dictionary) -> void:
 	truck_tracks.restore(saved_tracks[0] if saved_tracks is Array and saved_tracks.size()>0 and saved_tracks[0] is Array else [])
 	tow_tracks.restore(saved_tracks[1] if saved_tracks is Array and saved_tracks.size()>1 and saved_tracks[1] is Array else [])
 	use_rollback(d.get("rollback_active",false))
-	set_spawn(_unpack(d.get("truck"),truck.position),float(d.get("heading",heading)))
+	set_spawn(unpack_point(d.get("truck"),truck.position),float(d.get("heading",heading)))
 	for driver in departures:
 		driver.car.queue_free()
 		driver.witness.queue_free()
@@ -1999,17 +1999,17 @@ func restore_state(d:Dictionary) -> void:
 		var vehicle := Scene.car(self,"ditch",ticket.variant,ticket)
 		var driver := Scene.person(self,ticket.get("west_release",false),ticket.driver_variant)
 		var lamps := Scene.car_lamps(vehicle,"hazard",-1)
-		var departure := DepartingDriver.new(self,vehicle,driver,lamps,_unpack(data.site,Vector3.ZERO),data.site_yaw,ticket)
+		var departure := DepartingDriver.new(self,vehicle,driver,lamps,unpack_point(data.site,Vector3.ZERO),data.site_yaw,ticket)
 		departure.restore_state(data)
 		departures.append(departure)
 	var active:String=d.get("kind","")
 	if active in ["ditch","hazard","hold","passenger"]:
-		start_job(active,_unpack(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)),d.get("identity",{}),d.get("phase","idle"))
+		start_job(active,unpack_point(d.get("site"),Vector3.ZERO),float(d.get("site_yaw",0)),d.get("identity",{}),d.get("phase","idle"))
 	else: end_job()
 	in_cab=d.get("cab",true)
 	driving_view = "cab" if d.get("driving_view") == "cab" else "chase"
 	_reset_chase()
-	foot=_unpack(d.get("foot"),truck.position)
+	foot=unpack_point(d.get("foot"),truck.position)
 	camera_yaw=d.get("yaw",0.0)
 	camera_pitch=d.get("pitch",-.067)
 	odo=d.get("odo",START_ODO)
@@ -2031,7 +2031,7 @@ func restore_state(d:Dictionary) -> void:
 	free_line=d.get("free_line",0)
 	second_line=d.get("second_line",false)
 	special_work=d.get("special_work",0.0)
-	_stop_motion()
+	stop_motion()
 	if car:
 		if kind == "passenger":
 			match phase:
@@ -2039,9 +2039,9 @@ func restore_state(d:Dictionary) -> void:
 				"boarding":
 					boarding_walk = RiderWalk.new(witness,vehicle_identity.driver_variant)
 					boarding_walk.restore(self,d.boarding)
-				"scene": witness.position = _unpack(d.get("waiting_rider"),witness.position)
-		car.position=_unpack(d.get("car"),car.position)
-		car.rotation=_unpack(d.get("car_rot"),car.rotation)
+				"scene": witness.position = unpack_point(d.get("waiting_rider"),witness.position)
+		car.position=unpack_point(d.get("car"),car.position)
+		car.rotation=unpack_point(d.get("car_rot"),car.rotation)
 		if rollback_active: rollback_deck.restore(self,d.get("rollback_deck",{}))
 		if flowage: flowage.restore(self,d.get("flowage",{}))
 		if rollover:
@@ -2063,14 +2063,14 @@ func restore_state(d:Dictionary) -> void:
 			var work: Dictionary = d.get("axle_work",{})
 			axle_fault.checked = work.get("checked",false)
 			if work.get("skates",false): axle_fault.fit_skates(self)
-			if work.get("dollies",false): _fit_dollies()
+			if work.get("dollies",false): fit_dollies()
 		if tree_recovery:
 			var boom: Dictionary = d.get("tree_boom",{})
 			tree_recovery.block_set = boom.get("block",phase == "rigged" or special_work > 0.)
 			tree_recovery.controls = boom.get("controls",false) and phase == "rigged" and not in_cab and special_work < 1. and fuel > 0.
 			tree_recovery.watch_load = boom.get("watch_load",true)
 			if phase == "cable": tree_recovery.deploy(self)
-		if semi: semi.restore(d.get("freight",{}),_ground)
+		if semi: semi.restore(d.get("freight",{}),ground_height)
 		if tanker: tanker.restore(d.get("milk",{}))
 		if kind=="hold" and phase not in ["scene","flared","cable"]:
 			Scene.close_driver_door(car)
@@ -2080,25 +2080,46 @@ func restore_state(d:Dictionary) -> void:
 			car.hide()
 			witness.hide()
 		if d.has("flare") and phase in ["flared","cable","rigged","at_lift","dollies"]:
-			flame=Scene.flare(self,_unpack(d.flare,car.position))
-		if is_chocked(): _set_chocks()
-		if kind=="hold" and phase in ["dollies","loaded","done"]: _fit_dollies()
+			flame=Scene.flare(self,unpack_point(d.flare,car.position))
+		if is_chocked(): set_chocks()
+		if kind=="hold" and phase in ["dollies","loaded","done"]: fit_dollies()
 		if loaded:
 			body.stinger.position.z=0.0
 			body.lift.position.y=d.get("lift_height",.39)
 			# Load the springs before seating the axle on the lift. Older saves
 			# have the supported vehicle but no stored suspension attitude.
 			_suspension(0)
-			var ride := _unpack(d.get("ride"),ground_targets)
+			var ride := unpack_point(d.get("ride"),ground_targets)
 			truck.position.y = ride.x
 			pitch = ride.y
 			roll = ride.z
 			body.rotation = Vector3(pitch,0,roll)
 			body.place_tires(tire_contacts)
-			_set_car_lamps("tow")
+			set_car_lamps("tow")
 			_track_underlift()
 		elif phase=="done" and road_wheels:
 			road_wheels.release(dollies)
 	if in_cab:
 		_frame_nearby_car()
-	_update_eyes()
+	update_eyes()
+
+## Readouts for the special recovery on the hook: the ice line's cable
+## marks, the drum and boom instructions, the canopy ladder and the milk
+## surge. Empty when an ordinary tow is rigged.
+func recovery_view() -> Dictionary:
+	var data := {}
+	if flowage and not in_cab and (phase=="cable" or (phase=="rigged" and in_range(panel_point(),2.8,false))):
+		data["ice_line"] = flowage.meter(self)
+	if rollover and rollover.controls:
+		data["drum_instruction"] = rollover.instruction(self)
+	if roof and not in_cab:
+		data["roof_action"] = action_id()
+		data["roof_ladder"] = roof.ladder >= 0.
+		if roof.controls:
+			data["boom_instruction"] = roof.instruction(self)
+			data["roof_slew"] = true
+	if tree_recovery and tree_recovery.controls:
+		data["boom_instruction"] = tree_recovery.instruction(self)
+	if tanker and (loaded or phase == "rigged"):
+		data["milk_load"] = tanker.surge
+	return data

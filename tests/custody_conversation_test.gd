@@ -30,7 +30,7 @@ func run() -> void:
 	rig.in_cab = true
 	rig.set_spawn(game.SPAWN)
 	game._refresh()
-	game._save()
+	game.save()
 	var before: Dictionary = game.saved_data.duplicate(true)
 	for answer: String in ["told_closed","told_open"]:
 		game._restore(before.duplicate(true))

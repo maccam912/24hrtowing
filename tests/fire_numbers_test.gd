@@ -91,8 +91,8 @@ func run() -> void:
 	quit(int(failures > 0))
 
 func aim(at: Vector3) -> void:
-	rig._update_eyes()
+	rig.update_eyes()
 	var direction: Vector3 = rig.eyes.global_position.direction_to(at)
 	rig.camera_yaw = atan2(-direction.x,-direction.z) - (rig.heading if rig.in_cab else 0.0)
 	rig.camera_pitch = asin(direction.y)
-	rig._update_eyes()
+	rig.update_eyes()
