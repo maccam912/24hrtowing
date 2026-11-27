@@ -92,7 +92,7 @@ For a passenger call, park with room at the right cab door, step down, and offer
 
 Choose **Track unpaid stop** on the favor’s fax or on the cab radio. You can make it your next stop even with a paying slip open. Arlene will give you turns, and **Directions & next action** in the truck log tells you what to do on arrival. Look for the red triangle between two amber lamps at a marked stop. You can switch back to the tow at any time. If a lead sits for several calls or a long drive, Arlene gets more specific about where to look. When the favor leads to a paid county assignment, take that call on the radio.
 
-The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip.
+The eight-part case is paced for roughly three hours. Taking each lead when it comes up means filing 48 ordinary jobs and eight case slips. Five to eight fresh ordinary slips bring the next lead after you file each case report. Time on the road, at the winch and out exploring will change how long your shift lasts. The rotation keeps going after the last case slip. Brandt works nights only: when the shift clock reaches 07:00, it picks up again at 17:00.
 
 <details>
 <summary>Walkthrough of all eight case calls (spoilers)</summary>

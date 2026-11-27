@@ -16,6 +16,7 @@ const YardDrop := preload("res://scripts/yard_drop.gd")
 const CountyVisits := preload("res://scripts/county_visits.gd")
 const Addresses := preload("res://scripts/fire_numbers.gd")
 const RoadDirections := preload("res://scripts/road_directions.gd")
+const ShiftClock := preload("res://scripts/shift_clock.gd")
 
 const OPTIONS_FILE := "user://operator-settings.cfg"
 const WORLD_RASTER_HEIGHT := 288
@@ -1787,8 +1788,7 @@ func _message(who: String, words: String) -> void:
 	sub_time = caption.prepare(words)
 
 func _clock() -> String:
-	var minutes := 3*60+14+floori(shift_seconds/60.0)
-	return "%02d:%02d" % [floori(minutes/60.0)%24,minutes%60]
+	return ShiftClock.label(shift_seconds)
 
 func _procedure() -> String:
 	if job.get("kind") == "field_visit":
