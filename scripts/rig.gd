@@ -858,6 +858,8 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 			car.position.y += Scene.SEDAN_SIZE.z
 		"roof", "tree":
 			car.position.y += target.y if target.y > 0 else (4.75 if _recovery()=="roof" else 5.0)
+		"gate":
+			car.position.y += target.y
 		"":
 			if vehicle_identity.has("field_berm"):
 				berm = HighCenter.new(car,int(vehicle_identity.field_berm),_ground)

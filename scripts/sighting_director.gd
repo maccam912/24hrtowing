@@ -5,6 +5,7 @@ const Scene := preload("res://scripts/sighting_scene.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const Reports := preload("res://scripts/sighting_reports.gd")
 const Observations := preload("res://scripts/sighting_observations.gd")
+const SET_DOWN_LINE := "Brandt, you on? I’ve got one on the shoulder right in front of you."
 const FAR := ["swamp_lights","the_calm","green_flash"]
 const PACING := ["pacing_lights","field_car","far_landing","cow_ring","deer_line","green_flash","electrics_fade","dry_road","moving_moon","plow_stopped","warm_air","compass_turns","power_lines","empty_ditch","thaw_glaze","radio_pulse","bare_ring"]
 const CLOSE := ["the_lift","woods_car","mirror_follow","empty_oncoming","streetlights_out","walker","yard_visit","snow_up","nose_car","roof_car","ice_car","tree_car","green_circle","pressed_lines","snow_column","missing_time"]
@@ -35,6 +36,7 @@ var jumped := false
 var time_lost := false
 var live_identity := {}
 var heard := false
+var credits_due := false
 var reset_mix := false
 var last_filed := -1
 var delay := 0.0
@@ -56,7 +58,7 @@ static func _unpack(data: Array) -> Vector3:
 func save_state() -> Dictionary:
 	return {"drive":drive,"used":used,"seen":seen.duplicate(),"once":once.duplicate(),
 		"observations":observations.save_state(),"aftermath":aftermath.duplicate(true),"yard_turned":yard_turned,
-		"active":active,"duration":duration,"elapsed":elapsed,"level":level,"origin":_pack(origin),
+		"active":active,"duration":duration,"elapsed":elapsed,"level":level,"origin":_pack(origin),"credits_due":credits_due,
 		"forward":_pack(forward),"shoulder":_pack(shoulder),"road":road,"jumped":jumped,"time_lost":time_lost,"delay":delay,"identity":live_identity.duplicate(),"heard":heard}
 
 func restore(data: Dictionary, county: Node3D) -> void:
@@ -89,6 +91,7 @@ func restore(data: Dictionary, county: Node3D) -> void:
 	landing_retry = 0.0
 	live_identity = data.get("identity",{}).duplicate()
 	heard = data.get("heard",false)
+	credits_due = data.get("credits_due",false)
 	reset_mix = true
 	county.set_sighting_weather("",0,0)
 	if not once.has("ditch_landmarks"):
@@ -306,7 +309,8 @@ func _landing_site(game, at: Vector3, heading: Vector3) -> Vector3:
 		var shoulder_center := center+heading*offset
 		if station+offset >= run-3. or nav.driven_road(Vector2(shoulder_center.x,shoulder_center.z)) != street: continue
 		for side_sign: float in [1.,-1.]:
-			var candidate := scene.ground(shoulder_center+side*(8.2*side_sign))
+			# Land on the plowed shoulder, before the ground falls into the ditch.
+			var candidate := scene.ground(shoulder_center+side*(6.3*side_sign))
 			if game.county.road_distance(candidate.x,candidate.z)<6.2 or (candidate.x>-504 and candidate.x< -446 and absf(candidate.z)<15.): continue
 			if game.rig.near_casualty(12.) or candidate.distance_to(job_at)<10.: continue
 			var clear := true
@@ -316,7 +320,11 @@ func _landing_site(game, at: Vector3, heading: Vector3) -> Vector3:
 				if not space.intersect_ray(ray).is_empty():
 					clear = false
 					break
-			if clear: return candidate
+			if clear:
+				# Keep the sedan level, with both wheel tracks settled in the snow.
+				var axle := side * Scene.Car.SEDAN_SIZE.x
+				candidate.y = minf(game.county.surface_point(candidate-axle).y,game.county.surface_point(candidate+axle).y)
+				return candidate
 	return Vector3.INF
 
 func _start(id: String, game, location: Vector3, street: String, story: bool, landing := Vector3.INF) -> void:
@@ -400,14 +408,20 @@ func _start(id: String, game, location: Vector3, street: String, story: bool, la
 		var yaw := PI if id=="ice_car" else atan2(-forward.x,-forward.z)
 		_record(id,shoulder,yaw,game.completed,fixed_at.y,road if thaw_span>0. else street_name,{},"",thaw_span)
 
-func finish(game) -> void:
+func finish(game, interrupted := false) -> void:
 	if active.is_empty():
 		return
 	var yaw := atan2(-forward.x,-forward.z)
 	var side := forward.cross(Vector3.UP)
 	match active:
 		"set_down":
-			_record("shoulder_car",shoulder,yaw,game.completed,0,road,live_identity)
+			if interrupted:
+				# A yard rescue can end a drive before the sedan touches down.
+				once.erase("story_set_down")
+			else:
+				var settled_height := shoulder.y - scene.ground(shoulder).y
+				_record("shoulder_car",shoulder,yaw,game.completed,settled_height,road,live_identity)
+				credits_due = true
 		"walker":
 			_record("bootprints",shoulder,yaw-PI*.5,game.completed)
 			_record("walker_car",shoulder-forward*11.,yaw,game.completed,0,road)
@@ -486,7 +500,7 @@ func _advance_live(dt: float,game, at: Vector3) -> void:
 	game.county.set_sighting_weather(active,calm,t)
 	if active=="set_down" and not heard and t>=.76:
 		heard = true
-		game._speak("DISPATCH","Brandt, you on? I’ve got one on the shoulder right in front of you.")
+		game._speak("DISPATCH",SET_DOWN_LINE)
 	if active=="cow_ring" and not heard and game.sub_time<=0.0 and at.distance_to(shoulder)<65.:
 		heard = true
 		game._say("bev_heifers")

@@ -52,6 +52,7 @@ var survey := SurveyCase.new()
 var campaign := Campaign.new()
 @onready var casework := Casework.new(self,campaign)
 var sightings := preload("res://scripts/sighting_director.gd").new()
+var finale := preload("res://scripts/finale_film.gd").new()
 var mai_lot_heard := false
 var heavy_job_filed := false
 var completed := 0
@@ -165,6 +166,8 @@ func _ready() -> void:
 	desk = Desk.new()
 	add_child(desk)
 	desk.action.connect(_action)
+	add_child(finale)
+	finale.finished.connect(_finish_finale)
 	var preferences := ConfigFile.new()
 	if not test_session and FileAccess.file_exists(OPTIONS_FILE):
 		preferences.load(OPTIONS_FILE)
@@ -230,7 +233,10 @@ func _resize() -> void:
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and desk:
-		desk.toggle_pause()
+		if finale.active:
+			finale.skip()
+		else:
+			desk.toggle_pause()
 	elif what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_WM_CLOSE_REQUEST]:
 		_save()
 		if what == NOTIFICATION_WM_CLOSE_REQUEST:
@@ -240,17 +246,26 @@ func _notification(what: int) -> void:
 func _physics_process(dt: float) -> void:
 	if not rig or not desk or shutting_down:
 		return
-	var playing: bool = active and not desk.is_blocking()
+	var playing: bool = active and not desk.is_blocking() and not finale.active
+	if playing:
+		if not sightings.credits_due:
+			sightings.advance(dt,self)
+		if sightings.credits_due:
+			_start_finale()
+			playing = false
 	rig.horn_held = playing and rig.in_cab and (desk._is_down("horn") or Input.is_physical_key_pressed(KEY_B))
 	rig.horn_tap = maxf(0.,rig.horn_tap-dt) if playing and rig.in_cab else 0.
 	var at_heater: bool = active and desk.page == "cab_heat"
-	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if playing or at_heater or desk.is_title() else SubViewport.UPDATE_DISABLED
+	var show_world: bool = playing or at_heater or desk.is_title() or finale.active
+	world_view.render_target_update_mode = SubViewport.UPDATE_ALWAYS if show_world else SubViewport.UPDATE_DISABLED
 	if playing:
-		sightings.advance(dt,self)
 		casework.advance_departure(dt)
 		visits.advance(dt,self)
-	if playing or at_heater or desk.is_title():
+	if show_world:
 		county.advance_storm(dt)
+	if finale.active:
+		rig.body.animate_weather(dt,true)
+		finale.advance(dt)
 	if desk.is_title():
 		_animate_title(dt)
 	if playing:
@@ -293,7 +308,8 @@ func _physics_process(dt: float) -> void:
 	if playing or at_heater or (active and desk.page == "radio" and fuel_wait_left > 0.0):
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
-	scanner.advance(dt,self)
+	if not finale.active:
+		scanner.advance(dt,self)
 	broadcast.advance(dt,self)
 	var player_at: Vector3 = rig.get_player_position()
 	var in_store: bool = not rig.in_cab and county.inside_fuel_store(player_at)
@@ -319,8 +335,28 @@ func _physics_process(dt: float) -> void:
 func _axis(negative: Key, positive: Key) -> int:
 	return int(Input.is_physical_key_pressed(positive)) - int(Input.is_physical_key_pressed(negative))
 
+func _start_finale() -> void:
+	rig._stop_motion()
+	mouse_motion = Vector2.ZERO
+	desk.start_play()
+	desk.hide()
+	desk.set_process_input(false)
+	if subtitle != sightings.SET_DOWN_LINE:
+		# Continuing a saved landing restores the shot with Arlene on the radio.
+		audio.speak("DISPATCH",sightings.SET_DOWN_LINE)
+	finale.start(self,sightings.shoulder)
+	_save()
+
+func _finish_finale() -> void:
+	sightings.credits_due = false
+	scanner.wait_seconds = maxf(scanner.wait_seconds,8.0)
+	desk.set_process_input(true)
+	desk.show()
+	_refresh()
+	_save()
+
 func _input(event: InputEvent) -> void:
-	if not desk:
+	if not desk or finale.active:
 		return
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and event.device != InputEvent.DEVICE_ID_EMULATION:
 		mouse_motion += event.relative
@@ -348,6 +384,8 @@ func _input(event: InputEvent) -> void:
 			KEY_H: desk.show_document("help",state)
 
 func _action(id: String) -> void:
+	if finale.active:
+		return
 	match id:
 		"horn":
 			if active and rig.in_cab and not desk.is_blocking(): rig.horn_tap = .18
@@ -1067,7 +1105,7 @@ func _restart_on_recovery() -> bool:
 
 func _recover_to_yard() -> void:
 	casework.leave_tower()
-	sightings.finish(self)
+	sightings.finish(self,true)
 	rig.recover_to_yard(SPAWN,-PI/2)
 	fuel_wait_left = 0.0
 	_clear_fuel_plow()

@@ -104,7 +104,7 @@ The eight-part case is paced for roughly three hours. Taking each lead when it c
 5. **Bring in the relief carrier’s wagon.** Find it at the Route 2 mailboxes with the mail still on the seat. Her footprints end in the field. Watch the mirror during the loaded haul.
 6. **Follow Tou’s line.** Fit tire chains. Turn onto Alder Cut before the Swamp Road barricade. The modern plat ends at N5420. Continue on the old logging road to the striped stakes. Look for Tou’s pencil and call Arlene when the portable comes through.
 7. **Bring Tou home.** Drive to the bare ring past the stakes. Bring the cab close and offer Tou the passenger seat. The radio menu opens eight optional questions on the ride back. Unlock the evidence bay, countersign his release at the chain and file it. The board extends the ban and Doreen issues new rates for cars recovered wherever found.
-8. **Answer Angie.** Speak to her at N5420. She wants the sedan taken to storage and intends to walk up Alder Cut. File the tow for the auction notice. On a later ordinary drive the lights set a running car on the shoulder ahead of you. Keep taking calls, including recoveries of cars the lights have left behind.
+8. **Answer Angie.** Speak to her at N5420. She wants the sedan taken to storage and intends to walk up Alder Cut. File the tow for the auction notice. On a later ordinary drive the lights set a running car on the shoulder ahead of you. Arlene calls it in, and the credits play. Tap **Skip** or press **Esc** to return early. You’re back in the same wrecker with your current ticket, and the car you saw land can come up for recovery.
 
 </details>
 

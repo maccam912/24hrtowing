@@ -55,7 +55,7 @@ func _select_stream() -> void:
 		hiss.stream = sample
 
 func advance(dt: float, game) -> void:
-	var running: bool = game.active and not game.desk.is_title() and game.desk.page not in ["pause","options","help","guidance","yard_recovery"]
+	var running: bool = game.active and not game.finale.active and not game.desk.is_title() and game.desk.page not in ["pause","options","help","guidance","yard_recovery"]
 	if running: elapsed += dt
 	can_hear = running and game.rig.in_cab and STATIONS.has(station)
 	interrupted = game.sub_time > 0 or game.audio.voice_busy()
