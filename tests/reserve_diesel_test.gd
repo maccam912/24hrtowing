@@ -78,10 +78,10 @@ func run() -> void:
 	check(game.desk.page == "bulk_pump" and game.state.nozzle_esker and game.state.nozzle_ready,"Esker opens its metered dispenser for the equipped truck")
 	await tap_control("tank_reserve")
 	await hold_nozzle(60)
-	check(is_equal_approx(rig.reserve_fuel,.125) and is_equal_approx(rig.fuel,.45) and is_equal_approx(game.nozzle_sale,3.6) and is_equal_approx(game.account.cash,2.4),"a one-second reserve fill meters the same price per unit as main diesel")
+	check(is_equal_approx(rig.reserve_fuel,.125) and is_equal_approx(rig.fuel,.45) and is_equal_approx(game.nozzle.sale,3.6) and is_equal_approx(game.account.cash,2.4),"a one-second reserve fill meters the same price per unit as main diesel")
 	await tap_control("tank_main")
 	await hold_nozzle(60)
-	check(is_equal_approx(rig.fuel,.50) and is_equal_approx(rig.reserve_fuel,.125) and is_equal_approx(game.nozzle_sale,6.) and game.account.cash==0.,"cash-limited main fill stops the same meter without consuming the reserve")
+	check(is_equal_approx(rig.fuel,.50) and is_equal_approx(rig.reserve_fuel,.125) and is_equal_approx(game.nozzle.sale,6.) and game.account.cash==0.,"cash-limited main fill stops the same meter without consuming the reserve")
 	game.desk.dismiss()
 	game.account.equipment.yard_pump = true
 	game.fit_equipment()
@@ -98,7 +98,7 @@ func run() -> void:
 	await tap_control("interact")
 	await tap_control("tank_reserve")
 	await hold_nozzle(40)
-	check(is_equal_approx(rig.reserve_fuel,.175) and is_equal_approx(rig.fuel,.5) and is_equal_approx(game.account.cash,9.6) and is_equal_approx(game.nozzle_sale,2.4),"the Brandt bulk pump also meters reserve fuel independently")
+	check(is_equal_approx(rig.reserve_fuel,.175) and is_equal_approx(rig.fuel,.5) and is_equal_approx(game.account.cash,9.6) and is_equal_approx(game.nozzle.sale,2.4),"the Brandt bulk pump also meters reserve fuel independently")
 	game.desk.dismiss()
 	rig.fuel = .99
 	await open_valve()

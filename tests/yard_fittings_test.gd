@@ -48,7 +48,7 @@ func run() -> void:
 	event.pressed = false
 	root.push_input(event,true)
 	var level: float = rig.fuel
-	check(is_equal_approx(game.nozzle_sale,3.60) and is_equal_approx(game.account.cash,22.4) and is_equal_approx(level,.325),"a one-second squeeze meters the same diesel and cash shown on the pump")
+	check(is_equal_approx(game.nozzle.sale,3.60) and is_equal_approx(game.account.cash,22.4) and is_equal_approx(level,.325),"a one-second squeeze meters the same diesel and cash shown on the pump")
 	game._physics_process(DT)
 	check(rig.fuel == level,"letting go stops the sale immediately")
 	resume_shift()
