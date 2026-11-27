@@ -121,7 +121,7 @@ func check_passenger_and_release() -> void:
 	game.account.cash = 0.0
 	game._refresh()
 	game._action("roadside_fuel")
-	check(game.fuel_wait_left > 0, "an empty truck has an incoming fuel can")
+	check(game.fuel_can.en_route(), "an empty truck has an incoming fuel can")
 	game._advance_shift_clock(1.0)
 	game.sightings._start("the_calm",game,rig.get_truck_position(),"Alder Cut",false)
 	rig.speed = 3.0
@@ -132,7 +132,7 @@ func check_passenger_and_release() -> void:
 		"passenger waits at the pickup again")
 	check(rig.is_stopped() and rig.motion == Vector3.ZERO and rig.steering == 0.0 and rig.fuel == 0.0, "recovered truck is at rest with its original empty tank")
 	check(game.sightings.active.is_empty() and game.sightings.seen.has("the_calm"), "roadside sighting ends and remains recorded when the rig is recovered")
-	check(game.account.recovery_due == 24.0 and game.fuel_plow == null and game.fuel_wait_left == 0 and game.account.fuel_due == 0.0 and game._needs_fuel_can(), "broke operator can call for fuel at the yard after cancelling an undelivered can")
+	check(game.account.recovery_due == 24.0 and game.fuel_can.plow == null and game.fuel_can.wait_left == 0 and game.account.fuel_due == 0.0 and game.fuel_can.needed(game), "broke operator can call for fuel at the yard after cancelling an undelivered can")
 	pick_up_tou()
 	var released_card: String = game.filed_card
 	confirm_from_pause()

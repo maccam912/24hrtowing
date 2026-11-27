@@ -8,7 +8,7 @@ const Rides := preload("res://scripts/passenger_call.gd")
 const Dispatch := preload("res://scripts/dispatch.gd")
 const Ledger := preload("res://scripts/ledger.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
-const FuelPlow := preload("res://scripts/fuel_plow.gd")
+const RoadsideFuel := preload("res://scripts/roadside_fuel.gd")
 const Campaign := preload("res://scripts/county_case.gd")
 const Casework := preload("res://scripts/casework.gd")
 const SurveyCase := preload("res://scripts/survey_case.gd")
@@ -90,8 +90,7 @@ var drop_odo := 0.0
 var pickup_time := ""
 var drop_time := ""
 var account := ShopAccount.new()
-var fuel_wait_left := 0.0
-var fuel_plow: FuelPlow
+var fuel_can := RoadsideFuel.new()
 var shop_receipt := ""
 var nozzle_sale := 0.0
 var nozzle_cents := 0.0
@@ -303,7 +302,7 @@ func _physics_process(dt: float) -> void:
 		_run_nozzle(dt)
 	elif active and desk.page == "reserve_transfer":
 		_run_transfer(dt)
-	if playing or at_heater or (active and desk.page == "radio" and fuel_wait_left > 0.0):
+	if playing or at_heater or (active and desk.page == "radio" and fuel_can.en_route()):
 		_advance_shift_clock(dt)
 	mouse_motion = Vector2.ZERO
 	if not finale.active:
@@ -422,7 +421,7 @@ func _action(id: String) -> void:
 			if _can_track_lead():
 				if survey.tracked_lead.is_empty():
 					survey.tracked_lead = campaign.chapter()
-					if rig.in_cab and not _needs_fuel_can() and fuel_wait_left <= 0:
+					if rig.in_cab and not fuel_can.needed(self) and not fuel_can.en_route():
 						if casework.lead_site().is_empty():
 							speak("DISPATCH",casework.lead_instruction())
 						else:
@@ -563,10 +562,7 @@ func _action(id: String) -> void:
 					speak("MAI",lines[completed % lines.size()])
 				save()
 		"roadside_fuel":
-			if _needs_fuel_can():
-				_clear_fuel_plow()
-				fuel_wait_left = ShopAccount.CAN_ETA_MINUTES
-				speak("COUNTY PLOW","Copy, Brandt. Relief plow here. I have a can in the box. Give me %d minutes." % ShopAccount.CAN_ETA_MINUTES)
+			if fuel_can.request(self):
 				save()
 		"quit":
 			save()
@@ -589,43 +585,9 @@ func _save_options() -> void:
 			push_warning("Could not save cab settings")
 	save()
 
-func _needs_fuel_can() -> bool:
-	return fuel_wait_left <= 0.0 and rig.in_cab and rig.is_stopped() and rig.fuel <= 0.0
-
 func _advance_shift_clock(dt: float) -> void:
 	shift_seconds += dt
-	if fuel_wait_left <= 0.0:
-		if is_instance_valid(fuel_plow) and fuel_plow.leave(dt,rig.get_truck_position()):
-			_clear_fuel_plow()
-		return
-	if not is_instance_valid(fuel_plow):
-		fuel_plow = FuelPlow.new()
-		fuel_plow.setup(county,rig.get_truck_position())
-	# Dispatch time runs at one shift minute per second until the plow arrives.
-	var elapsed := minf(dt, fuel_wait_left)
-	shift_seconds += elapsed * 59.0
-	fuel_wait_left -= elapsed
-	fuel_plow.approach(fuel_wait_left)
-	if fuel_wait_left > 0.0:
-		return
-	var previous_due := account.fuel_due
-	rig.fuel = minf(1.0, rig.fuel + account.roadside_can())
-	rig.info_timer = 0.0
-	var iou := snappedf(account.fuel_due - previous_due, 0.01)
-	var receipt := "$%.2f paid." % (ShopAccount.CAN_PRICE - iou)
-	if iou > 0.0:
-		receipt += " $%.2f on the county IOU." % iou
-	speak("COUNTY PLOW","Can's in, Brandt. You've got a fifth of a tank. " + receipt)
-	save()
-
-func _clear_fuel_plow() -> void:
-	if is_instance_valid(fuel_plow):
-		fuel_plow.hide()
-		fuel_plow.queue_free()
-		fuel_plow = null
-
-func _fuel_eta() -> String:
-	return "County plow en route · %d min to fuel delivery" % ceili(fuel_wait_left)
+	fuel_can.advance(self,dt)
 
 func _at_office() -> bool:
 	return not rig.in_cab and _near(FAX,4.4)
@@ -660,13 +622,8 @@ func _buy_diesel(reserve: bool, budget := INF) -> Dictionary:
 			rig.aux_tank.set_reading(rig.reserve_fuel)
 		else:
 			rig.fuel = sale.fuel_after
-			_cancel_can_after_refuel()
+			fuel_can.cancel_after_refuel(self)
 	return sale
-
-func _cancel_can_after_refuel() -> void:
-	if fuel_wait_left > 0.0 and rig.fuel > 0.0:
-		fuel_wait_left = 0.0
-		speak("DISPATCH","Copy, Brandt. I'll cancel that fuel delivery.")
 
 func _run_nozzle(dt: float) -> void:
 	if not desk.nozzle_held() or not _can_dispense() or (nozzle_reserve and (not account.owns("aux_tank") or rig.rollback_active)):
@@ -690,7 +647,7 @@ func _run_transfer(dt: float) -> void:
 	if amount > 0.0:
 		rig.fuel += amount
 		rig.reserve_fuel -= amount
-		_cancel_can_after_refuel()
+		fuel_can.cancel_after_refuel(self)
 		save_timer += dt
 		if save_timer >= 1.0: save()
 	rig.aux_tank.set_reading(rig.reserve_fuel,amount>0.0)
@@ -713,7 +670,7 @@ func _fleet_offered() -> bool:
 func _switch_reason() -> String:
 	if mode != "available" or not job.is_empty() or rig.loaded or rig.is_chocked():
 		return "Finish the open ticket before changing trucks."
-	if fuel_wait_left > 0:
+	if fuel_can.en_route():
 		return "Wait for the plow with the fuel can."
 	if not _truck_in_yard(): return "Bring the other truck back to the yard first."
 	return ""
@@ -874,7 +831,7 @@ func _dispatch_lead_briefing() -> String:
 	return "%s / %s" % [label,words]
 
 func _check_lead_reminder(elapsed: float) -> void:
-	if not rig.in_cab or _needs_fuel_can() or fuel_wait_left > 0 or not survey.tracked_lead.is_empty() or not _can_track_lead():
+	if not rig.in_cab or fuel_can.needed(self) or fuel_can.en_route() or not survey.tracked_lead.is_empty() or not _can_track_lead():
 		return
 	if not rig.is_stopped():
 		campaign.lead_drive_seconds += elapsed
@@ -1069,8 +1026,7 @@ func _recover_to_yard() -> void:
 	casework.leave_tower()
 	sightings.finish(self,true)
 	rig.recover_to_yard(SPAWN,-PI/2)
-	fuel_wait_left = 0.0
-	_clear_fuel_plow()
+	fuel_can.reset()
 	var message := "You and the wrecker are back at Brandt’s yard."
 	if _restart_on_recovery():
 		if job.get("case_id") == "ride":
@@ -1086,10 +1042,10 @@ func _recover_to_yard() -> void:
 	save()
 
 func _directions() -> void:
-	if fuel_wait_left > 0.0:
-		speak("DISPATCH",_fuel_eta())
+	if fuel_can.en_route():
+		speak("DISPATCH",fuel_can.eta_text())
 		return
-	if _needs_fuel_can():
+	if fuel_can.needed(self):
 		speak("DISPATCH",rig.reserve_hint() if rig.reserve_fuel > .0001 else "Duane can bring diesel. Request a fuel can on the cab radio.")
 		return
 	var words: String = _road_note().get("instruction","")
@@ -1783,11 +1739,11 @@ func _procedure() -> String:
 func _contract_hint(site: String) -> Dictionary:
 	var title := ""
 	var instruction := ""
-	if fuel_wait_left > 0.0:
-		return {"hint_title":"Roadside fuel requested","hint_action":_fuel_eta()}
-	if _needs_fuel_can() and rig.reserve_fuel > .0001:
+	if fuel_can.en_route():
+		return {"hint_title":"Roadside fuel requested","hint_action":fuel_can.eta_text()}
+	if fuel_can.needed(self) and rig.reserve_fuel > .0001:
 		return {"hint_title":"Main tank empty","hint_action":rig.reserve_hint()}
-	if _needs_fuel_can():
+	if fuel_can.needed(self):
 		return {"hint_title":"Out of diesel","hint_action":"Tap RADIO for a county fuel can." if desk.is_touch_mode() else "Press R to call for a county fuel can."}
 	if rig.is_chocked() and rig.fuel <= 0.0:
 		return {"hint_title":"Out of diesel","hint_action":rig.reserve_hint()}
@@ -1867,7 +1823,7 @@ func _contract_hint(site: String) -> Dictionary:
 	return {"hint_title":title, "hint_action":instruction}
 
 func _prompt(site: String = _site_action()) -> String:
-	if _needs_fuel_can():
+	if fuel_can.needed(self):
 		return ""
 	if Casework.PROMPTS.has(site):
 		return Casework.PROMPTS[site]
@@ -1909,9 +1865,9 @@ func current_road_map() -> RoadDirections:
 	return road_directions
 
 func _road_note() -> Dictionary:
-	if fuel_wait_left > 0.0:
+	if fuel_can.en_route():
 		return {}
-	if not survey.tracked_lead.is_empty() and active and rig.in_cab and not _needs_fuel_can():
+	if not survey.tracked_lead.is_empty() and active and rig.in_cab and not fuel_can.needed(self):
 		var stop := casework.lead_site()
 		var lead_note := {"title":"Next stop   /   " + casework.lead_label(),"instruction":casework.lead_instruction()}
 		if not stop.is_empty():
@@ -1939,7 +1895,7 @@ func _road_note() -> Dictionary:
 	var note := _route_note()
 	if job.get("kind") == "field_visit" and rig.in_cab and (int(job.visit_step) >= 2 or note.is_empty()):
 		return {"title":job.title,"instruction":CountyVisits.instruction(job)}
-	if not active or mode != "fieldwork" or rig.phase != "scene" or _needs_fuel_can():
+	if not active or mode != "fieldwork" or rig.phase != "scene" or fuel_can.needed(self):
 		return note
 	if job.get("kind") not in ["ditch","hazard","hold","passenger"]:
 		return note
@@ -1954,7 +1910,7 @@ func _road_note() -> Dictionary:
 	return note
 
 func _route_note(favor_site := "") -> Dictionary:
-	if not active or not rig.in_cab or _needs_fuel_can():
+	if not active or not rig.in_cab or fuel_can.needed(self):
 		return {}
 	var at: Vector3 = rig.get_truck_position()
 	var p := Vector2(at.x, at.z)
@@ -2038,7 +1994,7 @@ func _refresh() -> void:
 		county.drop_guide.position = rig.dropoff.center
 	var site := _site_action()
 	state = {"prompt":_prompt(site),"subtitle":caption.current(sub_time),"speaker":speaker,
-		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
+		"feedback":fuel_can.eta_text() if fuel_can.en_route() else (rig.info if rig.info_timer > 0 else ""),
 		"can_inspect_sighting":site == "inspect_sighting","can_wipe":site == "wipe_mirror",
 		"suggested_anchors":rig.assist,"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
 		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"newer_save":Ledger.newer_build,"in_cab":s.in_cab,"speed_mph":s.speed_mph,
@@ -2061,8 +2017,8 @@ func _refresh() -> void:
 		"reserve_pct":rig.reserve_fuel/Rig.Reserve.CAPACITY,"reserve_quote":account.fuel_quote(rig.reserve_fuel,INF,Rig.Reserve.CAPACITY),
 		"at_counter":site == "coffee","coffee_left":rig.coffee_left,"mai_lot":sightings.seen.has("streetlights_out") and not mai_lot_heard,
 		"at_office":_at_office(),"at_pump":_at_pump(),"can_order":_at_office() and _truck_in_yard(),
-		"can_refuel":_can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":_needs_fuel_can(),
-		"fuel_eta":ceili(fuel_wait_left),
+		"can_refuel":_can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":fuel_can.needed(self),
+		"fuel_eta":ceili(fuel_can.wait_left),
 		"case_lock":case_lock(),"shop_receipt":shop_receipt,
 		"chains":rig.tire_chains,"snatch_block":rig.snatch_block,"wear":s.wear,
 		"paid":account.cash,"pending":account.pending,"earned":account.earned,"fuel_due":account.fuel_due,
@@ -2158,7 +2114,7 @@ func save() -> void:
 		"plat_marks":plat_pencil.marks.duplicate(true),"calls":calls,"roads":roads_driven,"stored":stored,"bay_locked":bay_locked,"held":held,"held_tape":held_tape,"hold_door_open":hold_door_open,"book_read":book_read,
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
-		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_wait_left,
+		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_can.wait_left,
 		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps,"spoken":audio.spoken}
 	if casework.tower_height >= 0.0:
 		saved_data.tower = {"height":casework.tower_height,"glasses":casework.glasses}
@@ -2209,8 +2165,7 @@ func _restore(s: Dictionary) -> void:
 	audio.stop_scanner()
 	scanner.restore(s.get("scanner",{}),account.owns("scanner"))
 	broadcast.restore(s.get("broadcast",{}))
-	_clear_fuel_plow()
-	fuel_wait_left = clampf(s.get("fuel_wait_left", 0.0), 0.0, ShopAccount.CAN_ETA_MINUTES)
+	fuel_can.restore(float(s.get("fuel_wait_left", 0.0)))
 	shop_receipt = ""
 	seconds_worked = s.work
 	fax_text = s.fax

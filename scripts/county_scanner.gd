@@ -50,7 +50,7 @@ func tune(next: String, fitted: bool) -> bool:
 	return true
 
 func _reception(game) -> bool:
-	return game.active and game.rig.in_cab and channel != "off" and game.rig.fuel > 0 and game.fuel_wait_left <= 0 \
+	return game.active and game.rig.in_cab and channel != "off" and game.rig.fuel > 0 and not game.fuel_can.en_route() \
 		and (not game.desk.is_blocking() or (game.desk.page == "radio" and game.desk.scanner_open)) \
 		and not (is_instance_valid(game.rig.survey_passenger) and game.rig.survey_passenger.visible) \
 		and game.rig.phase not in ["flared","cable","rigged","at_lift","dollies"]
