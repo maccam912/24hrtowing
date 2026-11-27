@@ -32,8 +32,8 @@ func run() -> void:
 			break
 	check(not call.is_empty() and call.kind=="hazard" and call.shoulder=="south" and "fire hall" in call.directions,"Arlene describes the paid tow and its south-side bay")
 	if call.is_empty(): game.free();quit(1);return
-	game._stamp_ticket(call)
-	game._accept(call)
+	game.stamp_ticket(call)
+	game.accept(call)
 	var bay: Node3D = game.county.fire_bay
 	var bay_origin: Vector3 = bay.tanker.global_position
 	var site: Vector3 = rig.car.position

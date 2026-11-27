@@ -25,7 +25,7 @@ func operate_both(id: String, at: Vector3) -> void:
 	game.sightings._record(id,at,0,game.completed,0,"Kolpack Rd")
 	var order: Dictionary = game.sightings.recovery_offer(11,game.county,true,false,true)
 	check(order.get("id")==id and order.two_drum_roll,"the sheriff releases the same car when both winches are available")
-	game._accept(order)
+	game.accept(order)
 	var vin: String = order.vin
 	rig.set_spawn(at+Vector3(0,0,-16),0)
 	rig.in_cab = false
@@ -103,7 +103,7 @@ func run() -> void:
 	await operate_both("nose_car",Vector3(376,0,159))
 	var old: Dictionary = game.Dispatch.impossible(22,"nose_car",held,"nose_old","Kolpack Rd","the hay strip","Kolpack Rd")
 	old.erase("two_drum_roll")
-	game._accept(old)
+	game.accept(old)
 	rig.set_spawn(held+Vector3(0,0,-16),0)
 	rig.in_cab=false
 	game.account.equipment.erase("second_winch")

@@ -17,7 +17,7 @@ func run() -> void:
 	game._action("play")
 	rig = game.rig
 	var order: Dictionary = game.campaign.ticket(1024,"bridge")
-	game._accept(order)
+	game.accept(order)
 	var vin: String = order.vin
 	check(rig.flowage != null and rig.car_lamps.visible,"the case sedan is running on the frozen flowage")
 	var directions: Dictionary = game.current_road_map().nearest_section(Vector2(-434.,-85.))

@@ -45,7 +45,7 @@ func run() -> void:
 	check(game.fleet.model.position.is_equal_approx(home) and not game.fleet.parked.rollback,"the original wrecker remains where it was left")
 	var light: Dictionary = game._offered_rotation()
 	check(game.RollbackDeck.supports(light) and game.rotation_offer.vin==heavy.vin and game.state.wrecker_waiting,"Arlene holds the heavy order and supplies a light ticket")
-	game._accept(heavy)
+	game.accept(heavy)
 	check(game.mode=="available" and game.job.is_empty(),"the carrier can leave a boom job on file")
 	game._action("rotation")
 	check(game.job.vin==light.vin and game.rotation_offer.vin==heavy.vin,"accepting the carrier's light ticket preserves the waiting heavy call")

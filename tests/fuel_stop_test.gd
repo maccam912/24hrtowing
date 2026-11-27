@@ -112,7 +112,7 @@ func test_dry_rigging() -> void:
 	for id: String in ["shoulder_car","roof_car","field_car"]:
 		rig.set_spawn(truck_at)
 		var site := truck_at + Vector3(-2,4.75 if id == "roof_car" else 0.0,14)
-		game._accept(game.Dispatch.impossible(8,id,site,id,"County K","east shoulder","Follow County K."))
+		game.accept(game.Dispatch.impossible(8,id,site,id,"County K","east shoulder","Follow County K."))
 		rig.phase = "cable"
 		rig.set_chocks()
 		rig.fuel = 0.0

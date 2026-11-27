@@ -23,7 +23,7 @@ func run() -> void:
 	check(not first.is_empty() and deputies.size()==2,"Memorial and both deputies keep distinct units")
 	if first.is_empty():
 		game.free(); quit(1); return
-	game._accept(first)
+	game.accept(first)
 	check(rig.car.get_meta("ems",false) and rig.car.get_meta("vin")==EMS.VIN and rig.ems_partner.get_node("EmptyCot")!=null,"EMS box body and both responding crew members are instantiated")
 	EMS.flash(rig.car_lamps,.22)
 	check(rig.car_lamps.get_node("LeftWarning").visible and not rig.car_lamps.get_node("RightWarning").visible,"the parked unit alternates its red corner heads while the steady beams stay on")

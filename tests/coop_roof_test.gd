@@ -37,7 +37,7 @@ func run() -> void:
 		game.free()
 		quit(1)
 		return
-	game._accept(order)
+	game.accept(order)
 	rig.set_spawn(Vector3(79.,0,-1.6),PI/2)
 	drive_to(Vector3(54.,0,-4.7))
 	drive_to(Vector3(35.,0,-7.14))

@@ -8,7 +8,7 @@ func run() -> void:
 	desk = game.desk
 	game.campaign.stage = game.Campaign.ORDER.find("commission")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001))
+	game.accept(game.campaign.ticket(1001))
 	var ladder: Vector3 = game.county.story_point("tower_ladder")
 	for resolution: Vector2i in [Vector2i(800,600),Vector2i(2400,1080)]:
 		screen.size = resolution

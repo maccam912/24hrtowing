@@ -38,7 +38,7 @@ func run() -> void:
 	game.set_physics_process(false)
 	game._action("play")
 	# A released v1 ditch was still the active ticket until the next yard visit.
-	game._accept(Dispatch.legacy_ticket(0,game.audio.lines))
+	game.accept(Dispatch.legacy_ticket(0,game.audio.lines))
 	var roadside := old_save()
 	roadside.mode = "return"
 	roadside.rig.phase = "departing"
@@ -58,7 +58,7 @@ func run() -> void:
 	# A v1 recovery existed only as its index and the physical rig state.
 	game.completed = 3
 	var ticket := Dispatch.legacy_ticket(3,game.audio.lines)
-	game._accept(ticket)
+	game.accept(ticket)
 	var old := old_save()
 	old.paid = 21.50
 	old.pending = 66.15

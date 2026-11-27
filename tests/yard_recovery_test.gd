@@ -102,7 +102,7 @@ func check_custody() -> void:
 func check_tower() -> void:
 	game.campaign.stage = game.Campaign.ORDER.find("commission")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001+game.completed))
+	game.accept(game.campaign.ticket(1001+game.completed))
 	inspect_at("tower_ladder",game.county.story_point("tower_ladder"))
 	confirm_from_pause()
 	check(game.casework.tower_height < 0 and rig.eyes.current and game.mode == "fieldwork" and not game.campaign.evidence.has("car_ring"),
@@ -111,7 +111,7 @@ func check_tower() -> void:
 func check_passenger_and_release() -> void:
 	game.campaign.stage = game.Campaign.ORDER.find("ride")
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001+game.completed))
+	game.accept(game.campaign.ticket(1001+game.completed))
 	var pickup: Vector3 = game.county.story_point("tou")
 	rig.set_spawn(pickup+Vector3(0,0,5))
 	inspect_at("tou",pickup)
@@ -143,7 +143,7 @@ func check_passenger_and_release() -> void:
 
 func check_angie() -> void:
 	game.campaign.ordinary_since = game.Campaign.GAPS[game.campaign.stage]
-	game._accept(game.campaign.ticket(1001+game.completed))
+	game.accept(game.campaign.ticket(1001+game.completed))
 	inspect_at("angie",game.county.story_point("angie"))
 	await process_frame
 	game.casework.advance_departure(130.0)

@@ -67,9 +67,6 @@ var faxes := []
 var filed_card := ""
 var physical_cars := []
 var west_orders := preload("res://scripts/west_hold_orders.gd").new()
-var west_archive_open := false
-var west_page := 0
-var west_source := ""
 var hold_door_open := false
 var held_pickup: Node3D
 var held_tape: Dictionary = Rig.Scene.Tape.LEGACY
@@ -441,7 +438,7 @@ func _action(id: String) -> void:
 		"take_detail","talk_tou":
 			if _radio_contact().get("id") == id:
 				match id:
-					"take_detail": _accept(campaign.ticket(1001 + completed + pending_slips.size()))
+					"take_detail": accept(campaign.ticket(1001 + completed + pending_slips.size()))
 					"talk_tou": desk.show_document("passenger",state)
 		"tou_0","tou_1","tou_2","tou_3","tou_4","tou_5","tou_6","tou_7":
 			if _radio_contact().get("id") == "talk_tou":
@@ -478,12 +475,14 @@ func _action(id: String) -> void:
 				_refresh()
 				desk.show_document("register_card",state)
 		"west_accept","west_sign_pickup","west_sign_release","west_archive","west_archive_prev","west_archive_next","west_current":
-			_handle_west_order(id)
+			if west_orders.press(self,id):
+				_refresh()
+				save()
 		"take_visit":
 			if mode == "available" and rig.in_cab:
 				_prepare_offers()
 				if not visit_offer.is_empty():
-					_accept(visit_offer.duplicate())
+					accept(visit_offer.duplicate())
 		"pass_visit","report_visit":
 			if _radio_contact().get("id") == id:
 				_close_visit(id == "report_visit")
@@ -730,52 +729,14 @@ func fit_equipment() -> void:
 	var moved_fence: bool = county.west_lot_open != extend_lot
 	county.fit_yard(account.owns("yard_pump"),account.owns("coffee_maker"),extend_lot,account.owns("west_hold"))
 	ambience.set_brewer(county.yard_brewer)
-	_sync_west_bay()
+	sync_west_bay()
 	if moved_fence:
 		_display_storage()
 	if not account.owns("lamps"):
 		rig.spot_on = false
 
-func _sync_west_bay() -> void:
+func sync_west_bay() -> void:
 	if is_instance_valid(county.west_bay): county.west_bay.sync(self)
-
-func _handle_west_order(id: String) -> void:
-	if desk.page!="west_custody" or not is_instance_valid(county.west_bay) or rig.in_cab: return
-	if west_orders.site_action(self)!=west_source: return
-	match id:
-		"west_accept":
-			if west_source!="west_order_book" or west_archive_open: return
-			var ticket := west_orders.offer(self)
-			if ticket.is_empty(): return
-			survey.defer_order()
-			_stamp_ticket(ticket)
-			desk.dismiss()
-			_accept(ticket)
-		"west_sign_pickup":
-			if west_source!="west_pickup_card" or job.has("pickup_signature"): return
-			job.pickup_signature = west_orders.SIGNATURE
-			pickup_time = clock()
-			pickup_odo = rig.odo
-			job.custody_start = pickup_time
-			desk.dismiss()
-			speak("DEPUTY PELZ","Plate matches. My copy stays here. Keep the keys with your signed copy, Brandt.")
-		"west_sign_release":
-			if west_source!="west_release_card" or not west_orders.can_release(completed) or west_orders.locked: return
-			county.west_bay.hand_off(rig,west_orders.current)
-			west_orders.sign_release(clock(),completed)
-			_sync_west_bay()
-			desk.dismiss()
-			speak("DEPUTY PELZ","I’ve got the keys. I’ll pull out when the lane’s clear. Your signed copy stays in the west book.")
-		"west_archive","west_archive_prev","west_archive_next":
-			if west_source!="west_order_book" or west_orders.archive.is_empty(): return
-			west_archive_open=true
-			match id:
-				"west_archive": west_page=west_orders.archive.size()-1
-				"west_archive_prev": west_page=posmod(west_page-1,west_orders.archive.size())
-				"west_archive_next": west_page=posmod(west_page+1,west_orders.archive.size())
-		"west_current": west_archive_open=false
-	_refresh()
-	save()
 
 func _scanner_available() -> bool:
 	return signed_card or held or campaign.released or account.owns("scanner")
@@ -833,14 +794,14 @@ func _prepare_offers() -> void:
 			rotation_offer = sightings.recovery_offer(issued,county,account.owns("snatch_block"),campaign.stage == Campaign.ORDER.size(),account.owns("second_winch"))
 		if rotation_offer.is_empty():
 			rotation_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,account.owns("snatch_block"),account.owns("second_winch"))
-			_stamp_ticket(rotation_offer)
+			stamp_ticket(rotation_offer)
 		else:
 			# A case may have used the next blank on the clipboard.
 			rotation_offer.number = 1001 + issued
 		if rig.rollback_active and not RollbackDeck.supports(rotation_offer):
 			if fleet.alternate_offer.is_empty():
 				fleet.alternate_offer = Dispatch.ordinary(issued,dispatch_seed,slips + pending_slips,false,false)
-				_stamp_ticket(fleet.alternate_offer)
+				stamp_ticket(fleet.alternate_offer)
 			fleet.alternate_offer.number = 1001 + issued
 		else:
 			fleet.alternate_offer = {}
@@ -850,13 +811,13 @@ func _prepare_offers() -> void:
 					case_offer = Dispatch.hold_ticket(issued,audio.lines,true)
 					case_offer.point = county.survey_point
 					case_offer.angle = county.survey_yaw
-					_stamp_ticket(case_offer)
+					stamp_ticket(case_offer)
 				"looksee": case_offer = Dispatch.looksee(issued)
 		if not case_offer.is_empty():
 			case_offer.number = 1001 + issued
 	_sync_waiting_hazard()
 
-func _stamp_ticket(ticket: Dictionary) -> void:
+func stamp_ticket(ticket: Dictionary) -> void:
 	if ticket.get("kind") not in ["hazard","hold"] or ticket.get("untaped",false) or ticket.has("checked_tape") or ticket.has("recovery"):
 		return
 	var road := str(ticket.get("road",ticket.get("location",""))).get_slice(" · ",0)
@@ -891,7 +852,7 @@ func _take_rotation() -> void:
 	if _can_track_lead() and survey.tracked_lead.is_empty():
 		campaign.calls_past_lead += 1
 	survey.defer_order()
-	_accept(_offered_rotation())
+	accept(_offered_rotation())
 
 func _favor_request() -> String:
 	var chapter := campaign.chapter()
@@ -1009,13 +970,13 @@ func _radio_case(id: String) -> void:
 		"take_case":
 			_prepare_offers()
 			if rig.rollback_active and not RollbackDeck.supports(case_offer):
-				_accept(case_offer)
+				accept(case_offer)
 				return
 			if survey.pending_order() == "hold":
 				survey.hold_order = "accepted"
 			else:
 				survey.farm_order = "accepted"
-			_accept(case_offer)
+			accept(case_offer)
 		"report_farm","report_detail","report_notes":
 			if id == "report_notes":
 				# Issue the usual field-service slip against the operator's observations.
@@ -1038,7 +999,7 @@ func _radio_case(id: String) -> void:
 	_prepare_offers()
 	save()
 
-func _accept(ticket: Dictionary) -> void:
+func accept(ticket: Dictionary) -> void:
 	if rig.rollback_active and not RollbackDeck.supports(ticket):
 		speak("DISPATCH","Bring the wrecker for that one. I’ll hold the order while you change trucks at the yard.")
 		return
@@ -1324,24 +1285,11 @@ func _interact() -> void:
 				"farm_ring":"Bare, wet ground in a circle where the Hoffmanns parked. No tire tracks across the snow."}
 			show_message("BRANDT",entry[site])
 		"west_order_book","west_pickup_card","west_release_card":
-			west_source = site
-			west_archive_open = false
+			west_orders.open_page(site)
 			_refresh()
 			desk.show_document("west_custody",state)
 		"west_chain":
-			if not west_orders.locked:
-				var blocked := west_orders.obstruction(self)
-				if not blocked.is_empty():
-					show_message("BRANDT",blocked)
-					return
-			elif not west_orders.can_release(completed):
-				show_message("BRANDT","Sheriff has the hold. Leave the chain locked until the release comes in.")
-				return
-			west_orders.locked = not west_orders.locked
-			if west_orders.locked: west_orders.current.secured = clock()
-			audio.rig_effect("ratchet")
-			_sync_west_bay()
-			show_message("BRANDT","West hold secured. I'll mark the copy." if west_orders.locked else "Chain open. The deputy can sign for the car.")
+			west_orders.pull_chain(self)
 		"tripod":
 			packed_tripod = true
 			county.set_tripod_collected(true)
@@ -1542,7 +1490,7 @@ func _dropped() -> void:
 	mode = "invoice"
 	if job.has("sheriff_order"):
 		west_orders.receive(job,drop_time,drop_odo,rig.car)
-		_sync_west_bay()
+		sync_west_bay()
 	elif job.kind == "hold":
 		held = true
 		held_tape = Rig.Scene.Tape.imprint(job)
@@ -1716,7 +1664,7 @@ func _file_slip(slip: Dictionary) -> void:
 	completed += 1
 	if slip.has("sheriff_order") and west_orders.current.get("sheriff_order","")==slip.sheriff_order:
 		west_orders.current.filed_at = completed
-	_sync_west_bay()
+	sync_west_bay()
 	var prior_fuel_due := account.fuel_due
 	var prior_recovery_due := account.recovery_due
 	var payment := account.file_invoice(slip.pay,completed)
@@ -2130,7 +2078,7 @@ func _refresh() -> void:
 	state["readable_fire_plate"] = Addresses.number(parcel) if not parcel.is_empty() else ""
 	if desk.page=="west_custody" or site.begins_with("west_"):
 		state.west_card = west_orders.sheet(self)
-		state.west_source = west_source
+		state.west_source = west_orders.source
 	state["visit_offer"] = visit_offer if mode == "available" else {}
 	state["visit_action"] = CountyVisits.CHECKS[job.id].buttons[int(job.visit_step)] if site == "visit_stop" else ("MOVE COT" if site == "cot_inside" else "")
 	if site == "visit_stop" and not desk.is_touch_mode():

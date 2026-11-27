@@ -35,7 +35,7 @@ func run() -> void:
 	await tap_control("close_scanner")
 	await tap_control("respond")
 	check(game.mode == "fieldwork" and game.speaker.begins_with("DISPATCH"),"switching the receiver off leaves dispatch working")
-	game._accept(game.Dispatch.hold_ticket(5,game.audio.lines))
+	game.accept(game.Dispatch.hold_ticket(5,game.audio.lines))
 	rig.in_cab = false
 	var deputy: Vector3 = rig.get_witness_position()
 	stand(deputy+Vector3.FORWARD,deputy)

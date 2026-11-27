@@ -15,7 +15,7 @@ func run() -> void:
 	game.sightings._record("field_car",Vector3(383,0,275),PI,20,0,"Kolpack Rd",original.vehicle,"moved_test")
 	var order: Dictionary = game.sightings.recovery_offer(22,game.county,true,false)
 	check(order.checked_tape == details and order.road == "Kolpack Rd","a displaced sedan keeps the deputy's original road")
-	game._accept(order)
+	game.accept(order)
 	rig.phase = "flared"
 	rig.in_cab = false
 	var strip: Node3D = rig.car.get_node("SheriffTape")
