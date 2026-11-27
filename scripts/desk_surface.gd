@@ -202,6 +202,11 @@ func _title() -> void:
 	hit("play", play)
 	_title_link("help", Vector2(x,play.end.y+16), "Operator guide")
 	_title_link("options", Vector2(x+(188 if touch else 147),play.end.y+16), "Settings")
+	if drawn.get("newer_save", false):
+		var note := Rect2(x, play.end.y+(110 if touch else 71), maxf(w,340), 46)
+		draw_rect(note, Color("#0d1720",0.82))
+		fitted(Rect2(note.position+Vector2(10,3),Vector2(note.size.x-20,20)), "A newer build saved this route. It stays on file.", subtle, 17, CREAM, HORIZONTAL_ALIGNMENT_LEFT)
+		fitted(Rect2(note.position+Vector2(10,23),Vector2(note.size.x-20,20)), "This build won’t save. Update the game to continue it.", subtle, 17, AMBER, HORIZONTAL_ALIGNMENT_LEFT)
 
 func _ignition(at: Vector2, scale_factor: float, down: bool) -> void:
 	draw_set_transform(at*unit,0.40 if down else -0.28,Vector2.ONE*unit*scale_factor)

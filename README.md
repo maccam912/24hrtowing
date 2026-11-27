@@ -40,7 +40,7 @@ When you’re back at the yard, walk to the fax under the **OFFICE / FAX** sign 
 | Plat book and current slip | PLAT or SLIP | M or J |
 | Set down paper or pause | Stow or pause button, Android Back | Escape |
 
-The first drive starts in chase view. Your chosen view returns when you get back in the truck or continue a saved route. Pull over for the full-size plat. Opening it while moving gives a small lap view. The truck and operator save automatically, including a line that's already attached. The operator guide and 30/60 fps setting are in the truck log.
+The first drive starts in chase view. Your chosen view returns when you get back in the truck or continue a saved route. Pull over for the full-size plat. Opening it while moving gives a small lap view. The truck and operator save automatically, including a line that's already attached. An older build leaves a newer build's save on file and plays without saving. The operator guide and 30/60 fps setting are in the truck log.
 
 If you or the wrecker get wedged, open **Pause → Stuck? Recover to yard**. The county charges $24 to bring you both back. Confirming restarts unfinished fieldwork at the original scene, including any car on the hook. Completed deliveries, slips and case notes stay on file. The county carries any unpaid tow charge until your checks come in.
 

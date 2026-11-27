@@ -2093,7 +2093,7 @@ func _refresh() -> void:
 		"feedback":_fuel_eta() if fuel_wait_left > 0.0 else (rig.info if rig.info_timer > 0 else ""),
 		"can_inspect_sighting":site == "inspect_sighting","can_wipe":site == "wipe_mirror",
 		"suggested_anchors":rig.assist,"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
-		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"in_cab":s.in_cab,"speed_mph":s.speed_mph,
+		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"newer_save":Ledger.newer_build,"in_cab":s.in_cab,"speed_mph":s.speed_mph,
 		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
 		"can_enter_cab":rig.action_id() == "enter" and (not rig.is_chocked() or rig.fuel <= 0.0) and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
@@ -2214,7 +2214,8 @@ func _save() -> void:
 		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps,"spoken":audio.spoken}
 	if casework.tower_height >= 0.0:
 		saved_data.tower = {"height":casework.tower_height,"glasses":casework.glasses}
-	if not test_session and not Ledger.write(saved_data):
+	# A shift from a later build stays untouched. This one plays without saving.
+	if not test_session and not Ledger.newer_build and not Ledger.write(saved_data):
 		push_warning("Could not save current tow ticket")
 
 func _restore(s: Dictionary) -> void:
