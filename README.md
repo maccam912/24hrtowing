@@ -118,6 +118,8 @@ mkdir -p build
 godot --headless --export-release Linux build/24HRTowing.x86_64
 ```
 
+The test runner imports the project, then runs the boot check and every `tests/*_test.gd` script in parallel, one engine per CPU, and lists every failure at the end. Add part of a test name to run only matching scripts, for example `python3 tools/run_tests.py --godot godot shift_clock`, or `--jobs 1` to run one at a time.
+
 For a local Android build, configure the Android SDK and JDK 17 in Godot, then run `godot --headless --export-debug Android build/24HRTowing-Android-debug.apk`. The project also includes Linux, Windows and macOS export presets.
 
 ## Releases
