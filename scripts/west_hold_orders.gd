@@ -165,3 +165,7 @@ func sheet(game) -> Dictionary:
 	data.archive_open = archive_open and data.status=="RELEASED"
 	data.page = page
 	return data
+
+## The custody form on the desk and which form the operator opened.
+func view(game) -> Dictionary:
+	return {"west_card":sheet(game),"west_source":source}

@@ -1936,26 +1936,14 @@ func _refresh() -> void:
 	var parcel := Addresses.readable(rig,county) if active and not desk.is_blocking() and casework.tower_height < 0.0 else ""
 	state["readable_fire_plate"] = Addresses.number(parcel) if not parcel.is_empty() else ""
 	if desk.page=="west_custody" or site.begins_with("west_"):
-		state.west_card = west_orders.sheet(self)
-		state.west_source = west_orders.source
+		state.merge(west_orders.view(self),true)
 	state["visit_offer"] = visit_offer if mode == "available" else {}
 	state["visit_action"] = CountyVisits.CHECKS[job.id].buttons[int(job.visit_step)] if site == "visit_stop" else ("MOVE COT" if site == "cot_inside" else "")
 	if site == "visit_stop" and not desk.is_touch_mode():
 		state.feedback = "E   "+_prompt(site)
 	state["passenger_drop"] = site == "let_out"
 	state["tower_height"] = casework.tower_height
-	if rig.flowage and not rig.in_cab and (s.phase=="cable" or (s.phase=="rigged" and rig.in_range(rig.panel_point(),2.8,false))):
-		state["ice_line"] = rig.flowage.meter(rig)
-	if rig.rollover and rig.rollover.controls:
-		state["drum_instruction"] = rig.rollover.instruction(rig)
-	if rig.roof and not rig.in_cab:
-		state["roof_action"] = rig.action_id()
-		state["roof_ladder"] = rig.roof.ladder >= 0.
-		if rig.roof.controls:
-			state["boom_instruction"] = rig.roof.instruction(rig)
-			state["roof_slew"] = true
-	if rig.tree_recovery and rig.tree_recovery.controls:
-		state["boom_instruction"] = rig.tree_recovery.instruction(rig)
+	state.merge(rig.recovery_view(),true)
 	state["tower_top"] = casework.tower_height == County.CaseSites.TANK_PLATFORM
 	state["tower_action"] = site if site.begins_with("tower_") else ""
 	state["tower_glasses"] = casework.glasses
@@ -1967,35 +1955,24 @@ func _refresh() -> void:
 		state.work_available = false
 		state.can_enter_cab = false
 	if desk.page == "impound_register" or site == "impound_register":
-		state["impound_rows"] = impound_book.visible_cards()
-		state["impound_leaf"] = impound_book.leaf
-		state["impound_pages"] = impound_book.page_count()
-	state["blower"] = rig.climate.blower
-	state["window_open"] = rig.climate.cracked
-	state["cab_air"] = rig.climate.air
+		state.merge(impound_book.view(),true)
+	state.merge(rig.climate.view(),true)
 	state["can_track_lead"] = _can_track_lead()
 	state["tracked_lead"] = survey.tracked_lead
 	state["lead_label"] = casework.lead_label()
 	state["case_chapter"] = campaign.chapter()
 	state["favor_point"] = favor_point
 	state["favor_available"] = state.can_track_lead and not casework.lead_site().is_empty()
-	if rig.tanker and (rig.loaded or rig.phase == "rigged"):
-		state["milk_load"] = rig.tanker.surge
 	if site == "inspect_sighting" and not desk.is_touch_mode() and state.feedback.is_empty():
 		state.feedback = "E  ·  Take a closer look"
 	state["recovery_restarts_job"] = _restart_on_recovery()
-	state["broadcast_station"] = broadcast.station
-	state["broadcast_signal"] = broadcast.signal_strength
-	state["broadcast_label"] = broadcast.cue.get("label","")
-	state["broadcast_words"] = broadcast.caption()
+	state.merge(broadcast.view(),true)
 	if state.subtitle.is_empty() and not state.broadcast_words.is_empty():
 		state.speaker = broadcast.STATIONS[broadcast.station].name.to_upper()
 		state.subtitle = state.broadcast_words
 	state["scanner_available"] = PartsCounter.scanner_available(self)
 	state["scanner_fitted"] = account.owns("scanner")
-	state["scanner_channel"] = scanner.channel
-	state["scanner_history"] = scanner.history
-	state["scanner_rx"] = scanner.rx_left > 0
+	state.merge(scanner.view(),true)
 	state["recovery_due"] = account.recovery_due
 	state["heading_degrees"] = s.heading
 	desk.update_view(state)

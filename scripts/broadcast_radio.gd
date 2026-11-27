@@ -99,3 +99,8 @@ func restore(saved: Dictionary) -> void:
 	hiss.stop()
 	cue = {}
 	can_hear = false
+
+## What the receiver page and the caption line draw.
+func view() -> Dictionary:
+	return {"broadcast_station":station,"broadcast_signal":signal_strength,
+		"broadcast_label":cue.get("label",""),"broadcast_words":caption()}

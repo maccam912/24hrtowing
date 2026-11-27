@@ -127,3 +127,7 @@ func restore(save: Dictionary, fitted: bool) -> void:
 	wait_seconds = clampf(save.get("wait",35.0),0,108)
 	rx_left = 0.0
 	scripted_plow = false
+
+## What the scanner page draws: the tuned channel, its log and the receive lamp.
+func view() -> Dictionary:
+	return {"scanner_channel":channel,"scanner_history":history,"scanner_rx":rx_left > 0}

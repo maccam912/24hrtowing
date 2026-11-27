@@ -2102,3 +2102,24 @@ func restore_state(d:Dictionary) -> void:
 	if in_cab:
 		_frame_nearby_car()
 	update_eyes()
+
+## Readouts for the special recovery on the hook: the ice line's cable
+## marks, the drum and boom instructions, the canopy ladder and the milk
+## surge. Empty when an ordinary tow is rigged.
+func recovery_view() -> Dictionary:
+	var data := {}
+	if flowage and not in_cab and (phase=="cable" or (phase=="rigged" and in_range(panel_point(),2.8,false))):
+		data["ice_line"] = flowage.meter(self)
+	if rollover and rollover.controls:
+		data["drum_instruction"] = rollover.instruction(self)
+	if roof and not in_cab:
+		data["roof_action"] = action_id()
+		data["roof_ladder"] = roof.ladder >= 0.
+		if roof.controls:
+			data["boom_instruction"] = roof.instruction(self)
+			data["roof_slew"] = true
+	if tree_recovery and tree_recovery.controls:
+		data["boom_instruction"] = tree_recovery.instruction(self)
+	if tanker and (loaded or phase == "rigged"):
+		data["milk_load"] = tanker.surge
+	return data
