@@ -86,7 +86,7 @@ func run() -> void:
 	snapshot.erase("scanner")
 	(snapshot.account.equipment as Dictionary).erase("scanner")
 	game._restore(snapshot)
-	check(game.scanner.channel == "highway" and game.scanner.history.is_empty() and game._scanner_available(),"an older signed shift can buy the upgrade")
+	check(game.scanner.channel == "highway" and game.scanner.history.is_empty() and game.PartsCounter.scanner_available(game),"an older signed shift can buy the upgrade")
 	var words := "White squad on County FF by the west-side dairy barn, west shoulder. Deputy Ruiz needs a pull to get back on patrol. County adds $24 if you clear it within two minutes of your first flare. Regular rate either way."
 	game.speak("DISPATCH",words)
 	game._refresh()

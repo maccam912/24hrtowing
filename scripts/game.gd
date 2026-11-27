@@ -10,6 +10,7 @@ const Ledger := preload("res://scripts/ledger.gd")
 const ShopAccount := preload("res://scripts/shop_account.gd")
 const RoadsideFuel := preload("res://scripts/roadside_fuel.gd")
 const DieselNozzle := preload("res://scripts/diesel_nozzle.gd")
+const PartsCounter := preload("res://scripts/parts_counter.gd")
 const Campaign := preload("res://scripts/county_case.gd")
 const Casework := preload("res://scripts/casework.gd")
 const SurveyCase := preload("res://scripts/survey_case.gd")
@@ -92,7 +93,7 @@ var pickup_time := ""
 var drop_time := ""
 var account := ShopAccount.new()
 var fuel_can := RoadsideFuel.new()
-var shop_receipt := ""
+var parts := PartsCounter.new()
 var nozzle := DieselNozzle.new()
 var seconds_worked := 0.0
 var fax_text := "TAMARACK COUNTY HIGHWAY DEPARTMENT\nTOW BAN IN EFFECT UNTIL FURTHER NOTICE.\nSheriff-requested removals only. Record both odometer readings."
@@ -538,7 +539,10 @@ func _action(id: String) -> void:
 				if speaker.begins_with("SCANNER  /  "): sub_time = 0
 				save()
 		"tank_main","tank_reserve": nozzle.select_tank(self,id)
-		"buy_rollback","buy_aux_tank","buy_reserve_fuel","buy_second_winch","buy_west_hold","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel": _shop_purchase(id)
+		"buy_rollback","buy_aux_tank","buy_reserve_fuel","buy_second_winch","buy_west_hold","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel":
+			if parts.purchase(self,id):
+				audio.effect("fax")
+				save()
 		"buy_coffee":
 			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
 				rig.warmth = 1.0
@@ -584,7 +588,7 @@ func _advance_shift_clock(dt: float) -> void:
 	shift_seconds += dt
 	fuel_can.advance(self,dt)
 
-func _at_office() -> bool:
+func at_office() -> bool:
 	return not rig.in_cab and _near(FAX,4.4)
 
 func at_pump() -> bool:
@@ -603,24 +607,21 @@ func _save_soon(dt: float) -> void:
 func _at_counter() -> bool:
 	return not rig.in_cab and county.inside_fuel_store(rig.foot) and is_facing(county.coffee_counter_point(),2.5)
 
-func _truck_in_yard() -> bool:
+func truck_in_yard() -> bool:
 	var at: Vector3 = rig.get_truck_position()
 	return rig.is_stopped() and county.yard_contains(Vector2(at.x,at.z))
 
 func can_refuel() -> bool:
-	if _at_office():
-		return _truck_in_yard()
+	if at_office():
+		return truck_in_yard()
 	return at_pump() and rig.is_stopped() and rig.get_truck_position().distance_to(PUMP) < 15.0
-
-func _fleet_offered() -> bool:
-	return account.owns("rollback") or completed >= 12
 
 func _switch_reason() -> String:
 	if mode != "available" or not job.is_empty() or rig.loaded or rig.is_chocked():
 		return "Finish the open ticket before changing trucks."
 	if fuel_can.en_route():
 		return "Wait for the plow with the fuel can."
-	if not _truck_in_yard(): return "Bring the other truck back to the yard first."
+	if not truck_in_yard(): return "Bring the other truck back to the yard first."
 	return ""
 
 func fit_equipment() -> void:
@@ -642,53 +643,6 @@ func fit_equipment() -> void:
 
 func sync_west_bay() -> void:
 	if is_instance_valid(county.west_bay): county.west_bay.sync(self)
-
-func _scanner_available() -> bool:
-	return signed_card or held or campaign.released or account.owns("scanner")
-
-func _shop_purchase(id: String) -> void:
-	if id in ["buy_fuel","buy_reserve_fuel"]:
-		var reserve := id == "buy_reserve_fuel"
-		if not can_refuel() or (reserve and (not account.owns("aux_tank") or rig.rollback_active)): return
-		var sale := DieselNozzle.buy(self,reserve)
-		if sale.cost <= 0: return
-		var pct := roundi(100*float(sale.fuel_after)/(Rig.Reserve.CAPACITY if reserve else 1.0))
-		shop_receipt = "Diesel   $%.2f   ·   %s %d%%" % [sale.cost,"Reserve" if reserve else "Tank",pct]
-	elif not _at_office() or not _truck_in_yard():
-		return
-	elif id == "service_winch":
-		if rig.wear <= 0.001 or not account.pay_repair():
-			return
-		rig.wear = 0.0
-		shop_receipt = "Winch serviced. Cable and drum ready."
-	else:
-		var part := id.trim_prefix("buy_")
-		if part == "rollback" and not _fleet_offered(): return
-		if part in ["second_winch","aux_tank","snatch_block"] and rig.rollback_active: return
-		if part == "scanner" and not _scanner_available(): return
-		if part == "aux_tank" and campaign.stage < 1: return
-		if part == "west_hold" and not account.owns("west_lot"): return
-		if part == "second_winch" and (not heavy_job_filed or not account.owns("snatch_block")): return
-		if not account.buy(part):
-			return
-		fit_equipment()
-		match part:
-			"rollback":
-				fleet.receive(rig)
-				shop_receipt = "Keys in the carrier. Walk to its driver’s door by the office."
-			"aux_tank": shop_receipt = "Reserve fitted behind the cab. Fill it here or at the pumps."
-			"second_winch": shop_receipt = "Auxiliary winch fitted. Arlene can dispatch freight calls on US 59."
-			"west_hold": shop_receipt = "West Hold 2 ready. Sheriff’s order book is under the metal hood beside its chain."
-			"west_lot": shop_receipt = "West gate open. Twelve numbered storage spaces on the back lot."
-			"yard_pump": shop_receipt = "Meter and hose fitted to the bulk tank by storage."
-			"coffee_maker": shop_receipt = "Coffee’s on at the bench beside the office."
-			"mirrors": shop_receipt = "Heater elements fitted to both mirrors."
-			"lamps": shop_receipt = "Driving bar and pillar spot fitted. Aim the spot by looking."
-			"chains": shop_receipt = "Drive-axle chains fitted."
-			"snatch_block": shop_receipt = "Snatch block fitted. Heavy pulls cleared for dispatch."
-			"scanner": shop_receipt = "Crystals fitted. Tune the cab scanner to Sheriff or Garage."
-	audio.effect("fax")
-	save()
 
 func _prepare_offers() -> void:
 	visit_offer = {}
@@ -1308,7 +1262,7 @@ func _interact() -> void:
 	save()
 
 func _open_shop() -> void:
-	shop_receipt = ""
+	parts.open()
 	_refresh()
 	desk.show_document("parts",state)
 
@@ -1525,10 +1479,10 @@ func _fax_count() -> int:
 	return pending_slips.size() + int(mode in ["return","invoice"] and _filing_blocker().is_empty())
 
 func _can_file_here() -> bool:
-	return _at_office() and _fax_count() > 0
+	return at_office() and _fax_count() > 0
 
 func _file_invoice() -> void:
-	if not _at_office():
+	if not at_office():
 		return
 	var blocker := ""
 	if mode in ["return","invoice"]:
@@ -1963,17 +1917,17 @@ func _refresh() -> void:
 		"reserve_offered":campaign.stage >= 1 or account.owns("aux_tank"),"aux_tank":account.owns("aux_tank") and not rig.rollback_active,
 		"reserve_pct":rig.reserve_fuel/Rig.Reserve.CAPACITY,"reserve_quote":account.fuel_quote(rig.reserve_fuel,INF,Rig.Reserve.CAPACITY),
 		"at_counter":site == "coffee","coffee_left":rig.coffee_left,"mai_lot":sightings.seen.has("streetlights_out") and not mai_lot_heard,
-		"at_office":_at_office(),"at_pump":at_pump(),"can_order":_at_office() and _truck_in_yard(),
+		"at_office":at_office(),"at_pump":at_pump(),"can_order":at_office() and truck_in_yard(),
 		"can_refuel":can_refuel(),"fuel_quote":account.fuel_quote(s.fuel),"fuel_help":fuel_can.needed(self),
 		"fuel_eta":ceili(fuel_can.wait_left),
-		"case_lock":case_lock(),"shop_receipt":shop_receipt,
+		"case_lock":case_lock(),"shop_receipt":parts.receipt,
 		"chains":rig.tire_chains,"snatch_block":rig.snatch_block,"wear":s.wear,
 		"paid":account.cash,"pending":account.pending,"earned":account.earned,"fuel_due":account.fuel_due,
 		"progress":_procedure(),"phase":s.phase,"work_available":s.fuel > 0.0 and rig.action_id()=="winch",
 		"warmth":s.warmth,"mode":mode,"rig_hint":s.get("hint","")}
 	state.merge(_contract_hint(site))
 	state.merge(nozzle.view(self))
-	state["fleet_offered"] = _fleet_offered()
+	state["fleet_offered"] = PartsCounter.fleet_offered(self)
 	state["rollback_owned"] = account.owns("rollback")
 	state["rollback_active"] = rig.rollback_active
 	state["standby"] = fleet.parked
@@ -2036,7 +1990,7 @@ func _refresh() -> void:
 	if state.subtitle.is_empty() and not state.broadcast_words.is_empty():
 		state.speaker = broadcast.STATIONS[broadcast.station].name.to_upper()
 		state.subtitle = state.broadcast_words
-	state["scanner_available"] = _scanner_available()
+	state["scanner_available"] = PartsCounter.scanner_available(self)
 	state["scanner_fitted"] = account.owns("scanner")
 	state["scanner_channel"] = scanner.channel
 	state["scanner_history"] = scanner.history
@@ -2114,7 +2068,7 @@ func _restore(s: Dictionary) -> void:
 	scanner.restore(s.get("scanner",{}),account.owns("scanner"))
 	broadcast.restore(s.get("broadcast",{}))
 	fuel_can.restore(float(s.get("fuel_wait_left", 0.0)))
-	shop_receipt = ""
+	parts.open()
 	seconds_worked = s.work
 	fax_text = s.fax
 	faxes = s.get("faxes",[])

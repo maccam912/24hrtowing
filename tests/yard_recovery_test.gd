@@ -42,7 +42,7 @@ func check_haul_and_billing() -> void:
 	check(game.desk.page == "pause" and rig.loaded and game.account.cash == 5, "cancel leaves the job and cash alone")
 	await tap_control("yard_recovery")
 	await tap_control("confirm_yard_recovery")
-	check(rig.in_cab and rig.is_stopped() and game._truck_in_yard() and rig.foot == game.SPAWN, "on-foot operator and wrecker recover together")
+	check(rig.in_cab and rig.is_stopped() and game.truck_in_yard() and rig.foot == game.SPAWN, "on-foot operator and wrecker recover together")
 	check(game.mode == "fieldwork" and game.job == tow and rig.phase == "scene" and not rig.loaded and rig.car.position.distance_to(tow.point)<2.0,
 		"the same vehicle, VIN and contract restart at the original scene")
 	check(game.completed == 0 and game.stored.is_empty() and game.pending_slips == pending and game.survey.notes.unit == odo,
@@ -51,7 +51,7 @@ func check_haul_and_billing() -> void:
 		"restart clears billable work and preserves operating costs")
 	game._action("confirm_yard_recovery")
 	resume_shift()
-	check(rig.in_cab and game._truck_in_yard() and rig.phase == "scene" and game.job.vin == tow.vin and rig.odo == odo, "restart survives a reload")
+	check(rig.in_cab and game.truck_in_yard() and rig.phase == "scene" and game.job.vin == tow.vin and rig.odo == odo, "restart survives a reload")
 	check(game.account.cash == 0.0 and game.account.recovery_due == 19.0 and game.account.fuel_due == 0.0, "one yard recovery charges cash and carries its own IOU")
 	game._recovered("hazard")
 	game._dropped()
