@@ -7,7 +7,7 @@ const PER_LEAF := 7
 # Entries follow each road in driving order, with the physical roadside post as the survey station.
 const PARCELS := {
 	"frames":{"road":"County K","owner":"Duda Ginseng","at":Vector2(7.1,-213)},
-	"brandt":{"road":"County K","owner":"Brandt Towing","at":Vector2(-7.1,-69)},
+	"brandt":{"road":"County K","owner":"Brandt Towing","at":Vector2(-9.5,-69)},
 	"church":{"road":"County K","owner":"St. Hedwig’s","at":Vector2(7.1,65)},
 	"angie":{"road":"County K","owner":"Parish cemetery","at":Vector2(-7.2,131)},
 	"farm":{"road":"Kolpack Rd","owner":"Lindquist farm","at":Vector2(407.1,234)},

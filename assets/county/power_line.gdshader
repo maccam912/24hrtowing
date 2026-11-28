@@ -15,6 +15,6 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = vec3(0.10, 0.12, 0.14);
-	ROUGHNESS = 0.75;
+	ALBEDO = vec3(0.24, 0.28, 0.33);
+	ROUGHNESS = 0.78;
 }

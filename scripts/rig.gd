@@ -38,7 +38,7 @@ const MAX_SPEED := 40.0 / MPH_PER_MPS
 const MAX_LOADED := 34.0 / MPH_PER_MPS
 const IDLE_RPM := 680.0
 # Road speeds in m/s at 2050 RPM, from first gear to overdrive.
-const GEAR_TOP_SPEEDS: Array[float] = [4.4, 7.7, 12.0, 17.5, 23.0, 29.5]
+const GEAR_TOP_SPEEDS: Array[float] = [3.6, 6.4, 9.5, 12.6, 15.6, 19.2]
 const MAX_STEER_ANGLE := deg_to_rad(36.0)
 const START_ODO := 82146.2
 const CHASE_ELEVATION := 0.25
@@ -60,7 +60,10 @@ var aux_tank: Reserve
 var reserve_fuel := 0.0
 var tow_signals: Truck.RoadSignals
 var car_lamps:Node3D
-var warning_triangle: Node3D
+var beacon_target := Vector3.INF
+var bootprints: Array[MeshInstance3D] = []
+var bootprint_step := 0
+var bootprint_mesh: QuadMesh
 var flash_time:=0.0
 var rollback_active := false
 var rollback_deck: Rollback
@@ -126,6 +129,7 @@ var roll:=0.0
 var phase:="idle"
 var kind:=""
 var loaded:=false
+var lift_blend:=1.0
 var working:=false
 var tension:=0.0
 var job_site:=Vector3.ZERO
@@ -192,9 +196,10 @@ func setup(county:Node3D) -> void:
 	eyes.add_child(torch)
 	torch.light_color=Color("#ece6ce")
 	torch.light_energy=2.2
-	torch.spot_range=29
-	torch.spot_angle=24
-	torch.spot_attenuation=.80
+	torch.spot_range=38.0
+	torch.spot_angle=27.0
+	torch.spot_attenuation=1.55
+	torch.spot_angle_attenuation=2.1
 	torch.shadow_enabled=true
 	torch.shadow_bias=.28
 	torch.shadow_normal_bias=2.8
@@ -551,7 +556,12 @@ func set_controls(move:Vector2,look:Vector2,operate:bool,brake:bool,dt:float,on_
 		fuel=maxf(fuel-dt*.000017,0)
 	body.glass_material.set_shader_parameter("cold",1.0-climate.air)
 	body.move_driver_window(climate.cracked,dt)
-	body.animate(dt,speed,steering,engine_rpm,tension,fuel,odo,compass_degrees(),in_cab and driving_view == "cab",near_casualty(55.0))
+	body.animate(dt,speed,steering,engine_rpm,tension,fuel,odo,compass_degrees(),in_cab and driving_view == "cab",beacons_active())
+
+func beacons_active() -> bool:
+	if beacon_target.is_finite():
+		return flat_distance(truck.position,beacon_target) < 75.0
+	return not loaded and phase != "departing" and near_casualty(70.0)
 
 func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 	var forward:Vector3=-truck.global_basis.z
@@ -580,7 +590,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 		if Dairy.APRON.has_point(Vector2(truck.position.x,truck.position.z)):
 			offroad = 0
 	var max_forward := lerpf(packed_speed,snow_speed,offroad) * load_factor
-	var tire_grip:float=1.29 if tire_chains else 1.0
+	var tire_grip:float=1.36 if tire_chains else 1.0
 	var surface := road_contact.x
 	if tire_chains and surface<1.: surface = lerpf(surface,1.,.50)
 	tire_grip *= surface
@@ -591,14 +601,14 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 		if fuel > 0.0 and absf(throttle) > .04 and info_timer <= 0:
 			show_note("Wheels chocked. Step out and finish or stow the rigging.",4)
 	elif handbrake:
-		speed=move_toward(speed,0,dt*(6.45 if loaded else 9.35)*tire_grip*load_factor)
+		speed=move_toward(speed,0,dt*(5.2 if loaded else 7.2)*tire_grip*load_factor)
 		if absf(speed)<.20 and absf(prev)>=.20: sound_event.emit("air_brake")
 	elif absf(throttle)>.04 and fuel > 0.0:
 		var reversing:=speed*throttle<-.20
 		var target:float=throttle*(max_forward if throttle>0 else 5.15)
 		var accel := 2.44
 		if reversing:
-			accel = (4.8 if loaded else 7.6) * tire_grip
+			accel = (3.8 if loaded else 5.8) * tire_grip
 		elif throttle > 0:
 			# The diesel pulls steadily out of the yard, then gains speed slowly above 30 mph.
 			var road_pull := lerpf(1.0, .10, smoothstep(8.5, 13.4, speed))
@@ -617,7 +627,7 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 		speed=move_toward(speed,0,coast_decel*dt)
 	if fuel<=0 and info_timer<=0: show_note(reserve_hint() if reserve_fuel > .0001 else "Tank empty. Use the cab radio to call Arlene for a fuel can.",6.0)
 	# Digital controls use full steering lock in the yard and finer angles at road speed.
-	var cornering_grip := (3.65 if loaded else 5.1) * tire_grip
+	var cornering_grip := (3.05 if loaded else 4.25) * tire_grip
 	if loaded and tanker:
 		cornering_grip *= 1.0-clampf(absf(tanker.surge.x),0,1)*.32
 	var lock_angle := minf(MAX_STEER_ANGLE, atan2(Truck.WHEELBASE*cornering_grip, speed*speed))
@@ -632,8 +642,8 @@ func _drive(move:Vector2, handbrake:bool, dt:float) -> Vector3:
 	var right := midway.cross(Vector3.UP)
 	var next_forward := forward.rotated(Vector3.UP,turn)
 	# Above yard speed, momentum can push the drive tires sideways on snow.
-	var slip_limit := maxf(0.0,absf(speed)-6.0) * .17
-	var lateral_speed := clampf(motion.dot(right)*exp(-3.1*tire_grip*dt),-slip_limit,slip_limit)
+	var slip_limit := maxf(0.0,absf(speed)-4.2) * (0.27 if loaded else 0.34)
+	var lateral_speed := clampf(motion.dot(right)*exp(-1.85*tire_grip*dt),-slip_limit,slip_limit)
 	if loaded and tanker:
 		lateral_speed += tanker.surge.x*minf(absf(speed)*.25,3.0)*dt
 	motion = midway*speed + right*lateral_speed
@@ -719,6 +729,35 @@ func _walk(move:Vector2, dt:float) -> void:
 	if walked>=FOOTSTEP_DISTANCE:
 		walked-=FOOTSTEP_DISTANCE
 		sound_event.emit("footstep")
+		_leave_bootprint(foot - start)
+
+func _leave_bootprint(delta: Vector3) -> void:
+	if not world or not ("materials" in world) or not world.materials.has("bootprint") or (world.has_method("inside_fuel_store") and world.inside_fuel_store(foot)):
+		return
+	var flat := Vector3(delta.x, 0.0, delta.z)
+	if flat.length_squared() < 0.0001:
+		return
+	var forward := flat.normalized()
+	var side := forward.cross(Vector3.UP) * (0.12 if bootprint_step % 2 == 0 else -0.12)
+	if not bootprint_mesh:
+		bootprint_mesh = QuadMesh.new()
+		bootprint_mesh.size = Vector2(0.22, 0.39)
+		bootprint_mesh.orientation = PlaneMesh.FACE_Y
+		bootprint_mesh.material = world.materials["bootprint"]
+	var mark: MeshInstance3D
+	if bootprints.size() < 48:
+		mark = MeshInstance3D.new()
+		mark.mesh = bootprint_mesh
+		mark.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(mark)
+		bootprints.append(mark)
+	else:
+		mark = bootprints[bootprint_step % bootprints.size()]
+	var at := foot + side
+	at.y = ground_height(at) + 0.055
+	mark.position = at
+	mark.rotation = Vector3(0.0, atan2(forward.x, forward.z) + (0.08 if bootprint_step % 2 == 0 else -0.08), 0.0)
+	bootprint_step += 1
 
 func toggle_driving_view() -> void:
 	if not in_cab:
@@ -815,9 +854,6 @@ func compass_degrees() -> float:
 	var bearing := atan2(toward.x,-toward.z)
 	return fposmod(rad_to_deg(lerp_angle(deg_to_rad(heading_degrees()),bearing,sighting_calm)),360.0)
 
-static func uses_warning_triangle(job_kind: String, ticket: Dictionary) -> bool:
-	return job_kind in ["ditch","hazard"] and not ticket.has("case_id") and ticket.get("recovery","") in ["","semi","milk"]
-
 func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_phase := "scene") -> void:
 	end_job()
 	kind=job_kind
@@ -884,17 +920,6 @@ func start_job(job_kind:String,target:Vector3,yaw:float,ticket := {},initial_pha
 	if recovery_kind() == "tree": tree_recovery = TreeRecovery.new()
 	if _roll_job() and vehicle_identity.get("two_drum_roll",false): rollover = Rollover.new()
 	set_car_lamps("running" if _running_car() else "hazard")
-	if phase == "scene" and uses_warning_triangle(kind,vehicle_identity):
-		# Face traffic from either direction, on the road side of the car.
-		# Dispatch parks cars at a slight yaw along the county's section roads.
-		var road_yaw := snappedf(job_yaw, PI / 2.0)
-		var across := Vector3.RIGHT.rotated(Vector3.UP,road_yaw)
-		if road_distance(target + across) > road_distance(target - across):
-			across = -across
-		var ahead := 6.0 if _county_plow() or semi or tanker else 3.5
-		var at := target + across * 1.8 + Vector3.FORWARD.rotated(Vector3.UP,road_yaw) * ahead
-		at.y = ground_height(at)
-		warning_triangle = Scene.warning_triangle(self,at,road_yaw)
 	if kind in ["ditch","hold","passenger"] or semi or tanker or vehicle_identity.has("sheriff_order"):
 		witness=Scene.person(self,kind=="hold" or vehicle_identity.has("sheriff_order"),vehicle_identity.driver_variant)
 		var point:Vector3=car.to_global(Vector3(-2.4,0,1.65))
@@ -933,6 +958,7 @@ func send_cot_inside() -> bool:
 	return true
 
 func end_job() -> void:
+	lift_blend = 1.0
 	if berm: berm.dispose()
 	berm = null
 	if redirect: redirect.remove_webbing()
@@ -952,7 +978,6 @@ func end_job() -> void:
 	if phase == "departing":
 		car = null
 		witness = null
-	_clear_warning_triangle()
 	for n in [car,witness,ems_partner,flame,chocks,dollies]:
 		if is_instance_valid(n): n.queue_free()
 	car=null
@@ -985,12 +1010,6 @@ func end_job() -> void:
 		body.work_light.hide()
 	if cable_mesh: cable_mesh.clear_surfaces()
 	if highlight: highlight.visible=false
-
-func _clear_warning_triangle() -> void:
-	if warning_triangle:
-		warning_triangle.hide()
-		warning_triangle.queue_free()
-		warning_triangle = null
 
 func store_vehicle(job_kind:String,point:Vector3,yaw:float,ticket := {}) -> Node3D:
 	var variant:=int(ticket.get("variant",3 if job_kind in ["bridge","river"] else 2))
@@ -1450,7 +1469,6 @@ func interact() -> void:
 			var loc:=foot+(car.position-foot).normalized()*.55
 			loc.y=ground_height(loc)
 			flame=Scene.flare(self,loc)
-			_clear_warning_triangle()
 			phase="flared"
 			sound_event.emit("flare")
 		"cable":
@@ -1525,6 +1543,7 @@ func interact() -> void:
 		"lift":
 			phase="loaded"
 			loaded=true
+			lift_blend=0.0
 			body.stinger.position.z=0.0
 			_track_underlift(Vector3.ZERO,true)
 			set_car_lamps("tow")
@@ -1615,7 +1634,8 @@ func _winch(operate:bool,dt:float) -> void:
 	var drum_lead := drum_point()-fairlead if pulling_round_tree else toward
 	drum_lead.y=0
 	var sideways:float=1.0-absf(drum_lead.normalized().dot(truck.global_basis.z))
-	var resistance:=.48+(.13 if kind=="hold" else 0.0)+(1-axial)*.32+sideways*.17
+	var ridge := maxf(0.0,sin(gap*1.15+job_site.x*.13))*.22
+	var resistance:=.54+ridge+(.13 if kind=="hold" else 0.0)+(1-axial)*.32+sideways*.17
 	if road_distance(car.position)>6.8: resistance+=.12
 	if warmth<.24: resistance+=.04
 	var shortening:=dt*(1.52 if kind=="hold" else 1.84)*(1.0-wear*.22)
@@ -1738,7 +1758,8 @@ func _track_underlift(pin_travel := Vector3.ZERO, first_hook := false) -> void:
 		lifted_axle = Vector3(0,wheel_height,Tanker.FRONT_AXLE if tanker else Semi.FRONT_AXLE)
 		rolling_axle = Vector3(0,wheel_height,Tanker.REAR_AXLE if tanker else Semi.REAR_AXLE)
 		half_wheelbase = (rolling_axle.z-lifted_axle.z)*.5
-	var hitch:=_hitch()+Vector3.UP*Truck.WheelLift.AXLE_HEIGHT
+	var lift_rise := Truck.WheelLift.AXLE_HEIGHT * lerpf(0.25, 1.0, smoothstep(0.0, 1.0, lift_blend))
+	var hitch:=_hitch()+Vector3.UP*lift_rise
 	var trailing_yaw := _tow_yaw(pin_travel,heading,2.0*half_wheelbase,line_end>0)
 	if first_hook:
 		var tail := car.to_global(rolling_axle)-hitch
@@ -1777,6 +1798,8 @@ func in_wrecker(point:Vector3) -> bool:
 
 func _trail(dt:float, pin_travel := Vector3.ZERO) -> void:
 	body.lift.position.y=move_toward(body.lift.position.y,.39 if loaded else .03,dt*.65)
+	if loaded:
+		lift_blend = move_toward(lift_blend, 1.0, dt * 1.9)
 	_advance_riders(dt)
 	for i in range(departures.size()-1,-1,-1):
 		var driver := departures[i]

@@ -17,19 +17,21 @@ const TRUCK_PANELS := [
 
 var pending := {}
 var filed := {}
+var inspected := {}
 var exposure := {}
 var sample_time := 0.0
 var radio_choices: Array[Dictionary] = []
 
 func save_state() -> Dictionary:
 	# JSON sorts dictionary keys. Keep the order in which Brandt saw things.
-	return {"pending":pending.values().duplicate(true),"filed":filed.duplicate()}
+	return {"pending":pending.values().duplicate(true),"filed":filed.duplicate(),"inspected":inspected.duplicate()}
 
 func restore(data: Dictionary) -> void:
 	pending.clear()
 	for note: Dictionary in data.get("pending",[]):
 		pending[note.key] = note.duplicate()
 	filed = data.get("filed",{}).duplicate()
+	inspected = data.get("inspected",{}).duplicate()
 	exposure.clear()
 	sample_time = 0.0
 	_rebuild_choices()
@@ -126,12 +128,17 @@ func _range(kind: String, game) -> float:
 	if kind in ["green_circle","bare_ring","farm_ring","survey_ring","tou_ring","pressed_lines","roadside_tape"]: return 32.
 	return minf(72.,game.county.storm_environment.fog_depth_end*.75)
 
+func mark_inspected(key: String) -> void:
+	inspected[key] = true
+
 func inspectable(game, director) -> Dictionary:
 	if game.rig.in_cab or not is_instance_valid(director.scene): return {}
 	var nearest := 6.0
 	var choice := {}
 	var camera: Camera3D = game.world_view.get_camera_3d()
 	for source in _physical_sources(game,director):
+		if inspected.has(source.note.key) or filed.has(source.note.key):
+			continue
 		for at: Vector3 in source.points:
 			if _in_view(camera,at,nearest,game):
 				choice = source.note

@@ -21,6 +21,7 @@ const RECEIPTS := {
 }
 # Parts that hang on the wrecker, so the counter won't fit them to the carrier.
 const WRECKER_ONLY := ["second_winch","aux_tank","snatch_block"]
+const SERVICE_THRESHOLD := 0.10
 
 ## The last sale's receipt, cleared when the catalog opens.
 var receipt := ""
@@ -61,7 +62,7 @@ func purchase(game, id: String) -> bool:
 	if not game.at_office() or not game.truck_in_yard():
 		return false
 	if id == "service_winch":
-		if rig.wear <= 0.001 or not account.pay_repair():
+		if rig.wear < SERVICE_THRESHOLD or not account.pay_repair():
 			return false
 		rig.wear = 0.0
 		receipt = "Winch serviced. Cable and drum ready."

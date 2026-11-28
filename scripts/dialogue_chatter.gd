@@ -7,43 +7,53 @@ const SPEAKER_HZ := {
 	"HIGHWAY BASE": 308.0, "COUNTY GARAGE": 205.0, "CAR FOUR": 375.0,
 	"DUANE": 245.0, "DEPUTY PELZ": 263.0, "DEPUTY RUIZ": 337.0, "FREIGHT DRIVER": 214.0,
 }
+const RADIO_SPEAKERS := ["DISPATCH", "COUNTY PLOW", "HIGHWAY BASE", "COUNTY GARAGE", "CAR FOUR"]
 
-static func render(speaker: String, text: String) -> AudioStreamWAV:
-	var pcm := PackedByteArray()
-	var base_hz: float = SPEAKER_HZ.get(speaker, 320.0)
+static func render(speaker: String, text: String, on_radio := false) -> AudioStreamWAV:
+	var radio := on_radio or speaker in RADIO_SPEAKERS
 	var words := text.split(" ", false)
-	for i in words.size():
-		var word := words[i]
-		var hz := base_hz * (0.92 + 0.035 * (word.hash() % 6))
-		var duration := 0.038 + 0.005 * mini(word.length(), 8)
-		# Long words break into two pulses. Punctuation leaves a breath between groups.
-		if word.length() >= 6:
-			_append_pulse(pcm, hz, duration * 0.70)
-			pcm.resize(pcm.size() + 2 * roundi(0.014 * MIX_RATE))
-		if word.ends_with("?"):
-			hz *= 1.18
-		elif word.ends_with("."):
-			hz *= 0.86
-		_append_pulse(pcm, hz, duration)
-		if i < words.size() - 1:
-			var gap := 0.105 if word.right(1) in [",", ".", "?", "!"] else 0.026
-			pcm.resize(pcm.size() + 2 * roundi(gap * MIX_RATE))
+	var noise := RandomNumberGenerator.new()
+	noise.seed = posmod(speaker.hash() * 31 + text.length() * 17, 100000) + 7
+	var pcm := PackedByteArray()
+	if radio:
+		# Subtle VHF push-to-talk key-up click followed by a brief quiet carrier bed
+		# so the squelch tail lands cleanly after a beat without musical beeps.
+		var click_frames := roundi(0.036 * MIX_RATE)
+		var carrier_seconds := clampf(0.42 + words.size() * 0.035, 0.50, 1.15)
+		var total_frames := click_frames + roundi(carrier_seconds * MIX_RATE)
+		pcm.resize(total_frames * 2)
+		var lp := 0.0
+		var click_hz: float = lerpf(920.0, 1340.0, clampf((float(SPEAKER_HZ.get(speaker, 320.0)) - 195.0) / 225.0, 0.0, 1.0))
+		for i in total_frames:
+			var t := float(i) / MIX_RATE
+			var sample := 0.0
+			var raw := noise.randf_range(-1.0, 1.0)
+			lp = lerpf(lp, raw, 0.28)
+			if i < click_frames:
+				var env := exp(-t * 140.0)
+				var switch_pop := sin(t * TAU * click_hz) * exp(-t * 210.0) * 0.55
+				var hiss := (raw - lp) * env * 0.42
+				sample = (switch_pop + hiss) * 0.52
+			else:
+				var ct := float(i - click_frames) / MIX_RATE
+				var fade := minf(1.0, minf(ct / 0.04, (carrier_seconds - ct) / 0.06))
+				sample = lp * 0.018 * maxf(0.0, fade)
+			pcm.encode_s16(i * 2, clampi(roundi(sample * 16000.0), -32000, 32000))
+	else:
+		# In-person lines stay quiet and unobtrusive: a soft single low cue.
+		var frames := roundi(0.055 * MIX_RATE)
+		pcm.resize(frames * 2)
+		var lp := 0.0
+		for i in frames:
+			var t := float(i) / MIX_RATE
+			lp = lerpf(lp, noise.randf_range(-1.0, 1.0), 0.14)
+			var env := sin(PI * float(i) / maxf(1.0, float(frames - 1)))
+			pcm.encode_s16(i * 2, clampi(roundi(lp * env * 2200.0), -32000, 32000))
 	var stream := AudioStreamWAV.new()
 	stream.format = AudioStreamWAV.FORMAT_16_BITS
 	stream.mix_rate = MIX_RATE
 	stream.data = pcm
 	return stream
-
-static func _append_pulse(pcm: PackedByteArray, hz: float, seconds: float) -> void:
-	var start := pcm.size()
-	var frames := roundi(seconds * MIX_RATE)
-	pcm.resize(start + frames * 2)
-	for i in frames:
-		var phase := fmod(i * hz / MIX_RATE, 1.0)
-		# A clipped triangle gives the square wave softer edges on a small speaker.
-		var wave := clampf((1.0 - 4.0 * absf(phase - 0.5)) * 2.4, -1.0, 1.0)
-		var envelope := minf(1.0, minf(i / (0.005 * MIX_RATE), (frames - 1 - i) / (0.012 * MIX_RATE)))
-		pcm.encode_s16(start + i * 2, roundi(16000 * wave * envelope))
 
 static func radio_pulse() -> AudioStreamWAV:
 	# Low, even pulses in the receiver. The lights themselves have no sound.

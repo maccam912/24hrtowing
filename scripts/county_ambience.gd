@@ -8,7 +8,7 @@ const SITES := {
 	"dam":{"point":Vector3(-472,.8,-95), "near":20., "reach":165., "db":-5., "sound":preload("res://assets/audio/dam_spillway.wav")},
 	"yard":{"point":Bay.FURNACE, "near":4., "reach":36., "db":-11., "sound":preload("res://assets/audio/bay_furnace.wav")},
 	"cooler":{"point":Vector3(-73.83,1.29,29.30), "near":2., "reach":12., "db":-13., "sound":preload("res://assets/audio/store_cooler.wav")},
-	"office":{"point":Fittings.OFFICE_TUBES, "near":1.2, "reach":8.3, "db":-17., "sound":preload("res://assets/audio/office_tubes.wav")},
+	"office":{"point":Fittings.OFFICE_TUBES, "near":1.2, "reach":8.3, "db":-18., "sound":preload("res://assets/audio/office_tubes.wav")},
 	"brewer":{"point":Fittings.COFFEE, "near":1.5, "reach":8., "db":-10., "sound":preload("res://assets/audio/coffee_brew.wav")},
 	"pour":{"point":Fittings.COFFEE+Vector3(.46,0,-.09), "near":1.5, "reach":7., "db":-7., "sound":preload("res://assets/audio/coffee_pour.wav")},
 }
@@ -39,7 +39,7 @@ func set_brewer(fitted: bool) -> void:
 func pour_coffee() -> void:
 	if brewer_fitted: activity.pour = 0.
 
-func mix(at: Vector3, in_cab: bool, in_store: bool, calm: float, active: bool, dt: float) -> void:
+func mix(at: Vector3, in_cab: bool, in_store: bool, calm: float, active: bool, dt: float, paperwork_open := false) -> void:
 	for id: String in SITES:
 		var site: Dictionary = SITES[id]
 		var speaker: AudioStreamPlayer3D = sources[id]
@@ -61,6 +61,8 @@ func mix(at: Vector3, in_cab: bool, in_store: bool, calm: float, active: bool, d
 				if not in_store: gain *= .12
 			elif in_cab or in_store:
 				gain *= .20 if in_cab else .08
+			if paperwork_open and id in ["office","yard"]:
+				gain *= .38
 			gain *= 1. - calm
 		var target := maxf(-80.,linear_to_db(gain))
 		if activity.has(id):

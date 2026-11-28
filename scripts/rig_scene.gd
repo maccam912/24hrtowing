@@ -119,7 +119,7 @@ static func car(parent:Node3D, kind:String, variant:int, identity := {}, live_wh
 			g.box(Vector3(x*.869,base+.80,(top_end-.56)*.50),Vector3(.063,.58,top_end+.56),GLASS,Vector3(0,0,s*.14))
 		if s>0 or not open_door:
 			g.box(Vector3(x*.912,base+.79,.06),Vector3(.069,.62,.067),body,Vector3(0,0,s*.15))
-			g.box(Vector3(x,base+.28,.0),Vector3(.03,.032,length*1.73),tint)
+			g.box(Vector3(x,base+(.06 if pickup else .28),.0),Vector3(.03,.032,length*1.73),tint)
 			for z in [-.04,.73]:
 				if z>cab_end: continue
 				g.box(Vector3(x+s*.018,base+.37,z),Vector3(.041,.032,.145),STEEL)
@@ -375,33 +375,6 @@ static func walk_person(witness: Node3D) -> void:
 	var animation: AnimationPlayer = witness.get_node("AnimationPlayer")
 	if animation.current_animation != "walk":
 		animation.play("walk", 0.18)
-
-static var reflector_material: StandardMaterial3D
-
-static func warning_triangle(parent: Node3D, at: Vector3, yaw: float) -> Node3D:
-	var stand := K.joint(parent,at,"WarningTriangle")
-	stand.rotation.y = yaw
-	var frame := K.new(stand)
-	# A weighted folding foot and a short riser hold the reflector above the snow.
-	frame.box(Vector3(0,.055,0),Vector3(.24,.11,.78),BLACK)
-	frame.box(Vector3(0,.15,0),Vector3(.14,.20,.10),STEEL)
-	var corners := PackedVector3Array([Vector3(-.51,.27,0),Vector3(0,1.13,0),Vector3(.51,.27,0)])
-	var strips := K.new(stand)
-	for i in corners.size():
-		var a := corners[i]
-		var b := corners[(i + 1) % corners.size()]
-		frame.beam(a,b,.18,.045,Color("#dd4936"))
-		strips.beam(a,b,.095,.052,Color.WHITE)
-	frame.finish()
-	if not reflector_material:
-		reflector_material = StandardMaterial3D.new()
-		reflector_material.albedo_color = Color("#ff7842")
-		reflector_material.roughness = .45
-		reflector_material.emission_enabled = true
-		reflector_material.emission = Color("#ed5637")
-		reflector_material.emission_energy_multiplier = .32
-	strips.finish().material_override = reflector_material
-	return stand
 
 static func flare(parent:Node3D, at:Vector3) -> Node3D:
 	var p=K.joint(parent,at,"RoadFlare")

@@ -91,12 +91,7 @@ func run() -> void:
 	check_text("Report a sighting", true)
 	key(KEY_ENTER)
 	await redraw()
-	for i in ceili(game.sub_time):
-		if "red triangle" in "\n".join(surface.words): break
-		game.sub_time -= 1.
-		game._refresh()
-		await redraw()
-	check_text("red triangle", true)
+	check(game.rig.beacon_target.is_equal_approx(game.rig.job_site), "Accepting an ordinary job selects its pickup for proximity guidance")
 	var route := str(game._road_note().get("instruction", ""))
 	var procedure := str(game.state.progress)
 	check(game.job.plate in route and game.job.vehicle in route, "The talk-in should name the car on the current slip")
@@ -136,12 +131,22 @@ func run() -> void:
 
 	game.rig.in_cab = true
 	game.rig.set_spawn(game.rig.job_site + Vector3.BACK * 12.0)
+	check(game.rig.beacons_active(), "Approaching the pickup should flash the wrecker's amber beacons")
+	game.rig.driving_view = "cab"
+	game._refresh()
+	await redraw()
+	check_text("BEACONS", true)
+	game.rig.set_spawn(game.rig.job_site + Vector3.BACK * 100.0)
+	game._refresh()
+	await redraw()
+	check_text("BEACONS", false)
+	game.rig.set_spawn(game.rig.job_site + Vector3.BACK * 12.0)
 	key(KEY_T)
-	check(game.job.plate in game.subtitle and "red triangle" in game.subtitle,
+	check(game.job.plate in game.subtitle and game.job.vehicle in game.subtitle,
 		"Asking again at the shoulder should identify the pickup")
 	game.accept(game.campaign.ticket(1002,"mail"))
 	key(KEY_T)
-	check(game.job.plate in game.subtitle and game.job.vehicle in game.subtitle and "triangle" not in game.subtitle,
+	check(game.job.plate in game.subtitle and game.job.vehicle in game.subtitle,
 		"The talk-in should identify the carrier's wagon from its own slip")
 	game.rig.phase = "loaded"
 	game.mode = "haul"

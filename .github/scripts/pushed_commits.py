@@ -8,7 +8,11 @@ from pathlib import Path
 event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
 head = os.environ["GITHUB_SHA"]
 commits = [head]
-if os.environ["GITHUB_EVENT_NAME"] == "push":
+push = os.environ["GITHUB_EVENT_NAME"] == "push"
+ref = os.environ["GITHUB_REF"]
+default_ref = f'refs/heads/{event["repository"]["default_branch"]}'
+play_bundle = push and ref.startswith("refs/heads/release/") and ref != default_ref
+if push and not play_bundle:
     before = event["before"]
     if before != "0" * 40:
         # A force-push can make the old tip unavailable to an ordinary clone.
@@ -30,3 +34,4 @@ for start in range(0, len(commits), width):
     batches.append({"label": batch[-1]["sha"][:12], "commits": batch})
 with open(os.environ["GITHUB_OUTPUT"], "a") as output:
     print("batches=" + json.dumps(batches, separators=(",", ":")), file=output)
+    print("play_bundle=" + str(play_bundle).lower(), file=output)

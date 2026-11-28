@@ -84,7 +84,6 @@ var bay: Node3D
 var drop_guide := Node3D.new()
 var freight_guide := Node3D.new()
 var milk_guide := Node3D.new()
-var favor_guide: Node3D
 var bay_locked := false
 var survey_pickup_parked := true
 var tripod_taken := false
@@ -129,21 +128,6 @@ func map_roads() -> Array:
 	result.append({"name":"Alder Cut Rd","points":PackedVector2Array([Vector2(CaseSites.ALDER_X,-400),Vector2(CaseSites.ALDER_X,-470)])})
 	result.append({"name":"Hoffmann lane","points":PackedVector2Array([Vector2(400,336),HOFFMANN_LANE_END])})
 	return result
-
-func set_favor_guide(at: Vector3, yaw: float) -> void:
-	if not at.is_finite():
-		if favor_guide:
-			favor_guide.hide()
-		return
-	if not favor_guide:
-		favor_guide = Scene.warning_triangle(self,Vector3.ZERO,0)
-		favor_guide.name = "FavorStopGuide"
-		var guide = Sites.new(self,Batch.new(favor_guide,materials))
-		guide.favor_lamps()
-		guide.draw.finish()
-	favor_guide.position = Vector3(at.x,ground_height(at.x,at.z),at.z)
-	favor_guide.rotation.y = yaw
-	favor_guide.show()
 
 func map_places() -> Array:
 	var result := []
@@ -231,7 +215,7 @@ func set_survey_anchor(point: Vector3, yaw: float) -> void:
 		survey_pickup.rotation.y = yaw
 
 func rod_case_point() -> Vector3:
-	return Vector3(331,ground_height(331,-483)+.30,-483)
+	return Vector3(325.5,ground_height(325.5,-455)+.30,-455)
 
 func set_rod_case_read(value: bool) -> void:
 	if value == rod_case_read:

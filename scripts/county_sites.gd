@@ -101,8 +101,8 @@ func street_sign(x: float,z: float, first: String, second: String) -> void:
 	draw.parent.add_child(mount)
 	# Bake each pair of blades and both faces of its lettering onto the mount.
 	var plates = get_script().new(world, world.Batch.new(mount, world.materials))
-	plates.placard(Vector3.UP * .25,first,3.1,.44,0.0,"green",true)
-	plates.placard(Vector3.DOWN * .26,second,3.1,.44,PI*.5,"green",true)
+	plates.placard(Vector3.UP * .27,first,3.4,.52,0.0,"green",true)
+	plates.placard(Vector3.DOWN * .28,second,3.4,.52,PI*.5,"green",true)
 	plates.draw.finish()
 
 func address(x: float,z:float, text: String, yaw: float) -> void:
@@ -220,13 +220,17 @@ func yard() -> void:
 			b(xx,2.47,zz,.23,4.94,.23,"oxide",true)
 	b(-50.8,4.7,-50.9,17.55,.52,.24,"oxide")
 	b(-50.6,4.44,-46.8,7.0,.13,.32,"fluoro")
-	placard(Vector3(-50.7,4.64,-51.5),YardDrop.EVIDENCE.sign,13.5,1.65,PI,"black")
-	placard(Vector3(-41.75,4.64,-44.8),YardDrop.EVIDENCE.sign,12.4,1.65,PI*.5,"black")
+	placard(Vector3(-50.7,5.42,-51.5),YardDrop.EVIDENCE.sign,7.4,.92,PI,"black")
+	placard(Vector3(-41.75,5.42,-44.8),YardDrop.EVIDENCE.sign,6.8,.92,PI*.5,"black")
 	placard(Vector3(-57.2,1.45,-84.9),"STORAGE",4.2,.67,0,"dark")
-	# Office window and weatherproof fax desk face the yard. The fax interaction
-	# stands in open ground at (-40,-39), with no wall between player and machine.
+	# Office window and sheltered fax counter face the yard. The fax interaction
+	# stands under a deep porch overhang at (-40,-39), with no wall blocking reach.
 	b(-38,1.82,-35.45,8,3.64,4.4,"silver",true)
 	b(-38,3.77,-35.45,8.5,.26,4.85,"snow")
+	b(-38.6,3.18,-38.65,6.8,.16,2.15,"silver")
+	b(-38.6,3.31,-38.65,6.95,.12,2.25,"snow")
+	for px: float in [-41.8,-35.4]:
+		b(px,1.56,-39.55,.14,3.12,.14,"post",true)
 	window(Vector3(-38.8,2.08,-37.72),2.5,1.30,PI)
 	b(OFFICE_TUBES.x,OFFICE_TUBES.y+.071,OFFICE_TUBES.z,1.14,.11,.26,"silver")
 	for z:float in [-.061,.018]:
@@ -282,15 +286,15 @@ func yard() -> void:
 
 func storage_pad() -> void:
 	site(YardDrop.STORAGE.center.x, YardDrop.STORAGE.center.z)
-	var sign_at := Vector3(0, 3.55, -5.4)
+	var sign_at := Vector3(0, 2.35, -7.8)
 	var yaw := 1.08 # Face the open gate on County K.
 	var basis := Basis(Vector3.UP, yaw)
 	var rotation := Vector3(0, yaw, 0)
 	for side: float in [-1.0, 1.0]:
-		var leg := sign_at + basis.x * side * 2.7
-		b(leg.x, 1.65, leg.z, .14, 3.3, .14, "post")
-	draw.box(origin + sign_at, Vector3(8.6, 2.0, .17), "black", false, rotation)
-	var lettering := label(sign_at + basis.z * .096, YardDrop.STORAGE.sign, 1.80, yaw, Color("#ece9d5"))
+		var leg := sign_at + basis.x * side * 1.75
+		b(leg.x, 1.15, leg.z, .14, 2.3, .14, "post", true)
+	draw.box(origin + sign_at, Vector3(4.8, 1.05, .14), "black", false, rotation)
+	var lettering := label(sign_at + basis.z * .085, YardDrop.STORAGE.sign, .92, yaw, Color("#ece9d5"))
 	var bold := FontVariation.new()
 	bold.base_font = world.county_font
 	bold.variation_opentype = {"weight": 740}
@@ -314,15 +318,6 @@ func drop_guide() -> void:
 	for x: float in [13.3, 9.5]:
 		for z: float in [-1.0, 1.0]:
 			beam(Vector3(x + 1.0, .065, z * 1.5), Vector3(x - .6, .065, 0), .045, .38, "safety_yellow")
-
-func favor_lamps() -> void:
-	# Portable amber lamps flank the folding reflector at the marked shoulder.
-	for x: float in [-.95,.95]:
-		b(x,.13,0,.37,.26,.34,"dark")
-		cyl(x,.46,0,.12,.44,"safety_yellow")
-		cyl(x,.77,0,.28,.21,"amber_lens")
-		for yaw: float in [0.0,PI*.5]:
-			draw.add("quad",p(x,.78,0),Vector3(2.1,2.1,1),"sodium",Vector3(0,yaw,0))
 
 func esker() -> void:
 	# Paired bell towers of St. Hedwig's read before its sign.
@@ -420,7 +415,7 @@ func river_and_seat() -> void:
 		b(-475,.29,side*6.15,61,.58,.4,"slush",true)
 	site(-539,-13)
 	for zz:float in [-5.5,5.5]:
-		b(0,2.85,zz, .28,5.7,.28,"wood")
+		b(0,2.85,zz, .28,5.7,.28,"wood",true)
 	placard(Vector3(0,4.8,0),"TAMARACK RIVER",12.3,1.68,PI*.5,"green",true)
 	site(-580,27)
 	b(0,2.7,0,17,5.4,10,"silver",true)
@@ -449,6 +444,16 @@ func river_and_seat() -> void:
 	for x:float in [-11.,-7.,-3.,1.,5.,9.]:
 		window(Vector3(x,3.4,6.6),1.65,1.9)
 		window(Vector3(x,7.05,6.6),1.65,1.9)
+	for x:float in [-9.,-3.,3.,9.]:
+		window(Vector3(x,3.4,-6.6),1.65,1.9,PI,false)
+		window(Vector3(x,7.05,-6.6),1.65,1.9,PI,x == -3.)
+	for z:float in [-3.,3.]:
+		window(Vector3(-15.1,3.4,z),1.65,1.9,-PI*.5,false)
+		window(Vector3(-15.1,7.05,z),1.65,1.9,-PI*.5,z > 0.)
+		window(Vector3(15.1,3.4,z),1.65,1.9,PI*.5,false)
+	b(-11.5,1.35,-6.58,1.6,2.7,.16,"dark")
+	b(0,.35,-6.9,30.6,.7,.9,"snow")
+	b(-15.4,.35,0,.9,.7,13.6,"snow")
 	b(0,9.7,0,30.5,.55,13.6,"snow")
 	placard(Vector3(0,5.5,6.7),"TAMARACK COUNTY",15,1.15,0,"black")
 	lamp(-12,9,6.3)
@@ -596,7 +601,7 @@ func road_furniture() -> void:
 			if has_poles and world.road_distance(here.x,here.z) >= 12.0:
 				here.y = world.ground_height(here.x,here.z)
 				origin=here
-				cyl(0,3.55,0,.22,7.65,"wood")
+				cyl(0,3.55,0,.22,7.65,"wood",true)
 				draw.beam(here-side*1.34+Vector3.UP*7.1,here+side*1.34+Vector3.UP*7.1,.11,.11,"wood")
 				for arm:float in [-1.,1.]:
 					var ins := here+side*arm+Vector3.UP*7.27
@@ -623,6 +628,9 @@ func road_furniture() -> void:
 			draw.box(pt+Vector3.UP*.022,stripe_size,"stripe")
 	for sign:Array in [[-6.7,-7.3,"HWY 64","COUNTY K"],[6.8,-393.2,"SWAMP RD","COUNTY K"],[393.,7.2,"HWY 64","KOLPACK RD"],[7.2,393.,"HENDRICKS RD","COUNTY K"],[393.,393.,"HENDRICKS RD","KOLPACK RD"],[793.,7.3,"HWY 64","COUNTY FF"],[7.,793.,"ZIELINSKI RD","COUNTY K"],[393.,793.,"ZIELINSKI RD","KOLPACK RD"],[793.,393.,"HENDRICKS RD","COUNTY FF"]]:
 		street_sign(sign[0],sign[1],sign[2],sign[3])
+	site(0,0)
+	lamp(-8.5,-8.5,6.3,true)
+	lamp(7.5,-393.5,6.3,true)
 	address(304,-406.8,"SEC. 3",PI*.5)
 	site(11,-49)
 	placard(Vector3(0,1.8,0),"ESKER  •  POP 402",4.6,.76,0.0,"green",true)
@@ -646,13 +654,27 @@ func bare_ring(center: Vector3, radius: float) -> void:
 		var a := float(n)*TAU/segments
 		var b_end := float(n+1)*TAU/segments
 		var corners: Array[Vector3] = []
-		for dims: Vector2 in [Vector2(a,radius),Vector2(b_end,radius),Vector2(b_end,radius*.88),Vector2(a,radius*.88)]:
-			var radial := dims.y * (1.0+.017*sin(dims.x*5))
+		for dims: Vector2 in [Vector2(a,radius),Vector2(b_end,radius),Vector2(b_end,radius*.86),Vector2(a,radius*.86),Vector2(b_end,radius*.52),Vector2(a,radius*.52)]:
+			var radial := dims.y * (1.0+.024*sin(dims.x*5)+.014*cos(dims.x*9))
 			var x := center.x+cos(dims.x)*radial
 			var z := center.z+sin(dims.x)*radial
 			corners.append(Vector3(x,world.ground_height(x,z)+.073,z))
 		draw.quad(corners[0],corners[1],corners[2],corners[3],"glass")
-		draw.quad(corners[3],corners[2],mid,mid,"dark")
+		draw.quad(corners[3],corners[2],corners[4],corners[5],"slush")
+		draw.quad(corners[5],corners[4],mid,mid,"dark")
+	for i in 4:
+		var vapor := MeshInstance3D.new()
+		var sheet := QuadMesh.new()
+		sheet.size = Vector2(radius*.82,1.65)
+		var steam := ShaderMaterial.new()
+		steam.shader = preload("res://assets/county/ground_vapor.gdshader")
+		steam.set_shader_parameter("seed",i*.27+center.x*.03)
+		sheet.material = steam
+		vapor.mesh = sheet
+		draw.parent.add_child(vapor)
+		var offset := Vector3(cos(i*2.4),0,sin(i*2.4))*radius*.48
+		vapor.position = Vector3(center.x+offset.x,world.ground_height(center.x+offset.x,center.z+offset.z)+.72,center.z+offset.z)
+		vapor.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 func footprints(start: Vector3, finish: Vector3, steps: int) -> void:
 	var forward := start.direction_to(finish)
@@ -674,7 +696,7 @@ func hold_site() -> void:
 	bare_ring(corner,2.65)
 	origin = corner
 	cyl(0,.123,0,.19,.06,"brass")
-	footprints(corner+Vector3.FORWARD*2.7,rod+Vector3.BACK*.85,113)
+	footprints(corner+Vector3.FORWARD*2.7,rod+Vector3.BACK*.85,68)
 
 func survey_rod_case() -> void:
 	# A riveted field case. Turning it over in the snow exposes the underside tag.

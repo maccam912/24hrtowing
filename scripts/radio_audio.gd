@@ -1,9 +1,8 @@
 extends Node
 
-const Speech := preload("res://scripts/county_speech.gd")
 const Chatter := preload("res://scripts/dialogue_chatter.gd")
 const FOLDER := "res://assets/audio/"
-const EFFECT_LEVELS_DB := {"footstep": -24.0, "air_brake": -25.0, "reverse": -21.0}
+const EFFECT_LEVELS_DB := {"footstep": -24.0, "air_brake": -25.0, "reverse": -21.0, "radio": -16.5}
 var lines := {}
 var chatter_streams := {}
 var engines := {}
@@ -16,10 +15,7 @@ var wind_filter: AudioEffectLowPassFilter
 var effects: Array[AudioStreamPlayer] = []
 var cursor := 0
 var radio_tail := false
-var scanner_voice := false
-var spoken := false
-var native_voices := PackedStringArray()
-var utterance := 0
+var scanner_cue := false
 var calm := 0.0
 var pulse := 0.0
 var audible := DisplayServer.get_name() != "headless"
@@ -89,45 +85,17 @@ func set_sighting(wind_calm: float, radio_interference: float) -> void:
 	calm = clampf(wind_calm,0,1)
 	pulse = clampf(radio_interference,0,1)
 
-func set_spoken(enabled: bool) -> void:
-	spoken = enabled
-	if not audible: return
-	if spoken:
-		native_voices = DisplayServer.tts_get_voices_for_language("en")
-		DisplayServer.tts_set_utterance_callback(DisplayServer.TTS_UTTERANCE_ENDED,_spoken_finished)
-	else:
-		if utterance > 0: DisplayServer.tts_stop()
-
-func voice_busy() -> bool:
-	return chatter.playing or (audible and spoken and utterance > 0 and DisplayServer.tts_is_speaking())
+func cue_busy() -> bool:
+	return chatter.playing
 
 func stop_scanner() -> void:
-	if not scanner_voice:
+	if not scanner_cue:
 		return
-	scanner_voice = false
+	scanner_cue = false
 	radio_tail = false
 	chatter.stop()
-	if audible and spoken and utterance > 0:
-		utterance += 1
-		DisplayServer.tts_stop()
-
-func _try_spoken(who: String, words: String) -> bool:
-	if not spoken or native_voices.is_empty():
-		return false
-	chatter.stop()
-	radio_tail = scanner_voice or who in ["DISPATCH","COUNTY PLOW"]
-	utterance += 1
-	var pitch: float = clampf(float(Chatter.SPEAKER_HZ.get(who,320))/320,.78,1.16)
-	var voice := native_voices[posmod(who.hash(),native_voices.size())]
-	DisplayServer.tts_speak(Speech.read_aloud(words),voice,84,pitch,.95,utterance,true)
-	return true
-
-func _spoken_finished(id: int) -> void:
-	if id == utterance and spoken:
-		_chatter_finished()
 
 func _exit_tree() -> void:
-	if audible and utterance > 0: DisplayServer.tts_stop()
 	if is_instance_valid(parked_diesel):
 		parked_diesel.stop()
 		parked_diesel.stream = null
@@ -138,29 +106,27 @@ func _sample(id: String) -> AudioStream:
 	return samples[id]
 
 func say(id: String) -> void:
-	scanner_voice = false
+	scanner_cue = false
 	var line: Array = lines[id]
-	if _try_spoken(line[0],line[1]): return
 	if not chatter_streams.has(id):
-		chatter_streams[id] = Chatter.render(line[0], line[1])
+		chatter_streams[id] = Chatter.render(line[0], line[1], line[0] in ["DISPATCH","COUNTY PLOW"])
 	_play_chatter(line[0], chatter_streams[id])
 
 func speak(who: String, words: String, from_scanner := false) -> void:
-	scanner_voice = from_scanner
-	if _try_spoken(who,words): return
-	# Generated tickets vary indefinitely. Keep only the utterance on the radio.
-	_play_chatter(who, Chatter.render(who, words))
+	scanner_cue = from_scanner
+	# Generated tickets vary indefinitely. Keep only the current cue.
+	_play_chatter(who, Chatter.render(who, words, from_scanner or who in ["DISPATCH","COUNTY PLOW"]))
 
 func _play_chatter(who: String, stream: AudioStream) -> void:
-	radio_tail = scanner_voice or who in ["DISPATCH","COUNTY PLOW"]
+	radio_tail = scanner_cue or who in ["DISPATCH","COUNTY PLOW"]
 	chatter.bus = &"County radio" if radio_tail else &"Master"
-	chatter.volume_db = -15.0 if scanner_voice else (-10.0 if radio_tail else -13.0)
+	chatter.volume_db = -14.0 if scanner_cue else (-11.0 if radio_tail else -17.0)
 	chatter.stream = stream
 	if audible:
 		chatter.play()
 
 func _chatter_finished() -> void:
-	scanner_voice = false
+	scanner_cue = false
 	if radio_tail:
 		radio_tail = false
 		effect("radio")
@@ -175,8 +141,9 @@ func effect(id: String) -> void:
 	var p := effects[cursor]
 	cursor = (cursor + 1) % effects.size()
 	p.stream = _sample(sample_id)
-	p.volume_db = EFFECT_LEVELS_DB.get(id, -7.5)
-	p.pitch_scale = 1.0 if id == "reverse" else randf_range(0.95,1.05)
+	var base_db: float = EFFECT_LEVELS_DB.get(id, -7.5)
+	p.volume_db = base_db + (randf_range(-2.5, 1.5) if id == "footstep" else 0.0)
+	p.pitch_scale = 1.0 if id == "reverse" else (randf_range(0.86, 1.14) if id == "footstep" else randf_range(0.95,1.05))
 	if audible:
 		p.play()
 
@@ -196,7 +163,7 @@ func mix_truck(s: Dictionary, player_active: bool, controls_live: bool, delta: f
 	wind_filter.cutoff_hz = lerpf(wind_filter.cutoff_hz,cutoff,1.0 - exp(-delta * 6.0))
 	_volume("wind", lerpf(wind_db + gust * (4.0 if cab and player_active else 6.0),-76.0,calm), delta)
 	var signal_level := pulse if cab and controls_live else 0.0
-	if radio_tail and voice_busy(): signal_level = 0.0
+	if radio_tail and cue_busy(): signal_level = 0.0
 	_volume("pulse",linear_to_db(maxf(.0001,signal_level*.42)),delta)
 	var blower := int(s.get("blower",1))
 	var heater_db := -65.0

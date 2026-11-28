@@ -8,3 +8,6 @@ build/
 *.jks
 .env*
 __pycache__/
+
+.antigravitycli/
+/android/

@@ -14,28 +14,36 @@ def run(args, cwd):
     subprocess.run([str(x) for x in args], cwd=cwd, check=True)
 
 
-def stamp_android_version(presets, sha, code):
+def android_version_code(index):
+    run_number = int(os.environ["GITHUB_RUN_NUMBER"])
+    code = run_number * 4096 + index
+    if not 0 <= index < 4096 or not 0 < code <= 2_100_000_000:
+        raise ValueError(f"Android version code out of range: {code}")
+    return code
+
+
+def stamp_android_version(presets, preset, code, version):
     # Keep original Godot serialization intact, including all other export presets.
     settings = presets.read_text()
     sections = re.split(r"(?m)^(\[preset\.\d+(?:\.options)?\])$", settings)
     for header, body in zip(sections[1::2], sections[2::2]):
-        if not re.search(r'(?m)^name="Android"$', body):
+        if not re.search(rf'(?m)^name="{re.escape(preset)}"$', body):
             continue
         options = sections.index(header[:-1] + ".options]") + 1
         body = sections[options]
         body, codes = re.subn(r"(?m)^version/code=\d+$", f"version/code={code}", body)
         body, names = re.subn(r'(?m)^version/name="([^"]*)"$',
-                              lambda m: f'version/name="0.1.{code}"', body)
+                              lambda _: f'version/name="{version}"', body)
         if codes != 1 or names != 1:
             raise ValueError("Missing or duplicate version fields in the Android export preset")
         sections[options] = body
         presets.write_text("".join(sections))
         return
-    raise ValueError("Missing Android export preset")
+    raise ValueError(f"Missing {preset} export preset")
 
 
-def export_release(checkout, preset, file):
-    run([os.environ["GODOT_BIN"], "--headless", "--export-release", preset, file], checkout)
+def export_release(checkout, preset, file, *options):
+    run([os.environ["GODOT_BIN"], "--headless", *options, "--export-release", preset, file], checkout)
     if not file.exists() or file.stat().st_size < 100_000:
         raise ValueError(f"Incomplete {preset} export")
 
@@ -67,9 +75,9 @@ def package_desktops(checkout, binary_dir, output, version):
 def package(checkout, output, sha, index):
     output.mkdir(parents=True)
     # Keep the APK upgradeable and expose its source revision in Android settings.
-    code = int(os.environ["GITHUB_RUN_NUMBER"]) * 4096 + index
-    stamp_android_version(checkout / "export_presets.cfg", sha, code)
+    code = android_version_code(index)
     version = f"0.1.{code}"
+    stamp_android_version(checkout / "export_presets.cfg", "Android", code, version)
     project = checkout / "project.godot"
     project.write_text(re.sub(r'(?m)^config/version="[^"]+"$', f'config/version="{version}"', project.read_text()))
     binary_dir = output.parent / f"{sha}-binaries"
@@ -88,6 +96,49 @@ def package(checkout, output, sha, index):
         sidecar = apk.with_suffix(".apk.idsig")
         if sidecar.is_file():
             sidecar.rename(output / sidecar.name)
+    write_checksums(output)
+
+
+def package_bundle(checkout, output, index):
+    output.mkdir(parents=True)
+    code = android_version_code(index)
+    project = (checkout / "project.godot").read_text()
+    project_version = re.search(r'(?m)^config/version="([^"]+)"$', project)
+    if project_version is None:
+        raise ValueError("Missing config/version in project.godot")
+    version = project_version[1]
+    stamp_android_version(checkout / "export_presets.cfg", "Google Play", code, version)
+    bundle = output / "24HRTowing-Android.aab"
+    export_release(checkout, "Google Play", bundle, "--install-android-build-template")
+    java = Path(os.environ["JAVA_HOME"]) / "bin"
+    verification = subprocess.check_output([
+        java / "jarsigner", "-J-Duser.language=en", "-J-Duser.country=US", "-verify", bundle,
+    ], text=True)
+    if not re.search(r"(?m)^jar verified\.$", verification):
+        raise ValueError("Android App Bundle signature did not verify")
+
+    bundletool = [java / "java", "-jar", os.environ["BUNDLETOOL_JAR"]]
+    bundle_arg = f"--bundle={bundle}"
+    subprocess.run([*bundletool, "validate", bundle_arg], check=True, stdout=subprocess.DEVNULL)
+    config = subprocess.check_output([*bundletool, "dump", "config", bundle_arg], text=True)
+    if "PAGE_ALIGNMENT_16K" not in config:
+        raise ValueError("Android App Bundle does not declare 16 KB page alignment")
+    manifest = [*bundletool, "dump", "manifest", bundle_arg, "--module=base"]
+    for attribute, expected in {
+        "/manifest/@package": "dev.maccam912.towing24hr",
+        "/manifest/@android:versionCode": str(code),
+        "/manifest/@android:versionName": version,
+        "/manifest/uses-sdk/@android:targetSdkVersion": "36",
+    }.items():
+        actual = subprocess.check_output([*manifest, f"--xpath={attribute}"], text=True).strip()
+        if actual != expected:
+            raise ValueError(f"Android App Bundle {attribute}: expected {expected}, got {actual!r}")
+    if subprocess.check_output([*manifest, "--xpath=/manifest/application/@android:debuggable"], text=True).strip() == "true":
+        raise ValueError("Android App Bundle is debuggable")
+    write_checksums(output)
+
+
+def write_checksums(output):
     records = []
     for file in sorted(output.iterdir()):
         with file.open("rb") as asset:
@@ -120,7 +171,9 @@ def main():
                 run(["git", "lfs", "fsck", sha], checkout)
                 run([sys.executable, "tools/run_tests.py"], checkout)
                 (verified / sha).touch()
-            elif (verified / sha).exists():
+            elif phase == "bundle" and (verified / sha).exists():
+                package_bundle(checkout, workspace / "build" / "play-bundle", commit["index"])
+            elif phase == "export" and (verified / sha).exists():
                 output = staging / "packages" / sha
                 package(checkout, output, sha, commit["index"])
                 releases = workspace / "build" / "ci-releases"

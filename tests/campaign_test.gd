@@ -71,7 +71,6 @@ func file_rotation() -> void:
 	if game.job.is_empty():
 		return
 	if game.job.kind == "passenger":
-		check(rig.warning_triangle == null, "the passenger waits beside the running car")
 		var driver: Vector3 = rig.get_witness_position()
 		rig.set_spawn(driver+Vector3(3,0,4))
 		inspect_at("offer_ride",driver)
@@ -260,7 +259,7 @@ func follow_detail(id: String) -> void:
 			rig.vehicle_identity.erase("case_id")
 			resume_shift()
 			await process_frame
-			check(rig.warning_triangle == null, "the porch tow keeps its case scene when an older rig snapshot resumes")
+			check(rig.vehicle_identity.get("case_id") == "angie", "the porch tow recovers its case identity when an older rig snapshot resumes")
 			game.casework.advance_departure(0.0)
 			check(is_equal_approx(game.campaign.angie_walked,walked) and game.county.case_models.angie_walking.get_node("AngieKraemer").position.z < -470.0,"Angie resumes up Alder Cut, past the porch")
 			game.casework.advance_departure(90.0)

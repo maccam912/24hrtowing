@@ -280,9 +280,9 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	if available and not offer.is_empty():
 		lines.append(("I’ll hold the wrecker call. " if s.get("wrecker_waiting",false) else "")+str(offer.dispatch))
 	if not lead.is_empty():
-		c.multiline(Vector2(x,ry+31),lead,c.subtle,19,c.CREAM,w-track_width-18 if trackable else w,4)
-		ry += 108
-		lines = lines.slice(maxi(0,lines.size()-1))
+		c.multiline(Vector2(x,ry+28),lead,c.subtle,18,c.CREAM,w-track_width-18 if trackable else w,3)
+		ry += 92
+		lines = lines.slice(maxi(0,lines.size()-(1 if available else 2)))
 	else:
 		lines = lines.slice(maxi(0,lines.size()-3))
 	if lines.is_empty():
@@ -295,6 +295,10 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 		if lead.is_empty():
 			c.multiline(Vector2(x,ry+30+i*65),words,c.subtle,19,c.WHITE,w,2)
 			c.rule(x,ry+69+i*65,w,Color("#5a685e"))
+		elif lines.size() > 1:
+			c.multiline(Vector2(x,ry+24+i*54),words,c.subtle,18,c.WHITE,w,2)
+			if i == 0:
+				c.rule(x,ry+58,w,Color("#5a685e"))
 		else:
 			c.multiline(Vector2(x,ry+30),words,c.subtle,19,c.WHITE,w,3)
 	var key := Rect2(x,p.end.y-32-button_height,w,button_height)
@@ -307,11 +311,11 @@ func _radio(c, p: Rect2, s: Dictionary) -> void:
 	else:
 		var buttons: Array[Array] = []
 		if available:
-			buttons.append(["respond","Keep me on rotation" if s.get("pending_case",false) else "Take contract"])
+			buttons.append(["respond","Take rotation tow" if s.get("pending_case",false) else "Take contract"])
 		if available and not (s.get("visit_offer",{}) as Dictionary).is_empty():
 			buttons.append(["visit_call","County look-see"])
 		if not available or not str(s.get("tracked_lead","")).is_empty():
-			buttons.append(["directions","Ask for directions"])
+			buttons.append(["directions","Ask for directions" if c.desk.is_touch_mode() else "Ask for directions [T]"])
 		var contact: Dictionary = s.get("radio_contact",{})
 		if not contact.is_empty():
 			buttons.append([contact.id,contact.label])
@@ -1026,8 +1030,11 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	var x := p.position.x+32
 	var width := p.size.x-64
 	var money := float(s.get("paid",0))
+	var pending_val := float(s.get("pending",0))
+	var batch_count := int(s.get("completed",0)) % 3
+	var pending_label := "PENDING (%d/3 SLIPS)" % batch_count if pending_val > 0.0 and batch_count > 0 else "PENDING PAYMENT"
 	var totals := [
-		["AVAILABLE",money],["PENDING PAYMENT",float(s.get("pending",0))],
+		["AVAILABLE",money],[pending_label,pending_val],
 		["LIFETIME EARNED",float(s.get("earned",0))]]
 	if float(s.get("fuel_due",0)) > 0:
 		totals.append(["FUEL IOU",float(s.fuel_due)])
@@ -1156,8 +1163,9 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 	left.position.y += size.y+8
 	right.position.y = left.position.y
 	var wear := float(s.get("wear",0.0))
+	var wear_status := "Serviced" if wear <= 0.001 else ("Good condition" if wear < 0.10 else "")
 	_equipment_card(c,left,"service_winch","Winch service","Restore pulling speed. Cable and drum wear is %d%%." % ceili(wear*100.0),ShopAccount.REPAIR_PRICE,
-		"Service winch","Serviced" if wear <= 0.001 else "",money,can_order,service_location)
+		"Service winch",wear_status,money,can_order,service_location)
 	_equipment_card(c,right,"buy_snatch_block","Snatch block set","Rig heavier recoveries, including the Unit 38 pickup.",ShopAccount.PRICES.snatch_block,
 		"Fit snatch block","Bring the wrecker" if s.get("rollback_active",false) else ("Fitted" if s.get("snatch_block",false) else ""),money,can_order,service_location)
 	_parts_nav(c,p,leaf)
@@ -1174,6 +1182,7 @@ func _parts(c, p: Rect2, s: Dictionary) -> void:
 func _parts_nav(c, p: Rect2, leaf: int) -> void:
 	var labels: Array = c.desk.parts_labels()
 	var x := p.end.x-258
+	c.text(Vector2(x-72,p.position.y+52),"%d / %d" % [leaf+1,labels.size()],c.MONO,14,FADED)
 	c.button("parts_prev",Rect2(x,p.position.y+6,80,80),"‹")
 	c.button("parts_leaf",Rect2(x+86,p.position.y+6,148,80),labels[(leaf+1)%labels.size()]+" ›")
 

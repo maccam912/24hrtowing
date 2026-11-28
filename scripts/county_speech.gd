@@ -10,10 +10,6 @@ static func occupation(label: String) -> String:
 	var article := "An " if label.left(1).to_lower() in ["a","e","i","o","u"] else "A "
 	return article+label.to_lower()
 
-# Expand printed road abbreviations for system voices. Keep the dispatch log as written.
-static func read_aloud(words: String) -> String:
-	return words.replace(" Rd"," Road").replace("St. Hedwig","Saint Hedwig").replace("County FF","County F F")
-
 const PAGE_LENGTH := 112
 var pages := PackedStringArray()
 var ends_at := PackedFloat32Array()

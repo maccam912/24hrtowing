@@ -44,7 +44,7 @@ func build() -> void:
 	b(0,.045,-1.45,18.8,.09,4.4,"cream")
 	b(0,.095,-3.53,19.1,.09,.20,"brass")
 	for i in 7:
-		b(-1.97+i*.66,.019,-6.0,.32,.038,4.40,"white")
+		b(-1.97+i*.66,.014,-6.0,.24,.026,3.85,"slush")
 	# Twin entrances leave room for the wrecker to pull through in either direction.
 	for i: int in range(-10,11,2):
 		b(i,.14,-14.7,2.0,.28,.45,"slush")
@@ -54,7 +54,7 @@ func build() -> void:
 		lamp(x,-1.4,5.1)
 	# The H faces the highway in both directions.
 	site(829,7.7)
-	b(0,1.61,0,.25,3.22,.24,"post")
+	b(0,1.61,0,.25,3.22,.24,"post",true)
 	b(0,4.54,0,.24,2.81,2.98,"blue_sign")
 	for side: float in [-1,1]:
 		label(Vector3(side*.13,4.6,0),"H",2.36,side*PI*.5,Color("#f5f1db"))

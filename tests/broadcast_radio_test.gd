@@ -21,13 +21,13 @@ func run() -> void:
 	await tap_control("open_scanner")
 	await tap_control("open_broadcast")
 	await tune_now("am",6.)
-	check(game.state.broadcast_station == "am" and "Milk trucks" in game.state.subtitle and game.speaker != "ESKER FARM SERVICE","AM farm report has a voiced clip and a separate readable caption")
+	check(game.state.broadcast_station == "am" and "Milk trucks" in game.state.subtitle and game.speaker != "ESKER FARM SERVICE","the AM farm report appears as a readable caption")
 	var am: AudioStream = radio.program.stream
-	check(am.get_length() >= radio.programs.am.duration-.1,"the complete farm report and original polka are packed")
+	check(am.get_length() >= radio.programs.am.duration-.1,"the complete original polka is packed")
 	radio.elapsed = radio.programs.am.cues[3].start
 	radio.advance(.1,game)
 	game._refresh()
-	check(game.state.broadcast_label == "The Forty Acre Polka" and game.state.subtitle.is_empty(),"the tune follows the dance-hall introduction")
+	check(game.state.broadcast_label == "The Forty Acre Polka" and game.state.subtitle.is_empty(),"the dance-hall caption gives way to the polka title")
 	await tune_now("fm",9.)
 	var fm: AudioStream = radio.program.stream
 	check(am != fm and fm.get_length() >= radio.programs.fm.duration-.1 and game.state.broadcast_label == "Sunday at River Lanes","the FM preset plays its own country waltz and calendar")

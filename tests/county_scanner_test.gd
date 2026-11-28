@@ -31,7 +31,7 @@ func run() -> void:
 	check(game.scanner.history.size() == 1 and game.calls == dispatch_history and game.audio.chatter.bus == &"County radio","receiver works on the bench and has its own three-call log and filtered audio")
 	await tap_control("scanner_off")
 	listen_now()
-	check(game.scanner.history.size() == 1 and not game.audio.scanner_voice and game.sub_time == 0,"turning off the scanner silences scanner speech")
+	check(game.scanner.history.size() == 1 and not game.audio.scanner_cue and game.sub_time == 0,"turning off the scanner clears its cue and caption")
 	await tap_control("close_scanner")
 	await tap_control("respond")
 	check(game.mode == "fieldwork" and game.speaker.begins_with("DISPATCH"),"switching the receiver off leaves dispatch working")
@@ -62,7 +62,7 @@ func run() -> void:
 	check(game.scanner.history[0].channel == "sheriff" and "lights, no action" in game.subtitle and game.sightings.report_options().is_empty(),"the deputy independently hears of the lights without filing evidence for Brandt")
 	var first: Dictionary = game.scanner.history[0]
 	game._directions()
-	check(game.speaker == "DISPATCH" and not game.audio.scanner_voice,"asking for directions cuts into a scanner transmission")
+	check(game.speaker == "DISPATCH" and not game.audio.scanner_cue,"asking for directions cuts into a scanner transmission")
 	game.scanner.wait_seconds = 0
 	game.scanner.advance(90,game)
 	check(game.scanner.history[0] == first,"the receiver waits for Arlene to finish")
@@ -95,7 +95,6 @@ func run() -> void:
 	game.sub_time = .15
 	game._refresh()
 	check("Regular rate either way." in game.state.subtitle and game.state.subtitle.length() <= game.caption.PAGE_LENGTH,"the clearance terms get a separate reading time")
-	check(game.audio.Speech.read_aloud("Hendricks Rd by St. Hedwig’s on County FF") == "Hendricks Road by Saint Hedwig’s on County F F","the spoken address expands the printed abbreviations")
 	if not failures:
 		print("CHECKS PASSED — stock scanner, county crystal bank, saved tuning, field traffic and dispatch priority")
 	quit(int(failures > 0))

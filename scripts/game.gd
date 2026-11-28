@@ -118,6 +118,7 @@ var saved_data := {}
 var state := {}
 var test_session := false
 var shutting_down := false
+var action_prompts := "auto"
 
 func _ready() -> void:
 	# Scripted SceneTree entry points (tests and screenshot captures) use their
@@ -170,8 +171,8 @@ func _ready() -> void:
 		preferences.load(OPTIONS_FILE)
 	Engine.max_fps = int(preferences.get_value("cab","fps",saved_data.get("fps",30)))
 	desk.fps = Engine.max_fps
-	audio.set_spoken(preferences.get_value("cab","spoken",saved_data.get("spoken",false)))
 	rig.assist = preferences.get_value("rig","suggested_anchors",true)
+	action_prompts = str(preferences.get_value("cab","action_prompts","auto"))
 	_refresh()
 	print("24 HR Towing | dispatch ready")
 
@@ -314,10 +315,10 @@ func _physics_process(dt: float) -> void:
 	if playing:
 		county.fire_bay.advance(job.get("site") == "fire_hall" and mode == "haul",rig,dt)
 	county.follow_camera(world_view.get_camera_3d().global_position,rig.in_cab and playing_shift,in_store)
-	ambience.mix(player_at,rig.in_cab,in_store,audio.calm,playing_shift,dt)
+	ambience.mix(player_at,rig.in_cab,in_store,audio.calm,playing_shift,dt,desk.is_blocking())
 	if active and not desk.is_title() and desk.page not in ["pause", "guidance"]:
 		if sub_time > 0.0:
-			sub_time = maxf(.05 if audio.voice_busy() else 0.0,sub_time-dt)
+			sub_time = maxf(.05 if audio.cue_busy() else 0.0,sub_time-dt)
 	ui_timer += dt
 	# A pedal touch between HUD updates must see the latest physics step.
 	if ui_timer >= 0.10 or rig.is_stopped() != state.truck_stopped:
@@ -422,7 +423,7 @@ func _action(id: String) -> void:
 				if survey.tracked_lead.is_empty():
 					survey.tracked_lead = campaign.chapter()
 					if rig.in_cab and not fuel_can.needed(self) and not fuel_can.en_route():
-						if casework.lead_site().is_empty():
+						if casework.lead_site().is_empty() and case_lock().is_empty():
 							speak("DISPATCH",casework.lead_instruction())
 						else:
 							_directions()
@@ -524,8 +525,9 @@ func _action(id: String) -> void:
 			rig.assist = not rig.assist
 			rig.update_highlight()
 			_save_options()
-		"settings_voice":
-			audio.set_spoken(not audio.spoken)
+		"settings_prompts":
+			var order := ["auto","on","off"]
+			action_prompts = order[(order.find(action_prompts) + 1) % order.size()]
 			_save_options()
 		"settings_30","settings_60":
 			Engine.max_fps = 30 if id == "settings_30" else 60
@@ -542,7 +544,12 @@ func _action(id: String) -> void:
 		"tank_main","tank_reserve": nozzle.select_tank(self,id)
 		"buy_rollback","buy_aux_tank","buy_reserve_fuel","buy_second_winch","buy_west_hold","buy_west_lot","buy_yard_pump","buy_coffee_maker","buy_mirrors","buy_lamps","buy_chains","buy_snatch_block","buy_scanner","service_winch","buy_fuel":
 			if parts.purchase(self,id):
-				audio.effect("fax")
+				if id in ["buy_fuel","buy_reserve_fuel"]:
+					audio.rig_effect("lift")
+				elif id == "service_winch":
+					audio.rig_effect("ratchet")
+				else:
+					audio.effect("fax")
 				save()
 		"buy_coffee":
 			if desk.page == "coffee" and _at_counter() and rig.coffee_left <= 0 and account.buy_coffee():
@@ -579,11 +586,16 @@ func _save_options() -> void:
 	if not test_session:
 		var preferences := ConfigFile.new()
 		preferences.set_value("rig","suggested_anchors",rig.assist)
-		preferences.set_value("cab","spoken",audio.spoken)
 		preferences.set_value("cab","fps",Engine.max_fps)
+		preferences.set_value("cab","action_prompts",action_prompts)
 		if preferences.save(OPTIONS_FILE) != OK:
 			push_warning("Could not save cab settings")
 	save()
+
+func _show_action_prompts() -> bool:
+	if action_prompts == "on": return true
+	if action_prompts == "off": return false
+	return completed < 3
 
 func _advance_shift_clock(dt: float) -> void:
 	shift_seconds += dt
@@ -878,8 +890,6 @@ func accept(ticket: Dictionary) -> void:
 	var call_text: String = job.dispatch
 	if not survey.tracked_lead.is_empty() and not casework.lead_site().is_empty():
 		call_text += " I’ll hold that pickup for you. Your next stop is still %s." % casework.lead_label()
-	elif Rig.uses_warning_triangle(job.kind,job):
-		call_text += " Look for the red triangle."
 	speak("DISPATCH",call_text)
 	speaker = "DISPATCH  ·  CONTRACT %d ACCEPTED" % job.number
 	save()
@@ -1127,6 +1137,7 @@ func _interact() -> void:
 			var note := sightings.observations.inspectable(self,sightings)
 			if not note.is_empty():
 				sightings.observations.remember(note)
+				sightings.observations.mark_inspected(note.key)
 				show_message("BRANDT",sightings.Reports.inspection(note.kind))
 				save()
 		"unit","rod","house","farm_ring":
@@ -1359,6 +1370,7 @@ func _dropped() -> void:
 		stored.append({"number":job.number,"route":job.route,"variant":job.get("variant",2),"plate":job.plate,"vin":job.vin,
 			"heavy_recovery":job.get("heavy_recovery",false),"vehicle":job.get("vehicle",""),"location":job.get("location",""),"time":drop_time,
 			"checked_tape":Rig.Scene.Tape.imprint(job),"untaped":job.get("untaped",false)})
+		rig.show_note("Vehicle logged into storage stall %d. File the slip at the office fax." % stored.size(),5.0)
 	rig.end_job()
 	_display_storage()
 	save()
@@ -1786,7 +1798,7 @@ func _road_note() -> Dictionary:
 			var route := _route_note(stop)
 			if not route.is_empty():
 				lead_note = route
-			lead_note.instruction += " The red triangle and amber lamps mark %s." % casework.lead_label()
+			lead_note.instruction += " Your amber beacons flash as you approach %s." % casework.lead_label()
 			return lead_note
 		# An observed lead can be called in from wherever the operator parked.
 		if mode == "available" or survey.can_report_unit():
@@ -1803,9 +1815,7 @@ func _road_note() -> Dictionary:
 	if job.get("kind") not in ["ditch","hazard","hold","passenger"]:
 		return note
 	var identity := "%s, plate %s." % [job.vehicle,job.plate]
-	if Rig.uses_warning_triangle(job.kind,job):
-		identity += " Look for the red triangle."
-	elif job.kind == "passenger":
+	if job.kind == "passenger":
 		identity += " %s is waiting by the car." % Rides.rider(job).person
 	if note.is_empty():
 		return {"title":"Pickup   /   %s" % job.location,"instruction":identity}
@@ -1886,9 +1896,19 @@ func _refresh() -> void:
 	var card := filed_card if held or campaign.released else (_custody_record() if signed_card else "")
 	var favor_site := casework.lead_site() if not survey.tracked_lead.is_empty() else ""
 	var favor_point := casework.lead_point(favor_site)
-	county.set_favor_guide(favor_point,0.0 if favor_site == "last_cap" else PI*.5)
-	if rig.warning_triangle:
-		rig.warning_triangle.visible = favor_site.is_empty()
+	if not favor_site.is_empty() and favor_point.is_finite():
+		rig.beacon_target = favor_point
+	elif mode == "fieldwork" and not job.is_empty():
+		if job.kind in ["looksee","field_visit"]:
+			rig.beacon_target = county.resolve_point(job.point)
+		elif job.kind == "passenger" and rig.phase == "passenger":
+			rig.beacon_target = Rides.target(job)
+		else:
+			rig.beacon_target = rig.job_site
+	elif mode == "haul" and rig.loaded:
+		rig.beacon_target = rig.dropoff.center
+	else:
+		rig.beacon_target = Vector3.INF
 	var guide_on: bool = mode == "haul" and rig.loaded and favor_site.is_empty()
 	county.freight_guide.visible = guide_on and rig.semi != null
 	county.milk_guide.visible = guide_on and rig.tanker != null
@@ -1899,9 +1919,9 @@ func _refresh() -> void:
 	state = {"prompt":_prompt(site),"subtitle":caption.current(sub_time),"speaker":speaker,
 		"feedback":fuel_can.eta_text() if fuel_can.en_route() else (rig.info if rig.info_timer > 0 else ""),
 		"can_inspect_sighting":site == "inspect_sighting","can_wipe":site == "wipe_mirror",
-		"suggested_anchors":rig.assist,"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
-		"spoken":audio.spoken,"has_save":not saved_data.is_empty(),"newer_save":Ledger.newer_build,"in_cab":s.in_cab,"speed_mph":s.speed_mph,
-		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),
+		"suggested_anchors":rig.assist,"action_prompts":action_prompts,"completed":completed,"heated_mirrors":account.owns("mirrors"),"aux_lamps":account.owns("lamps"),"spot_on":rig.spot_on,
+		"has_save":not saved_data.is_empty(),"newer_save":Ledger.newer_build,"in_cab":s.in_cab,"speed_mph":s.speed_mph,
+		"driving_view":rig.driving_view,"truck_stopped":rig.is_stopped(),"beacons_active":rig.beacons_active(),
 		"can_enter_cab":rig.action_id() == "enter" and (not rig.is_chocked() or rig.fuel <= 0.0) and site.is_empty(),
 		"miles":s.odo,"trip":float(s.odo)-dispatch_odo if not job.is_empty() else 0.0,
 		"fuel":s.fuel,"tension":s.tension,"heading":["N","NE","E","SE","S","SW","W","NW"][bearing],
@@ -1965,6 +1985,21 @@ func _refresh() -> void:
 	state["favor_available"] = state.can_track_lead and not casework.lead_site().is_empty()
 	if site == "inspect_sighting" and not desk.is_touch_mode() and state.feedback.is_empty():
 		state.feedback = "E  ·  Take a closer look"
+	if _show_action_prompts() and state.feedback.is_empty() and casework.tower_height < 0.0 and not state.has("boom_instruction") and not state.has("drum_instruction"):
+		var touch_ui: bool = desk.is_touch_mode()
+		if not rig.in_cab:
+			var nearby_prompt := str(state.prompt)
+			if not site.is_empty() and not nearby_prompt.is_empty():
+				var key_verb := ("WIPE" if site == "wipe_mirror" else ("INSPECT" if site == "inspect_sighting" else "USE")) if touch_ui else "E"
+				state.feedback = "%s  ·  %s" % [key_verb, nearby_prompt]
+			elif state.work_available:
+				state.feedback = "Hold WINCH  ·  Operate winch" if touch_ui else "Hold Space  ·  Operate winch"
+			elif not nearby_prompt.is_empty():
+				var key_verb := ("ENTER CAB" if state.can_enter_cab else "USE") if touch_ui else "E"
+				state.feedback = "%s  ·  %s" % [key_verb, nearby_prompt]
+		elif not touch_ui and rig.is_stopped():
+			if (mode == "fieldwork" and rig.phase == "scene" and rig.near_casualty(35.0)) or (mode == "haul" and rig.loaded and rig.truck.position.distance_to(rig.dropoff.center) < 12.0):
+				state.feedback = "E  ·  Step out of cab"
 	state["recovery_restarts_job"] = _restart_on_recovery()
 	state.merge(broadcast.view(),true)
 	if state.subtitle.is_empty() and not state.broadcast_words.is_empty():
@@ -1995,7 +2030,7 @@ func save() -> void:
 		"signed":signed_card,"tripod":packed_tripod,"talked":talked,"asked":talked_twice,
 		"seconds":shift_seconds,"start":dispatch_odo,"pickup":pickup_odo,"drop":drop_odo,
 		"pickup_time":pickup_time,"drop_time":drop_time,"account":account.save_state(),"work":seconds_worked,"fuel_wait_left":fuel_can.wait_left,
-		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps,"spoken":audio.spoken}
+		"fax":fax_text,"faxes":faxes,"filed_card":filed_card,"plow":plow_heard,"fps":Engine.max_fps}
 	if casework.tower_height >= 0.0:
 		saved_data.tower = {"height":casework.tower_height,"glasses":casework.glasses}
 	# A shift from a later build stays untouched. This one plays without saving.

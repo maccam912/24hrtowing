@@ -1,17 +1,14 @@
-"""Render the original county radio programs with FluidSynth, FFmpeg, mido and piper-tts.
+"""Render the original instrumental county radio programs with FluidSynth, FFmpeg and mido.
 
-Pass a GeneralUser GS soundfont and Piper's US ljspeech-medium and bryce-medium voices.
-The workstation needs these instruments and voices only when rendering new broadcasts.
+Pass a GeneralUser GS soundfont. The station announcements are timed captions.
 """
 import argparse
 import json
 from pathlib import Path
 import subprocess
 import tempfile
-import wave
 
 from mido import Message, MetaMessage, MidiFile, MidiTrack, bpm2tempo
-from piper import PiperVoice
 
 AUDIO = Path(__file__).resolve().parents[1] / "assets/audio"
 RATE = 32000
@@ -151,59 +148,48 @@ def river_lanes(path):
 
 
 FARM = [
-    ("Farm report", "You're listening to seven sixty, Esker Farm Service. Good evening from the feed room."),
-    ("Farm report", "Milk trucks are taking the county roads tonight. Brush the snow off your tank vent before the hauler gets there."),
-    ("Dance hour", "The Thursday hall dance is on tape. Here's the Pine Row Trio with the Forty Acre Polka."),
-    ("The Forty Acre Polka", None),
-    ("Co-op desk", "Before we go back to the desk, the co-op has twine and salt by the west door. Bring your own shovel."),
+    (0.0, "Farm report", "You're listening to seven sixty, Esker Farm Service. Good evening from the feed room."),
+    (5.5, "Farm report", "Milk trucks are taking the county roads tonight. Brush the snow off your tank vent before the hauler gets there."),
+    (12.0, "Dance hour", "The Thursday hall dance is on tape. Here's the Pine Row Trio with the Forty Acre Polka."),
+    (18.0, "The Forty Acre Polka", ""),
+    (44.0, "Co-op desk", "Before we go back to the desk, the co-op has twine and salt by the west door. Bring your own shovel."),
 ]
 COUNTRY = [
-    ("Overnight country", "Ninety-nine seven. Tamarack Country. We keep the porch light on."),
-    ("Sunday at River Lanes", None),
-    ("Community calendar", "That's Sunday at River Lanes, by the Cedar Street Band. League bowlers, your score sheets are still at the counter."),
-    ("Community calendar", "The west bridge supper is postponed. Keep the tickets. They'll take them whenever the kitchen opens again."),
+    (0.0, "Overnight country", "Ninety-nine seven. Tamarack Country. We keep the porch light on."),
+    (5.5, "Sunday at River Lanes", ""),
+    (43.0, "Community calendar", "That's Sunday at River Lanes, by the Cedar Street Band. League bowlers, your score sheets are still at the counter."),
+    (51.0, "Community calendar", "The west bridge supper is postponed. Keep the tickets. They'll take them whenever the kitchen opens again."),
 ]
 
 
-def render_station(key, entries, writer, voice_path, soundfont, tmp, output):
+def render_station(key, entries, writer, soundfont, tmp, output):
     song = tmp / (key+".mid")
     writer(song)
     music = tmp / (key+"-music.wav")
     subprocess.run(["fluidsynth", "-ni", "-F", str(music), "-r", str(RATE), "-g", ".7", str(soundfont), str(song)], check=True)
-    voice = PiperVoice.load(voice_path)
-    mix = bytearray()
-    cues = []
-    for index, (label, words) in enumerate(entries):
-        wav = music
-        if words:
-            wav = tmp / (key+"-"+str(index)+".wav")
-            with wave.open(str(wav), "wb") as out:
-                voice.synthesize_wav(words, out)
-        # Match levels before the truck speaker's AM or FM band limit.
-        eq = "highpass=f=175,lowpass=f=3700" if key == "am" else "highpass=f=100,lowpass=f=7300"
-        level = -17 if words else -18.5
-        pcm = subprocess.check_output(["ffmpeg","-v","error","-i",str(wav),"-af",
-            f"silenceremove=start_periods=1:start_threshold=-60dB,{eq},loudnorm=I={level}:TP=-2.5:LRA=9",
-            "-ac","1","-ar",str(RATE),"-f","s16le","pipe:1"])
-        cues.append({"start":round(len(mix)/2/RATE,3), "label":label, "words":words or ""})
-        mix.extend(pcm)
-        mix.extend(bytes(2 * round(RATE * (.20 if words else .38))))
+    eq = "highpass=f=175,lowpass=f=3700" if key == "am" else "highpass=f=100,lowpass=f=7300"
+    pcm = subprocess.check_output(["ffmpeg","-v","error","-i",str(music),"-af",
+        f"silenceremove=start_periods=1:start_threshold=-60dB,{eq},loudnorm=I=-18.5:TP=-2.5:LRA=9,apad=pad_dur=0.38",
+        "-ac","1","-ar",str(RATE),"-f","s16le","pipe:1"])
+    duration = round(len(pcm)/2/RATE,3)
+    cues = [{"start":start,"label":label,"words":words} for start, label, words in entries]
+    if cues[-1]["start"] >= duration:
+        raise ValueError(f"The {key} program ends before the final caption.")
     subprocess.run(["ffmpeg","-v","error","-f","s16le","-ac","1","-ar",str(RATE),"-i","pipe:0",
-                    "-c:a","libmp3lame","-b:a","64k","-y",str(output / ("broadcast_"+key+".mp3"))],input=mix,check=True)
-    return {"duration":round(len(mix)/2/RATE,3),"cues":cues}
+                    "-c:a","libmp3lame","-b:a","64k","-y",str(output / ("broadcast_"+key+".mp3"))],input=pcm,check=True)
+    return {"duration":duration,"cues":cues}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--soundfont", type=Path, required=True)
-    parser.add_argument("--farm-voice", type=Path, required=True)
-    parser.add_argument("--country-voice", type=Path, required=True)
     parser.add_argument("--output", type=Path, default=AUDIO)
     args = parser.parse_args()
+    args.output.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="county-air-") as work:
         programs = {}
-        for key, entries, writer, voice in [("am",FARM,farm_polka,args.farm_voice), ("fm",COUNTRY,river_lanes,args.country_voice)]:
-            programs[key] = render_station(key,entries,writer,voice,args.soundfont,Path(work),args.output)
+        for key, entries, writer in [("am",FARM,farm_polka), ("fm",COUNTRY,river_lanes)]:
+            programs[key] = render_station(key,entries,writer,args.soundfont,Path(work),args.output)
         (args.output / "radio_programs.json").write_text(json.dumps(programs, indent=2, ensure_ascii=False)+"\n")
 
 

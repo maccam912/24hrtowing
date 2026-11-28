@@ -14,7 +14,7 @@ const AMBER := Color("#ffaf32")
 const TAIL := Color("#b3202a")
 const INK := Color("#242523")
 const GREEN := Color("#a7bb9e")
-const EYE := Vector3(-0.55,2.56,-0.42)
+const EYE := Vector3(-0.55,2.61,-0.52)
 const DOOR := Vector3(-1.55,0.0,-0.55)
 const PANEL := Vector3(-1.43,1.05,2.38)
 const DRUM := Vector3(0,1.38,4.0)
@@ -92,14 +92,14 @@ func build(parked := false, carrier := false) -> void:
 		add_child(light)
 		headlamps.append(light)
 		light.position=Vector3(s*.95,1.34,-3.97)
-		light.rotation.x=-.088
+		light.rotation.x=-.065
 		light.light_color=Color("#fff1d4")
 		light.visible = not parked
-		light.light_energy=3.5
-		light.spot_attenuation=.48
-		light.spot_range=57.0
-		light.spot_angle=24.0
-		light.spot_angle_attenuation=.8
+		light.light_energy=3.2
+		light.spot_attenuation=.55
+		light.spot_range=60.0
+		light.spot_angle=25.0
+		light.spot_angle_attenuation=1.15
 		k.tube(Vector3(s*.96,.81,-1.9),Vector3(s*.96,.81,-.07),.31,STEEL,16)
 		for z in [-1.75,-.25]:
 			k.tube(Vector3(s*.96,.81,z),Vector3(s*.96,.81,z+.07),.326,IRON,16)
@@ -501,11 +501,11 @@ func _mirror(s:float, parked := false) -> void:
 	add_child(viewport)
 	var camera:=Camera3D.new()
 	viewport.add_child(camera)
-	camera.fov=38
+	camera.fov=46
 	camera.far=570
 	camera.cull_mask=1
 	var loc=Kit.joint(self,at+Vector3(s*.08,0,.015),"MirrorEye")
-	loc.rotation=Vector3(-.16,PI-s*.13,0)
+	loc.rotation=Vector3(-.11,PI-s*.055,0)
 	camera.set_meta("mount",loc)
 	var quad:=QuadMesh.new()
 	quad.size=Vector2(.296,.503)

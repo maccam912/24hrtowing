@@ -122,6 +122,11 @@ func check_sighting_pages() -> void:
 	await process_frame
 
 func check_driving(centers: Dictionary) -> void:
+	for interruption in [Node.NOTIFICATION_APPLICATION_FOCUS_OUT, Node.NOTIFICATION_APPLICATION_PAUSED]:
+		touch(0, centers.steer_l, true)
+		touch(1, centers.gas, true)
+		desk.notification(interruption)
+		check(desk.get_move() == Vector2.ZERO, "Returning to the truck releases both pedals and steering")
 	var horn: AudioStreamPlayer3D = game.audio.recovery.driving.horn
 	touch(3,centers.horn,true)
 	ticks(35)

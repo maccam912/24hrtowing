@@ -30,7 +30,7 @@ func run() -> void:
 	game._action("radio")
 	game.desk._activate("respond")
 	var ticket:Dictionary = game.job.duplicate(true)
-	check(rig.tanker and rig.warning_triangle and not rig.second_winch,"a single wrecker with a block takes the milk route from the county radio")
+	check(rig.tanker and not rig.second_winch,"a single wrecker with a block takes the milk route from the county radio")
 	if not rig.tanker:
 		game.free()
 		quit(1)

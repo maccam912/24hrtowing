@@ -16,8 +16,8 @@ jobs:
     outputs:
       batches: ${{ steps.plan.outputs.batches }}
       desktop_builds: ${{ vars.ENABLE_DESKTOP_BUILDS != 'false' && 'true' || 'false' }}
-      # Only pushes to the default branch export and publish builds. The README's
-      # download link follows the newest release, so other branches only run tests.
+      play_bundle: ${{ steps.plan.outputs.play_bundle }}
+      # The README's download link follows default-branch GitHub releases.
       release: ${{ github.event_name != 'pull_request' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -38,6 +38,7 @@ jobs:
       COMMIT_BATCH: ${{ toJSON(matrix.batch.commits) }}
       ENABLE_DESKTOP_BUILDS: ${{ needs.revisions.outputs.desktop_builds }}
       RELEASE_BUILD: ${{ needs.revisions.outputs.release }}
+      PLAY_BUNDLE: ${{ needs.revisions.outputs.play_bundle }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -73,15 +74,17 @@ jobs:
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/24hrtowing/godot-4.7.2
-          key: 24hrtowing-godot-4.7.2-linux-${{ needs.revisions.outputs.release != 'true' && 'editor' || (needs.revisions.outputs.desktop_builds == 'true' && 'all-templates' || 'android-templates') }}-${{ hashFiles('.github/scripts/install-godot.sh') }}
+          key: 24hrtowing-godot-4.7.2-linux-${{ needs.revisions.outputs.play_bundle == 'true' && 'app-bundle-template' || (needs.revisions.outputs.release != 'true' && 'editor' || (needs.revisions.outputs.desktop_builds == 'true' && 'all-templates' || 'android-templates')) }}-${{ hashFiles('.github/scripts/install-godot.sh') }}
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
-        if: needs.revisions.outputs.release == 'true'
+        if: needs.revisions.outputs.release == 'true' || needs.revisions.outputs.play_bundle == 'true'
         with:
           distribution: temurin
           java-version: '17'
       - name: Install verified Godot release
         run: |
-          if [[ "$RELEASE_BUILD" == true ]]; then
+          if [[ "$PLAY_BUNDLE" == true ]]; then
+            bash .github/scripts/install-godot.sh --app-bundle
+          elif [[ "$RELEASE_BUILD" == true ]]; then
             bash .github/scripts/install-godot.sh --export
           else
             bash .github/scripts/install-godot.sh
@@ -92,8 +95,16 @@ jobs:
         if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' }}
         run: |
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Install Play bundle build tools
+        if: needs.revisions.outputs.play_bundle == 'true'
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'platform-tools' 'platforms;android-36' 'build-tools;36.1.0' 'ndk;29.0.14206865'
+          curl --fail --location --silent --show-error --retry 3 \
+            https://github.com/google/bundletool/releases/download/1.18.3/bundletool-all-1.18.3.jar \
+            -o "$RUNNER_TEMP/bundletool.jar"
+          echo "a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  $RUNNER_TEMP/bundletool.jar" | sha256sum --check --status
       - name: Export tested commits
-        if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' }}
+        if: ${{ (!cancelled() && needs.revisions.outputs.release == 'true') || (success() && needs.revisions.outputs.play_bundle == 'true') }}
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
@@ -107,7 +118,12 @@ jobs:
           trap 'rm -f "$GODOT_ANDROID_KEYSTORE_RELEASE_PATH"' EXIT
           printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$GODOT_ANDROID_KEYSTORE_RELEASE_PATH"
           unset ANDROID_KEYSTORE_BASE64
-          python3 .github/scripts/build_commits.py export
+          if [[ "$PLAY_BUNDLE" == true ]]; then
+            export BUNDLETOOL_JAR="$RUNNER_TEMP/bundletool.jar"
+            python3 .github/scripts/build_commits.py bundle
+          else
+            python3 .github/scripts/build_commits.py export
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() && needs.revisions.outputs.release == 'true' && hashFiles('build/ci-releases/*/SHA256SUMS.txt') != '' }}
         with:
@@ -115,6 +131,13 @@ jobs:
           path: build/ci-releases/
           compression-level: 0
           retention-days: 3
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: needs.revisions.outputs.play_bundle == 'true'
+        with:
+          name: play-bundle-${{ matrix.batch.label }}
+          path: build/play-bundle/
+          compression-level: 0
           if-no-files-found: error
 
   native:

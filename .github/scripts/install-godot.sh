@@ -19,10 +19,15 @@ if [[ ! -x "$cache/godot" ]]; then
     unzip -p "$RUNNER_TEMP/$editor.zip" "$editor" > "$cache/godot"
     chmod +x "$cache/godot"
 fi
-if [[ "${1:-}" == --export ]]; then
-    members=(templates/version.txt templates/android_{debug,release}.apk)
-    if [[ "${ENABLE_DESKTOP_BUILDS:-}" == true ]]; then
-        members+=(templates/linux_{debug,release}.x86_64 templates/windows_{debug,release}_x86_64{,_console}.exe templates/macos.zip)
+if [[ "${1:-}" == --export || "${1:-}" == --app-bundle ]]; then
+    members=(templates/version.txt)
+    if [[ "$1" == --app-bundle ]]; then
+        members+=(templates/android_source.zip)
+    else
+        members+=(templates/android_{debug,release}.apk)
+        if [[ "${ENABLE_DESKTOP_BUILDS:-}" == true ]]; then
+            members+=(templates/linux_{debug,release}.x86_64 templates/windows_{debug,release}_x86_64{,_console}.exe templates/macos.zip)
+        fi
     fi
     for member in "${members[@]}"; do
         [[ -s "$cache/$member" ]] && continue

@@ -1,6 +1,6 @@
 {
   "am": {
-    "duration": 75.744,
+    "duration": 51.724,
     "cues": [
       {
         "start": 0.0,
@@ -8,29 +8,29 @@
         "words": "You're listening to seven sixty, Esker Farm Service. Good evening from the feed room."
       },
       {
-        "start": 5.541,
+        "start": 5.5,
         "label": "Farm report",
         "words": "Milk trucks are taking the county roads tonight. Brush the snow off your tank vent before the hauler gets there."
       },
       {
-        "start": 11.894,
+        "start": 12.0,
         "label": "Dance hour",
         "words": "The Thursday hall dance is on tape. Here's the Pine Row Trio with the Forty Acre Polka."
       },
       {
-        "start": 17.469,
+        "start": 18.0,
         "label": "The Forty Acre Polka",
         "words": ""
       },
       {
-        "start": 69.194,
+        "start": 44.0,
         "label": "Co-op desk",
         "words": "Before we go back to the desk, the co-op has twine and salt by the west door. Bring your own shovel."
       }
     ]
   },
   "fm": {
-    "duration": 79.08,
+    "duration": 57.629,
     "cues": [
       {
         "start": 0.0,
@@ -38,17 +38,17 @@
         "words": "Ninety-nine seven. Tamarack Country. We keep the porch light on."
       },
       {
-        "start": 5.343,
+        "start": 5.5,
         "label": "Sunday at River Lanes",
         "words": ""
       },
       {
-        "start": 62.972,
+        "start": 43.0,
         "label": "Community calendar",
         "words": "That's Sunday at River Lanes, by the Cedar Street Band. League bowlers, your score sheets are still at the counter."
       },
       {
-        "start": 71.559,
+        "start": 51.0,
         "label": "Community calendar",
         "words": "The west bridge supper is postponed. Keep the tickets. They'll take them whenever the kitchen opens again."
       }

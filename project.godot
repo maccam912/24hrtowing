@@ -6,6 +6,9 @@ config/description="Run the last wrecker in Tamarack County, Wisconsin."
 config/version="0.1.0"
 run/main_scene="res://game.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/image="res://assets/art/wrecker.png"
+boot_splash/fullsize=false
+boot_splash/bg_color=Color(0.106, 0.137, 0.188, 1)
 config/icon="res://assets/art/wrecker.png"
 run/max_fps=30
 config/quit_on_go_back=false
@@ -18,10 +21,6 @@ window/size/window_height_override=720
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=4
-
-[audio]
-
-general/text_to_speech=true
 
 [input_devices]
 pointing/emulate_mouse_from_touch=true

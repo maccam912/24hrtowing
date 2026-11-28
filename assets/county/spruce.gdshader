@@ -35,7 +35,7 @@ void vertex() {
 	// Attached ends follow the leader; bough tips travel with their hinge.
 	float attachment = mix(h, hinge, flex);
 	float sway = sin(storm_time * 1.85 - phase - .64 * attachment);
-	float lean = .07 + .20 * gust + (.054 + .116 * gust) * sway;
+	float lean = .03 + .09 * gust + (.028 + .055 * gust) * sway;
 	float lever = height * attachment * attachment;
 	VERTEX.xz += wind * lever * lean;
 	VERTEX.y -= lever * lean * lean * .50;

@@ -282,14 +282,20 @@ func _menu() -> void:
 			_guidance(Vector2(x,y+98),width-56)
 			button("close",Rect2(x,p.end.y-(100 if touch else 68),148,78 if touch else 44),"Back")
 		"options":
-			text(Vector2(x,y+112), "FRAME RATE", MONO, 14, BLUE)
+			text(Vector2(x,y+96), "FRAME RATE", MONO, 14, BLUE)
 			var current: int = int(drawn.get("frame_rate",desk.fps))
-			button("settings_30",Rect2(x,y+136,166,78 if touch else 52), "30 FPS", current==30)
-			button("settings_60",Rect2(x+178,y+136,166,78 if touch else 52), "60 FPS", current==60)
 			var height_key := 78 if touch else 52
-			button("settings_voice",Rect2(x,y+225,width-56,height_key),"Dialogue   /   %s" % ("Spoken" if drawn.get("spoken",false) else "Radio chatter"))
-			button("settings_anchors",Rect2(x,y+(311 if touch else 291),width-56,height_key),"Suggested tow eyes   /   %s" % ("On" if drawn.get("suggested_anchors",true) else "Off"))
-			button("close",Rect2(x,p.end.y-(91 if touch else 67),155,height_key),"Back")
+			var row_gap := 10 if touch else 12
+			button("settings_30",Rect2(x,y+118,166,height_key), "30 FPS", current==30)
+			button("settings_60",Rect2(x+178,y+118,166,height_key), "60 FPS", current==60)
+			var row2 := y+118+height_key+row_gap
+			var half := (width-68)*0.5
+			button("settings_anchors",Rect2(x,row2,half,height_key),"Tow eyes   /   %s" % ("On" if drawn.get("suggested_anchors",true) else "Off"))
+			var prompt_mode := str(drawn.get("action_prompts","auto"))
+			var prompt_label: String = str({"auto":"First 3 tows","on":"Always on","off":"Off"}.get(prompt_mode,"First 3 tows"))
+			button("settings_prompts",Rect2(x+half+12,row2,half,height_key),"Prompts   /   %s" % prompt_label)
+			button("close",Rect2(x,p.end.y-(90 if touch else 67),155,height_key),"Back")
+			button("privacy",Rect2(x+width-248,p.end.y-(90 if touch else 67),192,height_key),"Privacy policy")
 		"help":
 			var line_y := y+94
 			var entries: Array
@@ -326,7 +332,7 @@ func _documents() -> void:
 		button("close",Rect2(p.end.x-148,p.end.y,148,tab_height),"Hang up" if desk.page == "bulk_pump" else "Step away",true)
 		return
 	# Labeled tabs project beyond the paper's bottom edge.
-	var tabs := [["slip","Slip"],["map","Plat book"],["radio","Radio"],["fax","Fax"],["parts","Shop"]]
+	var tabs := [["slip","Slip" if touch else "Slip [J]"],["map","Plat book" if touch else "Plat [M]"],["radio","Radio" if touch else "Radio [R]"],["fax","Fax"],["parts","Shop"]]
 	if desk.page == "map":
 		tabs[1] = ["turn_plat","‹ Esker sheet" if desk.east_sheet else "East sheet ›"]
 	if not str(drawn.get("custody_text","")).is_empty():
@@ -335,7 +341,7 @@ func _documents() -> void:
 		tabs.append(["field","Field book"])
 	var tab_x := p.position.x+8
 	var tab_gap := 6 if touch else 3
-	var stow_width := 94 if touch else 90
+	var stow_width := 94 if touch else 108
 	var touch_tab_width := (p.end.x-stow_width-tab_x)/tabs.size()-tab_gap
 	for tab in tabs:
 		var width_tab := touch_tab_width if touch else maxf(77,print_face.get_string_size(tab[1],HORIZONTAL_ALIGNMENT_LEFT,-1,16).x+24)
@@ -346,7 +352,7 @@ func _documents() -> void:
 		fitted(tab_box.grow(-3),tab[1],subtle,22 if touch else 17,INK)
 		hit(tab[0],tab_box)
 		tab_x+=width_tab+tab_gap
-	button("close",Rect2(p.end.x-stow_width,p.end.y,stow_width,tab_height),"Stow",true)
+	button("close",Rect2(p.end.x-stow_width,p.end.y,stow_width,tab_height),"Stow" if touch else "Stow [Esc]",true)
 
 func _glance() -> void:
 	var width := minf(353, dim.x*.38)
@@ -553,6 +559,11 @@ func _driving_view() -> void:
 		var tank := clampf(float(drawn.get("fuel",1.0)),0.0,1.0)
 		var fuel_ink := Color("#f79775") if tank <= 0.15 else AMBER
 		fitted(Rect2(meter.position+Vector2(6,28),Vector2(80,16)),"FUEL  %d%%" % ceili(tank*100.0),MONO,12,fuel_ink)
+	elif drawn.get("beacons_active",false):
+		var indicator := Rect2(compass.position.x,compass.end.y+1,compass.size.x,22)
+		hud_panels.append(indicator)
+		switch_face(indicator,RUBBER)
+		fitted(indicator,"BEACONS",MONO,16,AMBER)
 
 func _dash_compass(box: Rect2) -> void:
 	switch_face(box,Color("#42443d"))

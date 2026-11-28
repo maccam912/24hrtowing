@@ -42,7 +42,7 @@ func run() -> void:
 	var ticket: Dictionary = game.job
 	check(ticket.id == "stuck_plow" and "rear eye" in ticket.dispatch,"Arlene issues the heavy pull over the cab radio")
 	var vehicle: Node3D = rig.car
-	check(vehicle.name == "CountySnowplow" and vehicle.has_node("Blade") and rig.duane_on_scene() and rig.warning_triangle != null,"the call has a marked plow with its own blade and driver")
+	check(vehicle.name == "CountySnowplow" and vehicle.has_node("Blade") and rig.duane_on_scene(),"the call has a marked plow with its own blade and driver")
 	var rear: Vector3 = vehicle.global_basis.z.slide(Vector3.UP).normalized()
 	rig.set_spawn(vehicle.position+rear*18,ticket.angle+PI)
 	game._action("interact")

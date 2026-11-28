@@ -58,7 +58,7 @@ func advance(dt: float, game) -> void:
 	var running: bool = game.active and not game.finale.active and not game.desk.is_title() and game.desk.page not in ["pause","options","help","guidance","yard_recovery"]
 	if running: elapsed += dt
 	can_hear = running and game.rig.in_cab and STATIONS.has(station)
-	interrupted = game.sub_time > 0 or game.audio.voice_busy()
+	interrupted = game.sub_time > 0 or game.audio.cue_busy()
 	if not can_hear:
 		if program.playing: program.stop()
 		if hiss.playing: hiss.stop()
@@ -77,7 +77,7 @@ func advance(dt: float, game) -> void:
 		program.volume_db = -80.
 		program.play(playhead)
 		if not hiss.playing: hiss.play()
-	# Rapid channel priority keeps even the first syllable of Arlene's call clear.
+	# Duck the stereo as soon as the dispatch cue starts.
 	var program_db := -80. if interrupted else -10. + linear_to_db(maxf(.0003,signal_strength))
 	var hiss_gain := 0.0 if interrupted else .005+.105*(1.-signal_strength)
 	var fade := dt * (650. if interrupted else 115.)

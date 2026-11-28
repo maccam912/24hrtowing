@@ -133,6 +133,11 @@ func pencil_bounds() -> Rect2:
 	if east_sheet: return Rect2(Surface.Documents.Pencil.EAST_NW,Surface.Documents.Pencil.EAST_SE-Surface.Documents.Pencil.EAST_NW)
 	return Rect2(Surface.Documents.ATLAS_A,Surface.Documents.ATLAS_B-Surface.Documents.ATLAS_A)
 
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_APPLICATION_PAUSED, NOTIFICATION_APPLICATION_FOCUS_OUT]:
+		# Android can switch apps before sending the final touch release.
+		_clear_controls()
+
 func _clear_controls() -> void:
 	_touches.clear()
 	stick = Vector2.ZERO
@@ -295,6 +300,8 @@ func _activate(id: String) -> void:
 		"play":
 			start_play()
 			action.emit("play")
+		"privacy":
+			OS.shell_open("https://raw.githubusercontent.com/maccam912/24hrtowing/main/PRIVACY.md")
 		"close":
 			dismiss()
 		"pause":
@@ -304,7 +311,7 @@ func _activate(id: String) -> void:
 		"yard_recovery":
 			if page == "pause":
 				show_document(id,state)
-		"return_deputy_call","told_open","told_closed","cab_heat","blower_off","blower_low","blower_high","window_latch","confirm_yard_recovery","settings_anchors":
+		"return_deputy_call","told_open","told_closed","cab_heat","blower_off","blower_low","blower_high","window_latch","confirm_yard_recovery","settings_anchors","settings_prompts":
 			action.emit(id)
 		"title":
 			started = false
@@ -421,7 +428,7 @@ func _activate(id: String) -> void:
 			fps = 30 if id == "settings_30" else 60
 			action.emit(id)
 			surface.queue_redraw()
-		"tank_main", "tank_reserve", "buy_rollback", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_hold", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "settings_voice", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
+		"tank_main", "tank_reserve", "buy_rollback", "buy_aux_tank", "buy_reserve_fuel", "buy_second_winch", "buy_west_hold", "buy_west_lot", "buy_yard_pump", "buy_coffee_maker", "spot", "buy_mirrors", "buy_lamps", "interact", "camera", "quit", "buy_fuel", "buy_chains", "buy_snatch_block", "service_winch":
 			action.emit(id)
 		_:
 			if page == "radio" and sighting_page >= 0 and id.begins_with("sighting:"):

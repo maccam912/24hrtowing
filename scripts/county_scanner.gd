@@ -69,7 +69,7 @@ func advance(dt: float, game) -> void:
 		return
 	rx_left = maxf(0,rx_left-dt)
 	var monitoring: bool = game.desk.scanner_open and not game.desk.broadcast_open
-	if game.sub_time > 0 or game.audio.voice_busy() or (not monitoring and (game.completed < 1 or absf(game.rig.speed) < 1.0)):
+	if game.sub_time > 0 or game.audio.cue_busy() or (not monitoring and (game.completed < 1 or absf(game.rig.speed) < 1.0)):
 		return
 	wait_seconds = maxf(0,wait_seconds-dt)
 	if wait_seconds > 0:
@@ -95,7 +95,7 @@ func advance(dt: float, game) -> void:
 	_receive(game,line)
 
 func plow_call(game) -> bool:
-	if channel not in ["highway","garage"] or not _reception(game) or game.rig.duane_on_scene() or game.sub_time > 0 or game.audio.voice_busy():
+	if channel not in ["highway","garage"] or not _reception(game) or game.rig.duane_on_scene() or game.sub_time > 0 or game.audio.cue_busy():
 		return false
 	scripted_plow = game.sightings.active == "plow_stopped"
 	if scripted_plow:

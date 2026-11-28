@@ -58,7 +58,7 @@ func run() -> void:
 	game.desk._activate("respond")
 	var north := seed_value == 22
 	var expected_site := "freight_north" if north else "freight_south"
-	check(rig.semi != null and game.job.site == expected_site and rig.warning_triangle != null, "the radio opens the articulated turnout call")
+	check(rig.semi != null and game.job.site == expected_site, "the radio opens the articulated turnout call")
 	if not rig.semi:
 		game.free()
 		quit(1)
